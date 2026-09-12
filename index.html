@@ -2031,12 +2031,30 @@
   });
 
   function openNewTicketDrawer(portalMode){
+    // Με πολλούς πελάτες, το να ψάχνεις μέσα στο dropdown παίρνει ώρα — το εικονίδιο 🔍
+    // ανοίγει ένα μικρό πάνελ αναζήτησης με ΑΦΜ/Επωνυμία/Διακριτικό τίτλο/Τηλέφωνο σαν
+    // κριτήρια· κλικ σε αποτέλεσμα συμπληρώνει κατευθείαν το dropdown από πάνω.
     const clientOptions = portalMode ? "" : `
       <div class="field"><label>Πελάτης *</label>
-        <select id="tk-client" required>
-          <option value="">— Επιλογή πελάτη —</option>
-          ${CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
-        </select>
+        <div style="display:flex;gap:8px;">
+          <select id="tk-client" required style="flex:1;">
+            <option value="">— Επιλογή πελάτη —</option>
+            ${CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+          </select>
+          <button type="button" class="btn-ghost btn-sm" id="tk-client-search-btn" style="flex:none;" title="Αναζήτηση πελάτη (ΑΦΜ/επωνυμία/διακριτικός τίτλος/τηλέφωνο)" aria-label="Αναζήτηση πελάτη">🔍</button>
+        </div>
+      </div>
+      <div id="tk-client-search-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
+        <p class="cell-sub" style="margin:0 0 8px;">Γράψε σε ένα ή περισσότερα πεδία — τα κριτήρια συνδυάζονται.</p>
+        <div class="form-row">
+          <div class="field"><label>ΑΦΜ</label><input id="tks-vat" inputmode="numeric" maxlength="12"></div>
+          <div class="field"><label>Επωνυμία</label><input id="tks-name"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Διακριτικός τίτλος</label><input id="tks-trade"></div>
+          <div class="field"><label>Τηλέφωνο</label><input id="tks-phone"></div>
+        </div>
+        <div id="tk-client-search-results"></div>
       </div>`;
     openDrawer("Νέο αίτημα", `
       <form id="new-ticket-form">
@@ -2061,6 +2079,50 @@
         </div>
       </form>
     `);
+
+    if (!portalMode) {
+      function renderClientSearchResults(){
+        const vat = $("#tks-vat").value.trim().toLowerCase();
+        const name = $("#tks-name").value.trim().toLowerCase();
+        const trade = $("#tks-trade").value.trim().toLowerCase();
+        const phone = $("#tks-phone").value.trim().toLowerCase();
+        const box = $("#tk-client-search-results");
+        if (!vat && !name && !trade && !phone) {
+          box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Πληκτρολόγησε σε κάποιο πεδίο για να δεις αποτελέσματα.</div>';
+          return;
+        }
+        const matches = CLIENTS_CACHE.filter(c =>
+          (!vat || (c.vat_number || "").toLowerCase().includes(vat)) &&
+          (!name || (c.name || "").toLowerCase().includes(name)) &&
+          (!trade || (c.trade_name || "").toLowerCase().includes(trade)) &&
+          (!phone || (c.phone || "").toLowerCase().includes(phone))
+        );
+        if (matches.length === 0) {
+          box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Δεν βρέθηκε πελάτης με αυτά τα κριτήρια.</div>';
+          return;
+        }
+        const shown = matches.slice(0, 25);
+        box.innerHTML = shown.map(c => `
+          <div class="vlog-row" data-client-id="${c.id}" style="cursor:pointer;">
+            <strong>${escapeHtml(c.name)}</strong>
+            <div class="vlog-who">${[c.trade_name, c.vat_number, c.phone].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+          </div>`).join("") + (matches.length > shown.length ? `<div class="cell-sub" style="padding:6px 0;">…και ${matches.length - shown.length} ακόμα — γράψε κάτι πιο συγκεκριμένο.</div>` : "");
+        box.querySelectorAll("[data-client-id]").forEach(el => {
+          el.addEventListener("click", () => {
+            $("#tk-client").value = el.dataset.clientId;
+            $("#tk-client-search-panel").classList.add("hidden");
+          });
+        });
+      }
+      $("#tk-client-search-btn").addEventListener("click", () => {
+        const panel = $("#tk-client-search-panel");
+        panel.classList.toggle("hidden");
+        if (!panel.classList.contains("hidden")) renderClientSearchResults();
+      });
+      ["#tks-vat", "#tks-name", "#tks-trade", "#tks-phone"].forEach(sel => {
+        $(sel).addEventListener("input", renderClientSearchResults);
+      });
+    }
 
     $("#new-ticket-form").addEventListener("submit", async (e) => {
       e.preventDefault();
