@@ -2863,11 +2863,32 @@
     const p = USERS_CACHE.find(u => u.id === userId);
     if (!p) return;
     const isSelf = USER && USER.id === userId;
+    // Στοιχεία που συμπλήρωσε ο ίδιος στην εγγραφή — αποθηκεύονται στο profile του,
+    // ΔΕΝ δημιουργούν πλέον αυτόματα καρτέλα πελάτη. Αν χρειάζεται να γίνει πελάτης,
+    // φτιάξε την καρτέλα από τους Πελάτες και σύνδεσέ την εδώ (πεδίο πιο κάτω).
+    const signupRows = [
+      ["Τηλέφωνο", p.signup_phone],
+      ["Εταιρεία", p.signup_company_name],
+      ["Διακριτικός τίτλος", p.signup_trade_name],
+      ["Τύπος", p.signup_business_type],
+      ["ΑΦΜ", p.signup_vat_number],
+      ["ΔΟΥ", p.signup_tax_office],
+      ["Διεύθυνση", p.signup_address],
+      ["Πόλη", p.signup_city],
+    ].filter(([, v]) => v);
+    const signupInfoHtml = signupRows.length ? `
+      <div class="section-title">Στοιχεία εγγραφής</div>
+      <p class="cell-sub" style="margin:-4px 0 8px;">Τα συμπλήρωσε ο ίδιος όταν έφτιαξε τον λογαριασμό — δεν έχει δημιουργηθεί καρτέλα
+        πελάτη αυτόματα. Αν χρειάζεται, φτιάξε μία από τους Πελάτες και σύνδεσέ την από
+        εδώ πιο κάτω.</p>
+      ${signupRows.map(([label, v]) => `<div class="note-item"><div class="note-meta">${label}</div><div style="font-size:13.5px;">${escapeHtml(v)}</div></div>`).join("")}
+    ` : "";
     openDrawer("Χρήστης", `
       <form id="user-form">
         <div id="user-form-msg"></div>
         <p class="sub" style="margin-bottom:16px;"><strong>${escapeHtml(p.full_name || "—")}</strong><br>${escapeHtml(p.email || "")}</p>
         ${isSelf ? '<div class="msg msg-error">Προσοχή: αυτός είναι ο δικός σου λογαριασμός — αν αλλάξεις τον ρόλο σου μπορεί να χάσεις πρόσβαση στη διαχείριση.</div>' : ""}
+        ${signupInfoHtml}
         <div class="field"><label>Ρόλος</label>
           <select id="usr-role">
             <option value="owner" ${p.role==='owner'?'selected':''}>Διαχειριστής</option>
