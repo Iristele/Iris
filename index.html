@@ -281,9 +281,12 @@
   .cal-dot.st-waiting{background:var(--waiting-fg);}
   .cal-dot.st-done{background:var(--green);}
   .cal-dot.leave{background:var(--amber);}
+  /* προβολή Εβδομάδα: ίδια κελιά με τον μήνα αλλά ψηλότερα — μόνο 7, χωράνε περισσότερα */
+  .cal-cell.week-cell{min-height:190px;}
   @media (max-width:760px){
     /* σε κινητό τα κελιά δεν χωράνε κείμενο — δείχνουν τελείες και ανοίγεις τη μέρα από κάτω */
     .cal-cell{min-height:54px;align-items:center;gap:5px;padding:5px 2px;}
+    .cal-cell.week-cell{min-height:70px;}
     .cal-ev, .cal-more{display:none;}
     .cal-dots{display:flex;}
     .cal-title{min-width:120px;font-size:14px;}
@@ -506,7 +509,9 @@
             <button type="button" class="btn-ghost btn-sm" id="cal-today">Σήμερα</button>
           </div>
           <div class="filterbar" id="schedule-mode" style="padding:0;">
-            <div class="chip active" data-mode="calendar">Ημερολόγιο</div>
+            <div class="chip active" data-mode="month">Μήνας</div>
+            <div class="chip" data-mode="week">Εβδομάδα</div>
+            <div class="chip" data-mode="day">Ημέρα</div>
             <div class="chip" data-mode="list">Λίστα</div>
           </div>
         </div>
@@ -530,6 +535,7 @@
         </div>
         <div id="schedule-msg" style="padding:0 20px 10px;"></div>
         <div id="schedule-calendar"></div>
+        <div id="schedule-week" class="hidden"></div>
       </div>
 
       <div class="panel" id="schedule-day-panel">
@@ -2467,9 +2473,10 @@
   }
 
   // ================= SCHEDULE (staff) =================
-  let SCHEDULE_MODE = "calendar";
-  let SCHEDULE_CURSOR = new Date();            // οποιαδήποτε μέρα του μήνα που δείχνουμε
-  let SCHEDULE_SELECTED = isoDay(new Date());  // η επιλεγμένη μέρα
+  // SCHEDULE_MODE: "month" | "week" | "day" | "list"
+  let SCHEDULE_MODE = "month";
+  let SCHEDULE_CURSOR = new Date();            // οποιαδήποτε μέρα του μήνα που δείχνουμε (προβολή Μήνας)
+  let SCHEDULE_SELECTED = isoDay(new Date());  // η επιλεγμένη μέρα (χρησιμοποιείται από Μήνα/Εβδομάδα/Ημέρα)
   // φίλτρα προγράμματος — SCHEDULE_TECH_FILTER έχει νόημα μόνο για owner/reception
   // (οι τεχνικοί/εξωτερικοί βλέπουν έτσι κι αλλιώς μόνο τις δικές τους επισκέψεις/άδειες)
   let SCHEDULE_SHOW_TICKETS = true;
@@ -2478,6 +2485,13 @@
 
   function isoDay(d){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  // Δευτέρα της εβδομάδας που περιέχει το d (για την προβολή Εβδομάδα)
+  function startOfWeek(d){
+    const dt = new Date(d);
+    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    return dt;
   }
 
   // Φέρνει επισκέψεις + εγκεκριμένες άδειες για ένα διάστημα και τις ομαδοποιεί ανά μέρα,
@@ -2557,13 +2571,17 @@
         techs.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("");
       techSelect.dataset.populated = "1";
     }
-    const isCal = SCHEDULE_MODE === "calendar";
-    $("#schedule-calendar").classList.toggle("hidden", !isCal);
-    $("#schedule-day-panel").classList.toggle("hidden", !isCal);
-    $("#schedule-list-panel").classList.toggle("hidden", isCal);
-    $$("#schedule-mode .chip").forEach(c => c.classList.toggle("active", c.dataset.mode === SCHEDULE_MODE));
-    $$(".cal-nav button").forEach(b => b.classList.toggle("hidden", !isCal));
-    if (isCal) await renderScheduleCalendar(); else await renderScheduleList();
+    const mode = SCHEDULE_MODE;
+    $("#schedule-calendar").classList.toggle("hidden", mode !== "month");
+    $("#schedule-week").classList.toggle("hidden", mode !== "week");
+    $("#schedule-day-panel").classList.toggle("hidden", mode === "list");
+    $("#schedule-list-panel").classList.toggle("hidden", mode !== "list");
+    $$("#schedule-mode .chip").forEach(c => c.classList.toggle("active", c.dataset.mode === mode));
+    $$(".cal-nav button").forEach(b => b.classList.toggle("hidden", mode === "list"));
+    if (mode === "month") await renderScheduleCalendar();
+    else if (mode === "week") await renderScheduleWeek();
+    else if (mode === "day") await renderScheduleDayOnly();
+    else await renderScheduleList();
   }
 
   async function renderScheduleCalendar(){
@@ -2621,6 +2639,49 @@
     });
   }
 
+  async function renderScheduleWeek(){
+    const weekStart = startOfWeek(new Date(SCHEDULE_SELECTED + "T00:00:00"));
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    $("#cal-title").textContent = `${weekStart.toLocaleDateString("el-GR",{day:"numeric",month:"short"})} – ${weekEnd.toLocaleDateString("el-GR",{day:"numeric",month:"short",year:"numeric"})}`;
+
+    const { byDay, error } = await fetchScheduleDays(isoDay(weekStart), isoDay(weekEnd));
+    if (error) { showMsg($("#schedule-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+
+    const today = isoDay(new Date());
+    const dows = ["Δε","Τρ","Τε","Πε","Πα","Σα","Κυ"];
+    let cells = "";
+    for (let d = new Date(weekStart), i=0; i<7; d.setDate(d.getDate()+1), i++) {
+      const key = isoDay(d);
+      const items = byDay[key] || [];
+      const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
+      const shown = items.slice(0, 8).map(x => x.__leave
+        ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
+        : `<div class="cal-ev st-${x.status}">${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
+      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot st-${v.status}"></span>`),
+                    ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
+      cells += `
+        <div class="cal-cell week-cell ${key === today ? "today" : ""} ${key === SCHEDULE_SELECTED ? "selected" : ""}" data-day="${key}">
+          <div class="cal-daynum">${dows[i]} ${d.getDate()}</div>
+          ${shown}
+          ${items.length > 8 ? `<div class="cal-more">+${items.length - 8} ακόμα</div>` : ""}
+          <div class="cal-dots">${dots}</div>
+        </div>`;
+    }
+    $("#schedule-week").innerHTML = `<div class="cal-grid">${cells}</div>`;
+    $$("#schedule-week [data-day]").forEach(el => {
+      el.addEventListener("click", () => { SCHEDULE_SELECTED = el.dataset.day; renderScheduleWeek(); });
+    });
+    renderScheduleDay(byDay[SCHEDULE_SELECTED] || []);
+  }
+
+  async function renderScheduleDayOnly(){
+    const d = new Date(SCHEDULE_SELECTED + "T00:00:00");
+    $("#cal-title").textContent = d.toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long" });
+    const { byDay, error } = await fetchScheduleDays(SCHEDULE_SELECTED, SCHEDULE_SELECTED);
+    if (error) { showMsg($("#schedule-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+    renderScheduleDay(byDay[SCHEDULE_SELECTED] || []);
+  }
+
   async function renderScheduleList(){
     const from = isoDay(new Date(Date.now() - 7*86400000));
     const { byDay, error } = await fetchScheduleDays(from, null);
@@ -2642,17 +2703,39 @@
   }
 
   $("#cal-prev").addEventListener("click", () => {
-    SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() - 1, 1);
-    renderScheduleCalendar();
+    if (SCHEDULE_MODE === "week") {
+      const d = new Date(SCHEDULE_SELECTED + "T00:00:00"); d.setDate(d.getDate() - 7);
+      SCHEDULE_SELECTED = isoDay(d);
+      renderScheduleWeek();
+    } else if (SCHEDULE_MODE === "day") {
+      const d = new Date(SCHEDULE_SELECTED + "T00:00:00"); d.setDate(d.getDate() - 1);
+      SCHEDULE_SELECTED = isoDay(d);
+      renderScheduleDayOnly();
+    } else {
+      SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() - 1, 1);
+      renderScheduleCalendar();
+    }
   });
   $("#cal-next").addEventListener("click", () => {
-    SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() + 1, 1);
-    renderScheduleCalendar();
+    if (SCHEDULE_MODE === "week") {
+      const d = new Date(SCHEDULE_SELECTED + "T00:00:00"); d.setDate(d.getDate() + 7);
+      SCHEDULE_SELECTED = isoDay(d);
+      renderScheduleWeek();
+    } else if (SCHEDULE_MODE === "day") {
+      const d = new Date(SCHEDULE_SELECTED + "T00:00:00"); d.setDate(d.getDate() + 1);
+      SCHEDULE_SELECTED = isoDay(d);
+      renderScheduleDayOnly();
+    } else {
+      SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() + 1, 1);
+      renderScheduleCalendar();
+    }
   });
   $("#cal-today").addEventListener("click", () => {
     SCHEDULE_CURSOR = new Date();
     SCHEDULE_SELECTED = isoDay(new Date());
-    renderScheduleCalendar();
+    if (SCHEDULE_MODE === "week") renderScheduleWeek();
+    else if (SCHEDULE_MODE === "day") renderScheduleDayOnly();
+    else renderScheduleCalendar();
   });
   $("#schedule-mode").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-mode]");
