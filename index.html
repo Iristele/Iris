@@ -319,52 +319,36 @@
 
     <form id="signup-form" class="hidden">
       <h1>Νέος λογαριασμός</h1>
-      <p class="sub">Διάλεξε τι είσαι, για να σου ζητήσουμε τα σωστά στοιχεία.</p>
+      <p class="sub">Συμπλήρωσε τα στοιχεία σου. Τα δικαιώματα πρόσβασης τα ορίζει ο διαχειριστής αφού δημιουργηθεί ο λογαριασμός.</p>
 
-      <div class="filterbar" id="signup-kind" style="margin-bottom:18px;">
-        <div class="chip active" data-kind="individual">Ιδιώτης</div>
-        <div class="chip" data-kind="company">Επιχείρηση</div>
-        <div class="chip" data-kind="staff">Τεχνικός</div>
+      <div class="form-row">
+        <div class="field"><label>Όνομα *</label><input id="su-first-name" autocomplete="given-name"></div>
+        <div class="field"><label>Επώνυμο *</label><input id="su-last-name" autocomplete="family-name"></div>
       </div>
 
-      <div id="su-individual">
-        <div class="form-row">
-          <div class="field"><label>Όνομα *</label><input id="su-first-name" autocomplete="given-name"></div>
-          <div class="field"><label>Επώνυμο *</label><input id="su-last-name" autocomplete="family-name"></div>
+      <div class="form-row">
+        <div class="field"><label>Επωνυμία εταιρείας (αν υπάρχει)</label><input id="su-legal-name" autocomplete="organization"></div>
+        <div class="field"><label>Διακριτικός τίτλος</label><input id="su-trade-name"></div>
+      </div>
+      <div class="field"><label>Τύπος</label>
+        <select id="su-business-type">
+          <option>Ξενοδοχείο</option><option>Εστιατόριο</option><option>Επιχείρηση</option><option selected>Άλλο</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>ΑΦΜ</label>
+          <input id="su-vat" inputmode="numeric" maxlength="12">
+          <div id="su-vat-note" style="margin-top:4px;"></div>
         </div>
+        <div class="field"><label>ΔΟΥ</label><input id="su-tax-office"></div>
       </div>
-
-      <div id="su-company" class="hidden">
-        <div class="field"><label>Επωνυμία *</label><input id="su-legal-name" autocomplete="organization"></div>
-        <div class="form-row">
-          <div class="field"><label>Διακριτικός τίτλος</label><input id="su-trade-name"></div>
-          <div class="field"><label>Τύπος επιχείρησης</label>
-            <select id="su-business-type">
-              <option>Ξενοδοχείο</option><option>Εστιατόριο</option><option>Επιχείρηση</option><option>Άλλο</option>
-            </select>
-          </div>
-        </div>
+      <div class="form-row">
+        <div class="field"><label>Διεύθυνση</label><input id="su-address" autocomplete="street-address"></div>
+        <div class="field"><label>Πόλη</label><input id="su-city" autocomplete="address-level2"></div>
       </div>
-
-      <div id="su-staff" class="hidden">
-        <div class="field"><label>Ονοματεπώνυμο *</label><input id="su-staff-name" autocomplete="name"></div>
-      </div>
-
-      <div id="su-client-fields">
-        <div class="form-row">
-          <div class="field">
-            <label>ΑΦΜ<span id="su-vat-star"></span></label>
-            <input id="su-vat" inputmode="numeric" maxlength="12">
-            <div id="su-vat-note" style="margin-top:4px;"></div>
-          </div>
-          <div class="field"><label>ΔΟΥ</label><input id="su-tax-office"></div>
-        </div>
-        <div class="form-row">
-          <div class="field"><label>Διεύθυνση</label><input id="su-address" autocomplete="street-address"></div>
-          <div class="field"><label>Πόλη</label><input id="su-city" autocomplete="address-level2"></div>
-        </div>
-        <div class="field"><label>Τηλέφωνο *</label><input id="su-phone" inputmode="tel" autocomplete="tel"></div>
-      </div>
+      <div class="field"><label>Τηλέφωνο *</label><input id="su-phone" inputmode="tel" autocomplete="tel"></div>
 
       <div class="field"><label>Email *</label><input type="email" id="signup-email" required autocomplete="email"></div>
       <div class="field"><label>Κωδικός *</label><input type="password" id="signup-password" required minlength="6" autocomplete="new-password"></div>
@@ -675,64 +659,41 @@
     await boot();
   });
 
-  // ---- είδος εγγραφής: ιδιώτης / επιχείρηση / προσωπικό ----
-  let SIGNUP_KIND = "individual";
-  function applySignupKind(kind){
-    SIGNUP_KIND = kind;
-    $$("#signup-kind .chip").forEach(c => c.classList.toggle("active", c.dataset.kind === kind));
-    $("#su-individual").classList.toggle("hidden", kind !== "individual");
-    $("#su-company").classList.toggle("hidden", kind !== "company");
-    $("#su-staff").classList.toggle("hidden", kind !== "staff");
-    $("#su-client-fields").classList.toggle("hidden", kind === "staff");
-    // το ΑΦΜ είναι υποχρεωτικό μόνο για επιχείρηση
-    $("#su-vat-star").textContent = kind === "company" ? " *" : "";
-    clearMsg($("#auth-msg"));
-  }
-  $("#signup-kind").addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-kind]");
-    if (chip) applySignupKind(chip.dataset.kind);
-  });
+  // ---- εγγραφή: μία ενιαία φόρμα, χωρίς επιλογή ρόλου/δικαιωμάτων ----
+  // Κάθε νέα εγγραφή περνάει σαν "πελάτης σε αναμονή έγκρισης" (ίδιο μοτίβο με πριν —
+  // εμφανίζεται στους Πελάτες προς έγκριση). Αν ο νέος χρήστης είναι στην πραγματικότητα
+  // τεχνικός/εξωτερικός/reception, ο διαχειριστής του αλλάζει τον ρόλο από τους Χρήστες
+  // — δεν χρειάζεται να διαλέξει τίποτα ο ίδιος στην εγγραφή.
   wireVatHint("#su-vat", "#su-vat-note");
 
   $("#signup-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const kind = SIGNUP_KIND;
-    const isClient = kind !== "staff";
     const val = (sel) => $(sel).value.trim();
     const fail = (msg) => { showMsg($("#auth-msg"), msg, "error"); return false; };
 
-    // έλεγχοι — τα πεδία δεν έχουν required στο HTML γιατί άλλα κρύβονται
-    // ανάλογα με την επιλογή, και ο browser μπλοκάρει σε κρυφά required πεδία
-    const meta = { signup_kind: isClient ? "client" : "staff" };
-    if (kind === "individual") {
-      if (!val("#su-first-name") || !val("#su-last-name")) return void fail("Συμπλήρωσε όνομα και επώνυμο.");
-      meta.entity_type = "individual";
-      meta.first_name = val("#su-first-name");
-      meta.last_name = val("#su-last-name");
-      meta.full_name = meta.first_name + " " + meta.last_name;
-    } else if (kind === "company") {
-      if (!val("#su-legal-name")) return void fail("Συμπλήρωσε την επωνυμία της επιχείρησης.");
-      meta.entity_type = "company";
-      meta.legal_name = val("#su-legal-name");
-      meta.trade_name = val("#su-trade-name");
-      meta.business_type = val("#su-business-type");
-      meta.full_name = meta.legal_name;
-    } else {
-      if (!val("#su-staff-name")) return void fail("Συμπλήρωσε το ονοματεπώνυμό σου.");
-      meta.full_name = val("#su-staff-name");
-    }
+    const firstName = val("#su-first-name");
+    const lastName = val("#su-last-name");
+    const legalName = val("#su-legal-name");
+    if (!legalName && (!firstName || !lastName)) return void fail("Συμπλήρωσε όνομα και επώνυμο (ή επωνυμία εταιρείας).");
+    if (!val("#su-phone")) return void fail("Συμπλήρωσε τηλέφωνο επικοινωνίας.");
+    const vat = normalizeVat(val("#su-vat"));
+    if (vat && vat.length !== 9) return void fail("Το ΑΦΜ πρέπει να έχει 9 ψηφία.");
 
-    if (isClient) {
-      const vat = normalizeVat(val("#su-vat"));
-      if (kind === "company" && !vat) return void fail("Για επιχείρηση χρειάζεται ΑΦΜ.");
-      if (vat && vat.length !== 9) return void fail("Το ΑΦΜ πρέπει να έχει 9 ψηφία.");
-      if (!val("#su-phone")) return void fail("Συμπλήρωσε τηλέφωνο επικοινωνίας.");
-      meta.vat_number = vat;
-      meta.tax_office = val("#su-tax-office");
-      meta.address = val("#su-address");
-      meta.city = val("#su-city");
-      meta.phone = val("#su-phone");
-    }
+    const meta = {
+      signup_kind: "client",
+      entity_type: legalName ? "company" : "individual",
+      first_name: firstName,
+      last_name: lastName,
+      legal_name: legalName,
+      trade_name: val("#su-trade-name"),
+      business_type: val("#su-business-type"),
+      full_name: legalName || (firstName + " " + lastName),
+      vat_number: vat,
+      tax_office: val("#su-tax-office"),
+      address: val("#su-address"),
+      city: val("#su-city"),
+      phone: val("#su-phone"),
+    };
 
     const btn = $("#signup-btn");
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Εγγραφή...';
@@ -744,9 +705,7 @@
     btn.disabled = false; btn.textContent = "Εγγραφή";
     if (error) { showMsg($("#auth-msg"), "Σφάλμα εγγραφής: " + error.message, "error"); return; }
     if (data.session) { await boot(); return; }
-    showMsg($("#auth-msg"), isClient
-      ? "Ο λογαριασμός και η καρτέλα σου δημιουργήθηκαν. Αν ζητηθεί επιβεβαίωση email, έλεγξε τα εισερχόμενά σου (και τα spam) και μετά συνδέσου."
-      : "Ο λογαριασμός δημιουργήθηκε. Ο διαχειριστής θα ενεργοποιήσει τον ρόλο σου. Αν ζητηθεί επιβεβαίωση email, έλεγξε τα εισερχόμενά σου (και τα spam).", "ok");
+    showMsg($("#auth-msg"), "Ο λογαριασμός δημιουργήθηκε. Αν ζητηθεί επιβεβαίωση email, έλεγξε τα εισερχόμενά σου (και τα spam) και μετά συνδέσου. Ο διαχειριστής θα ενεργοποιήσει την πρόσβασή σου.", "ok");
   });
 
   $("#signout-btn").addEventListener("click", async () => {
