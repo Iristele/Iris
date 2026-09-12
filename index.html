@@ -25,6 +25,11 @@
     --unread-bg:#F4FAF9; --danger-hover:#F8DADA;
     --red:#C24545; --red-bg:#FCEBEB; --green:#1E8E5A; --green-bg:#E7F5EC; --amber:#8A6308; --amber-bg:#FDF1DC;
     --blue:#3468C0; --blue-bg:#E8EFFB; --purple:#6B3FA0; --purple-bg:#EDE4F9;
+    /* πορτοκαλί (σε εξέλιξη) / κίτρινο (άδειες): -dot = καθαρό χρώμα για τις τελείες,
+       το σκούρο ζευγάρι είναι για κείμενο πάνω στο αντίστοιχο -bg */
+    --orange:#B35E06; --orange-bg:#FBE8D5; --orange-dot:#E8821A;
+    --yellow:#856E00; --yellow-bg:#FAF3C8; --yellow-dot:#EFC81F;
+    --sunday-bg:#FDF0F0; --sunday-bg-hover:#FBE4E4;
     --radius:10px; --shadow:0 1px 3px rgba(20,40,40,.08), 0 1px 2px rgba(20,40,40,.06);
     --shadow-panel:-4px 0 24px rgba(20,40,40,.12);
   }
@@ -42,6 +47,9 @@
     --unread-bg:#13302F; --danger-hover:#4A2424;
     --red:#F08A8A; --red-bg:#3A1F1F; --green:#6FD69B; --green-bg:#173020; --amber:#E6B94F; --amber-bg:#332714;
     --blue:#8AAEF2; --blue-bg:#1C2641; --purple:#BA98EA; --purple-bg:#2B1F3C;
+    --orange:#F0A45C; --orange-bg:#3A2612; --orange-dot:#F0932F;
+    --yellow:#E8D45A; --yellow-bg:#33301A; --yellow-dot:#EFD35A;
+    --sunday-bg:#2A1A1A; --sunday-bg-hover:#352020;
     --shadow:0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35);
     --shadow-panel:0 18px 48px rgba(0,0,0,.55);
   }
@@ -70,6 +78,9 @@
   .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   label{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;color:var(--ink-soft);}
   input, select, textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;background:var(--input-bg);color:var(--ink);}
+  /* τα checkbox/radio ΔΕΝ πρέπει να πιάνουν 100% πλάτος — αλλιώς «πέφτουν» πάνω στο κείμενο
+     της ετικέτας τους (ιδίως σε κινητό, όπου το σύστημα τα μεγαλώνει) */
+  input[type="checkbox"], input[type="radio"]{width:18px;height:18px;min-width:18px;flex:none;padding:0;margin:0;accent-color:var(--teal);}
   textarea{resize:vertical;min-height:64px;}
   input:focus, select:focus, textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-light);}
   button{cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;border-radius:8px;border:none;padding:9px 15px;}
@@ -165,8 +176,8 @@
 
   .status-pill, .prio-pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600;}
   .st-new{background:var(--blue-bg);color:var(--blue);}
-  .st-progress{background:var(--amber-bg);color:var(--amber);}
-  .st-waiting{background:var(--waiting-bg);color:var(--waiting-fg);}
+  .st-progress{background:var(--orange-bg);color:var(--orange);}
+  .st-waiting{background:var(--red-bg);color:var(--red);}
   .st-done{background:var(--green-bg);color:var(--green);}
   .st-cancelled{background:var(--muted-bg);color:var(--muted-fg);}
   .prio-urgent{background:var(--red-bg);color:var(--red);}
@@ -258,7 +269,7 @@
             border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
   .cal-dow{background:var(--surface);padding:7px 4px;font-size:10.5px;font-weight:700;color:var(--ink-soft);
            text-align:center;text-transform:uppercase;letter-spacing:.04em;}
-  .cal-cell{background:var(--card);min-height:106px;padding:6px 7px;cursor:pointer;display:flex;flex-direction:column;gap:3px;}
+  .cal-cell{background:var(--card);min-height:106px;padding:6px 7px;cursor:pointer;display:flex;flex-direction:column;gap:3px;position:relative;}
   .cal-cell:hover{background:var(--surface-2);}
   .cal-cell.other{opacity:.4;}
   .cal-cell.selected{outline:2px solid var(--teal);outline-offset:-2px;}
@@ -267,22 +278,31 @@
   .cal-cell.today .cal-daynum{background:var(--teal);color:var(--on-teal);border-radius:999px;}
   .cal-ev{font-size:11px;line-height:1.35;padding:2px 5px;border-radius:4px;background:var(--teal-light);
           color:var(--teal-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* χρώμα βλάβης ανάλογα με το στάδιο (ίδια χρώματα με τα status-pill αλλού στην εφαρμογή) */
+  /* χρώμα βλάβης ανάλογα με το στάδιο (ίδια χρώματα με τα status-pill αλλού στην εφαρμογή):
+     γαλάζιο = Νέο, πορτοκαλί = Σε εξέλιξη, κόκκινο = Αναμονή, πράσινο = Ολοκληρώθηκε,
+     κίτρινο = Άδεια */
   .cal-ev.st-new{background:var(--blue-bg);color:var(--blue);}
-  .cal-ev.st-progress{background:var(--amber-bg);color:var(--amber);}
-  .cal-ev.st-waiting{background:var(--waiting-bg);color:var(--waiting-fg);}
+  .cal-ev.st-progress{background:var(--orange-bg);color:var(--orange);}
+  .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
   .cal-ev.st-done{background:var(--green-bg);color:var(--green);}
-  .cal-ev.leave{background:var(--amber-bg);color:var(--amber);}
+  .cal-ev.leave{background:var(--yellow-bg);color:var(--yellow);}
   .cal-more{font-size:10.5px;color:var(--ink-soft);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);}
   .cal-dot.st-new{background:var(--blue);}
-  .cal-dot.st-progress{background:var(--amber);}
-  .cal-dot.st-waiting{background:var(--waiting-fg);}
+  .cal-dot.st-progress{background:var(--orange-dot);}
+  .cal-dot.st-waiting{background:var(--red);}
   .cal-dot.st-done{background:var(--green);}
-  .cal-dot.leave{background:var(--amber);}
-  /* προβολή Εβδομάδα: ίδια κελιά με τον μήνα αλλά ψηλότερα — μόνο 7, χωράνε περισσότερα */
+  .cal-dot.leave{background:var(--yellow-dot);}
+  /* Κυριακές: ελαφρύ κόκκινο φόντο + ✕ στη γωνία (κλειστά) */
+  .cal-cell.sunday{background:var(--sunday-bg);}
+  .cal-cell.sunday:hover{background:var(--sunday-bg-hover);}
+  .cal-dow.sunday{color:var(--red);}
+  .cal-sun-x{position:absolute;top:3px;right:5px;font-size:11px;font-weight:700;color:var(--red);opacity:.8;pointer-events:none;line-height:1;}
+  /* προβολή Εβδομάδα: ίδια κελιά με τον μήνα αλλά ψηλότερα — μόνο 7, χωράνε περισσότερα.
+     Ο «αριθμός μέρας» εδώ γράφει και το όνομα («Δε 12»), οπότε θέλει ελεύθερο πλάτος. */
   .cal-cell.week-cell{min-height:190px;}
+  .cal-cell.week-cell .cal-daynum{width:auto;min-width:44px;padding:0 7px;border-radius:999px;}
   @media (max-width:760px){
     /* σε κινητό τα κελιά δεν χωράνε κείμενο — δείχνουν τελείες και ανοίγεις τη μέρα από κάτω */
     .cal-cell{min-height:54px;align-items:center;gap:5px;padding:5px 2px;}
@@ -301,8 +321,19 @@
   .sched-time{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);min-width:78px;}
   .sched-info{flex:1;font-size:13.5px;}
   .sched-tech{font-size:12px;color:var(--ink-soft);}
-  .sched-leave{background:var(--amber-bg);border-radius:8px;}
-  .sched-leave .sched-info strong{color:var(--amber);}
+  .sched-leave{background:var(--yellow-bg);border-radius:8px;}
+  .sched-leave .sched-info strong{color:var(--yellow);}
+  /* γραμμή φίλτρων Προγράμματος: σε κινητό το υπόμνημα πέφτει σε δική του σειρά
+     αντί να κόβεται δεξιά */
+  .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 20px 12px;}
+  .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;color:var(--ink);cursor:pointer;}
+  .sched-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);align-items:center;margin-left:auto;}
+  .sched-legend span{display:flex;align-items:center;gap:4px;}
+  .sched-legend .cal-dot{display:inline-block;}
+  @media (max-width:760px){
+    .sched-filters{padding:0 14px 10px;gap:10px 18px;}
+    .sched-legend{margin-left:0;flex:1 1 100%;}
+  }
 </style>
 </head>
 <body>
@@ -515,22 +546,19 @@
             <div class="chip" data-mode="list">Λίστα</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 20px 12px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-            <input type="checkbox" id="sched-filter-tickets" checked> Βλάβες
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-            <input type="checkbox" id="sched-filter-leaves" checked> Άδειες
-          </label>
-          <select id="sched-filter-tech" class="hidden" style="font-size:13px;max-width:190px;">
+        <div class="sched-filters">
+          <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
+          <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
+          <select id="sched-filter-tech" class="hidden" style="font-size:13px;max-width:190px;width:auto;">
             <option value="">Όλοι οι τεχνικοί</option>
           </select>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);margin-left:auto;align-items:center;">
-            <span style="display:flex;align-items:center;gap:4px;"><span class="cal-dot st-new" style="display:inline-block;"></span>Νέο</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span class="cal-dot st-progress" style="display:inline-block;"></span>Σε εξέλιξη</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span class="cal-dot st-waiting" style="display:inline-block;"></span>Αναμονή</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span class="cal-dot st-done" style="display:inline-block;"></span>Ολοκληρώθηκε</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span class="cal-dot leave" style="display:inline-block;"></span>Άδεια</span>
+          <div class="sched-legend">
+            <span><span class="cal-dot st-new"></span>Νέο</span>
+            <span><span class="cal-dot st-progress"></span>Σε εξέλιξη</span>
+            <span><span class="cal-dot st-waiting"></span>Αναμονή</span>
+            <span><span class="cal-dot st-done"></span>Ολοκληρώθηκε</span>
+            <span><span class="cal-dot leave"></span>Άδεια</span>
+            <span><span style="color:var(--red);font-weight:700;">✕</span>Κυριακή</span>
           </div>
         </div>
         <div id="schedule-msg" style="padding:0 20px 10px;"></div>
@@ -2611,8 +2639,10 @@
         : `<div class="cal-ev st-${i.status}">${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
       const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot st-${v.status}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
+      const isSunday = d.getDay() === 0;
       cells += `
-        <div class="cal-cell ${d.getMonth() === cur.getMonth() ? "" : "other"} ${key === today ? "today" : ""} ${key === SCHEDULE_SELECTED ? "selected" : ""}" data-day="${key}">
+        <div class="cal-cell ${d.getMonth() === cur.getMonth() ? "" : "other"} ${key === today ? "today" : ""} ${key === SCHEDULE_SELECTED ? "selected" : ""} ${isSunday ? "sunday" : ""}" data-day="${key}">
+          ${isSunday ? '<span class="cal-sun-x">✕</span>' : ""}
           <div class="cal-daynum">${d.getDate()}</div>
           ${shown}
           ${items.length > 3 ? `<div class="cal-more">+${items.length - 3} ακόμα</div>` : ""}
@@ -2620,7 +2650,7 @@
         </div>`;
     }
     $("#schedule-calendar").innerHTML =
-      `<div class="cal-grid">${dows.map(d => `<div class="cal-dow">${d}</div>`).join("")}${cells}</div>`;
+      `<div class="cal-grid">${dows.map((d, i) => `<div class="cal-dow ${i === 6 ? "sunday" : ""}">${d}${i === 6 ? " ✕" : ""}</div>`).join("")}${cells}</div>`;
     $$("#schedule-calendar [data-day]").forEach(el => {
       el.addEventListener("click", () => { SCHEDULE_SELECTED = el.dataset.day; renderScheduleCalendar(); });
     });
@@ -2660,7 +2690,8 @@
       const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot st-${v.status}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       cells += `
-        <div class="cal-cell week-cell ${key === today ? "today" : ""} ${key === SCHEDULE_SELECTED ? "selected" : ""}" data-day="${key}">
+        <div class="cal-cell week-cell ${key === today ? "today" : ""} ${key === SCHEDULE_SELECTED ? "selected" : ""} ${i === 6 ? "sunday" : ""}" data-day="${key}">
+          ${i === 6 ? '<span class="cal-sun-x">✕</span>' : ""}
           <div class="cal-daynum">${dows[i]} ${d.getDate()}</div>
           ${shown}
           ${items.length > 8 ? `<div class="cal-more">+${items.length - 8} ακόμα</div>` : ""}
