@@ -632,21 +632,6 @@
           </table>
         </div>
       </div>
-
-      <div class="panel" style="margin-top:18px;">
-        <div class="panel-head">
-          <h2>Ειδοποιήσεις λήξης σύμβασης</h2>
-        </div>
-        <div class="panel-body">
-          <p class="sub" style="padding:0 20px;margin-top:-4px;">Η ειδοποίηση λήξης σύμβασης (15 μέρες πριν λήξει) στέλνεται πάντα στο <strong>info@iriselectronics.gr</strong>. Πρόσθεσε εδώ όποιο επιπλέον email θέλεις να τη λαμβάνει κι αυτό.</p>
-          <div id="notif-recipients-msg" style="padding:0 20px;"></div>
-          <div id="notif-recipients-list" style="padding:0 20px 8px;"></div>
-          <div style="padding:0 20px 20px;display:flex;gap:8px;">
-            <input type="email" id="notif-new-email" placeholder="extra@email.gr">
-            <button type="button" class="btn-primary btn-sm" id="notif-add-btn" style="white-space:nowrap;">+ Προσθήκη</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- client portal -->
@@ -1053,7 +1038,7 @@
     if (view === "expenses") loadExpenses();
     if (view === "schedule") loadSchedule();
     if (view === "technicians") loadTechnicians();
-    if (view === "users") { loadUsers(); loadNotifRecipients(); }
+    if (view === "users") loadUsers();
   }
 
   // ================= BOOT / ROLE ROUTING =================
@@ -1511,9 +1496,10 @@
       </div>`).join("");
 
     const contractRowsHtml = (list) => list.map((c) => `
-      <div class="ra-row" data-contract-row>
-        <input placeholder="Όνομα σύμβασης (π.χ. Συντήρηση καμερών)" value="${escapeHtml(c.name || "")}" data-contract-name>
+      <div class="ra-row" data-contract-row style="flex-wrap:wrap;">
+        <input placeholder="Όνομα σύμβασης (π.χ. Συντήρηση καμερών)" value="${escapeHtml(c.name || "")}" data-contract-name style="flex:1 1 100%;">
         <input type="date" value="${c.until_date || ""}" data-contract-until title="Λήξη">
+        <input type="email" placeholder="Έξτρα email ειδοποίησης γι' αυτή τη σύμβαση (προαιρετικό)" value="${escapeHtml(c.notify_email || "")}" data-contract-notify>
         <button type="button" class="remove-x" data-contract-remove>✕</button>
       </div>`).join("");
 
@@ -1708,7 +1694,7 @@
 
     const contractAddBtn = $("#contract-add");
     if (contractAddBtn) contractAddBtn.addEventListener("click", () => {
-      $("#contract-list").insertAdjacentHTML("beforeend", contractRowsHtml([{ name:"", until_date:"" }]));
+      $("#contract-list").insertAdjacentHTML("beforeend", contractRowsHtml([{ name:"", until_date:"", notify_email:"" }]));
       wireContractRemove();
     });
     function wireContractRemove(){
@@ -1788,7 +1774,8 @@
         const crows = $$("[data-contract-row]").map(row => ({
           client_id: savedId,
           name: row.querySelector("[data-contract-name]").value.trim(),
-          until_date: row.querySelector("[data-contract-until]").value || null
+          until_date: row.querySelector("[data-contract-until]").value || null,
+          notify_email: row.querySelector("[data-contract-notify]").value.trim() || null
         })).filter(c => c.name);
         if (crows.length) await sb.from("client_contracts").insert(crows);
       }
@@ -3790,44 +3777,6 @@
       await loadUsers();
     });
   }
-
-  // ================= ΕΞΤΡΑ EMAIL ΕΙΔΟΠΟΙΗΣΗΣ ΛΗΞΗΣ ΣΥΜΒΑΣΗΣ (owner only) =================
-  // Το info@iriselectronics.gr λαμβάνει πάντα την ειδοποίηση (hardcoded στο Edge Function
-  // send-contract-reminders) — εδώ διαχειριζόμαστε μόνο τα ΕΠΙΠΛΕΟΝ email.
-  let NOTIF_RECIPIENTS_CACHE = [];
-  async function loadNotifRecipients(){
-    const { data, error } = await sb.from("contract_notification_recipients").select("*").order("created_at");
-    if (error) { showMsg($("#notif-recipients-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
-    clearMsg($("#notif-recipients-msg"));
-    NOTIF_RECIPIENTS_CACHE = data || [];
-    const list = $("#notif-recipients-list");
-    list.innerHTML = NOTIF_RECIPIENTS_CACHE.length === 0
-      ? '<div class="cell-sub" style="padding:6px 0;">Δεν έχεις προσθέσει επιπλέον email ακόμα.</div>'
-      : NOTIF_RECIPIENTS_CACHE.map(r => `
-          <div class="vlog-row" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>${escapeHtml(r.email)}</span>
-            <button type="button" class="remove-x" data-notif-remove="${r.id}">✕</button>
-          </div>`).join("");
-    $$("[data-notif-remove]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const { error: delErr } = await sb.from("contract_notification_recipients").delete().eq("id", btn.dataset.notifRemove);
-        if (delErr) { showMsg($("#notif-recipients-msg"), "Σφάλμα: " + delErr.message, "error"); return; }
-        await loadNotifRecipients();
-      });
-    });
-  }
-  $("#notif-add-btn").addEventListener("click", async () => {
-    const input = $("#notif-new-email");
-    const email = input.value.trim();
-    if (!email) return;
-    const btn = $("#notif-add-btn");
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>...';
-    const { error } = await sb.from("contract_notification_recipients").insert({ email });
-    btn.disabled = false; btn.textContent = "+ Προσθήκη";
-    if (error) { showMsg($("#notif-recipients-msg"), "Σφάλμα: " + error.message, "error"); return; }
-    input.value = "";
-    await loadNotifRecipients();
-  });
 
   // ================= CLIENT PORTAL =================
   async function loadPortal(clientId){
