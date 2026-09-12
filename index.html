@@ -1165,6 +1165,19 @@
     if (lat == null || lng == null) return '<span class="cell-sub">χωρίς τοποθεσία</span>';
     return `<a class="geo-link" href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">${label}</a>`;
   }
+  // Μετατροπές για τα πεδία χειροκίνητης διόρθωσης ώρας (<input type="datetime-local">).
+  // Η ώρα εμφανίζεται/επεξεργάζεται στην τοπική ώρα της συσκευής, αλλά αποθηκεύεται
+  // πάντα ως πλήρες timestamp (ISO) — server-side η στήλη παραμένει timestamptz.
+  function toLocalInputValue(iso){
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function fromLocalInputValue(val){
+    if (!val) return null;
+    return new Date(val).toISOString();
+  }
   // Σύγκριση ώρας άφιξης με το ραντεβού — μόνο όταν η άφιξη έγινε την
   // προγραμματισμένη ημέρα, αλλιώς η διαφορά δεν σημαίνει τίποτα.
   function latenessLabel(ticket, checkinAt){
@@ -1194,10 +1207,29 @@
         <div class="vlog-open ${stale ? "stale" : ""}">
           <strong>${mine ? "Είσαι σε επίσκεψη" : escapeHtml(who) + " σε επίσκεψη"}</strong> — άφιξη ${fmtTime(open.checkin_at)}${latenessLabel(ticket, open.checkin_at)}<br>
           Διάρκεια μέχρι τώρα: ${formatDuration(elapsed)} · ${geoLink(open.checkin_lat, open.checkin_lng, "σημείο άφιξης")}
+          · <a href="#" class="add-link" data-vlog-edit-open="${open.id}" style="font-size:12px;">✎ διόρθωση ώρας άφιξης</a>
+        </div>
+        <div id="vlog-edit-open-form" class="hidden" style="margin:0 0 10px;">
+          <div class="field"><label>Ώρα άφιξης</label><input type="datetime-local" id="vlog-fix-checkin-open" value="${toLocalInputValue(open.checkin_at)}"></div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-primary btn-sm" id="vlog-fix-open-save">Αποθήκευση</button>
+            <button type="button" class="btn-sm btn-ghost" id="vlog-fix-open-cancel">Άκυρο</button>
+          </div>
         </div>
         <button type="button" class="btn-primary btn-checkin" id="vlog-checkout">${mine ? "Αναχώρηση (check-out)" : "Κλείσιμο επίσκεψης"}</button>`;
     } else {
-      html += `<button type="button" class="btn-primary btn-checkin" id="vlog-checkin">📍 Άφιξη (check-in)</button>`;
+      html += `<button type="button" class="btn-primary btn-checkin" id="vlog-checkin">📍 Άφιξη (check-in)</button>
+        <div style="margin-top:6px;"><a href="#" class="add-link" id="vlog-manual-add-link" style="font-size:12.5px;">✎ Χειροκίνητη καταχώρηση επίσκεψης — αν ξέχασες να πατήσεις το κουμπί</a></div>
+        <div id="vlog-manual-form" class="hidden" style="margin-top:8px;">
+          <div class="form-row">
+            <div class="field"><label>Ώρα άφιξης</label><input type="datetime-local" id="vlog-manual-checkin" value="${toLocalInputValue(new Date().toISOString())}"></div>
+            <div class="field"><label>Ώρα αναχώρησης</label><input type="datetime-local" id="vlog-manual-checkout" value="${toLocalInputValue(new Date().toISOString())}"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-primary btn-sm" id="vlog-manual-save">Καταχώρηση</button>
+            <button type="button" class="btn-sm btn-ghost" id="vlog-manual-cancel">Άκυρο</button>
+          </div>
+        </div>`;
     }
     if (done.length > 0) {
       html += done.map(v => {
@@ -1206,7 +1238,18 @@
         return `
           <div class="vlog-row">
             <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · ${formatDuration(dur)}${latenessLabel(ticket, v.checkin_at)}
+            · <a href="#" class="add-link" data-vlog-edit-done="${v.id}" style="font-size:12px;">✎ διόρθωση</a>
             <div class="vlog-who">${escapeHtml(who)} · ${geoLink(v.checkin_lat, v.checkin_lng, "άφιξη")} · ${geoLink(v.checkout_lat, v.checkout_lng, "αναχώρηση")}</div>
+            <div id="vlog-edit-done-form-${v.id}" class="hidden" style="margin-top:8px;">
+              <div class="form-row">
+                <div class="field"><label>Ώρα άφιξης</label><input type="datetime-local" data-vlog-fix-checkin value="${toLocalInputValue(v.checkin_at)}"></div>
+                <div class="field"><label>Ώρα αναχώρησης</label><input type="datetime-local" data-vlog-fix-checkout value="${toLocalInputValue(v.checkout_at)}"></div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn-primary btn-sm" data-vlog-fix-save="${v.id}">Αποθήκευση</button>
+                <button type="button" class="btn-sm btn-ghost" data-vlog-fix-cancel="${v.id}">Άκυρο</button>
+              </div>
+            </div>
           </div>`;
       }).join("");
     } else if (!open) {
@@ -1935,6 +1978,12 @@
       </div>`;
     }
 
+    // Τεχνικός/Εξωτερικός συνεργάτης: απλοποιημένη προβολή — μόνο κατάσταση,
+    // check-in/out (με χειροκίνητη διόρθωση) και σημειώσεις. Ο owner και η
+    // Reception συνεχίζουν να βλέπουν το πλήρες drawer ακριβώς όπως σήμερα
+    // (προγραμματισμός/ανάθεση, υλικά & χρέωση, προτεραιότητα, παραστατικό).
+    const isFieldRole = !portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role);
+
     const staffControls = portalMode ? "" : `
       <div class="section-title">Άφιξη / Αναχώρηση</div>
       <div id="vlog-box">${vlogBoxHtml(VLOGS, t)}</div>
@@ -1946,58 +1995,62 @@
             ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${t.status===k?"selected":""}>${l}</option>`).join("")}
           </select>
         </div>
-        <div class="field"><label>Προτεραιότητα</label>
+        <div class="field ${isFieldRole ? "hidden" : ""}"><label>Προτεραιότητα</label>
           <select id="tk-prio-sel">
             ${Object.entries(PRIORITY_LABEL).map(([k,l]) => `<option value="${k}" ${t.priority===k?"selected":""}>${l}</option>`).join("")}
           </select>
         </div>
       </div>
       ${t.preferred_date ? `<p class="cell-sub" style="margin:0 0 10px;">Προτιμώμενη ημ/νία πελάτη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""}</p>` : ""}
-      <div class="section-title">Προγραμματισμός επίσκεψης</div>
-      <div class="form-row">
-        <div class="field"><label>Ημερομηνία</label><input type="date" id="tk-sched-date" value="${t.scheduled_date || ""}"></div>
-        <div class="field"><label>Ανάθεση σε</label><select id="tk-assigned">${assignedOptionsHtml(t.assigned_to)}</select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Ώρα έναρξης</label><input type="time" id="tk-sched-time" value="${t.scheduled_time || ""}"></div>
-        <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
+      <div class="${isFieldRole ? "hidden" : ""}">
+        <div class="section-title">Προγραμματισμός επίσκεψης</div>
+        <div class="form-row">
+          <div class="field"><label>Ημερομηνία</label><input type="date" id="tk-sched-date" value="${t.scheduled_date || ""}"></div>
+          <div class="field"><label>Ανάθεση σε</label><select id="tk-assigned">${assignedOptionsHtml(t.assigned_to)}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Ώρα έναρξης</label><input type="time" id="tk-sched-time" value="${t.scheduled_time || ""}"></div>
+          <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
+        </div>
       </div>
 
-      <div class="section-title">Υλικά &amp; χρέωση επίσκεψης</div>
-      <div id="visit-lines">${visitLineHtml({ itemId:"", description:"", qty:1, price:0 })}</div>
-      <button type="button" class="add-link" id="visit-add-line">+ Προσθήκη υλικού</button>
-      <div class="qtotal-row" style="font-size:13px;padding:10px 0 4px;"><span>Σύνολο υλικών</span><span id="visit-materials-total">0.00€</span></div>
-      <div class="field"><label>Επιπλέον χρέωση εργασίας (€)</label><input type="number" step="0.01" min="0" id="visit-labor" value="0"></div>
-      <div class="qtotal-row"><span>Συνολική χρέωση επίσκεψης</span><span id="visit-grand-total">0.00€</span></div>
-      <div class="form-row">
-        <div class="field"><label>Παραστατικό</label>
-          <select id="visit-doc-series">
-            <option value="TDA">ΤΔΑ</option>
-            <option value="TPY">ΤΠΥ</option>
-            <option value="">Χωρίς παραστατικό</option>
-          </select>
+      <div class="${isFieldRole ? "hidden" : ""}">
+        <div class="section-title">Υλικά &amp; χρέωση επίσκεψης</div>
+        <div id="visit-lines">${visitLineHtml({ itemId:"", description:"", qty:1, price:0 })}</div>
+        <button type="button" class="add-link" id="visit-add-line">+ Προσθήκη υλικού</button>
+        <div class="qtotal-row" style="font-size:13px;padding:10px 0 4px;"><span>Σύνολο υλικών</span><span id="visit-materials-total">0.00€</span></div>
+        <div class="field"><label>Επιπλέον χρέωση εργασίας (€)</label><input type="number" step="0.01" min="0" id="visit-labor" value="0"></div>
+        <div class="qtotal-row"><span>Συνολική χρέωση επίσκεψης</span><span id="visit-grand-total">0.00€</span></div>
+        <div class="form-row">
+          <div class="field"><label>Παραστατικό</label>
+            <select id="visit-doc-series">
+              <option value="TDA">ΤΔΑ</option>
+              <option value="TPY">ΤΠΥ</option>
+              <option value="">Χωρίς παραστατικό</option>
+            </select>
+          </div>
+          <div class="field"><label>Πληρωμή</label>
+            <select id="visit-paid">
+              <option value="no">Θα μείνει υπόλοιπο</option>
+              <option value="yes">Πληρώθηκε τώρα</option>
+            </select>
+          </div>
         </div>
-        <div class="field"><label>Πληρωμή</label>
-          <select id="visit-paid">
-            <option value="no">Θα μείνει υπόλοιπο</option>
-            <option value="yes">Πληρώθηκε τώρα</option>
-          </select>
+        <div class="form-row hidden" id="visit-method-row">
+          <div class="field"><label>Τρόπος πληρωμής</label>
+            <select id="visit-method">
+              <option value="cash">Μετρητά</option>
+              <option value="card">Κάρτα</option>
+              <option value="bank">Τραπεζική κατάθεση</option>
+            </select>
+          </div>
+          <div class="field hidden" id="visit-bank-field"><label>Τράπεζα</label>
+            <select id="visit-bank">${BANKS.map(b => `<option>${b}</option>`).join("")}</select>
+          </div>
         </div>
+        <div id="visit-msg"></div>
+        <button type="button" class="btn-primary btn-sm" id="visit-save" style="margin-bottom:4px;">Καταχώρηση επίσκεψης</button>
       </div>
-      <div class="form-row hidden" id="visit-method-row">
-        <div class="field"><label>Τρόπος πληρωμής</label>
-          <select id="visit-method">
-            <option value="cash">Μετρητά</option>
-            <option value="card">Κάρτα</option>
-            <option value="bank">Τραπεζική κατάθεση</option>
-          </select>
-        </div>
-        <div class="field hidden" id="visit-bank-field"><label>Τράπεζα</label>
-          <select id="visit-bank">${BANKS.map(b => `<option>${b}</option>`).join("")}</select>
-        </div>
-      </div>
-      <div id="visit-msg"></div>
-      <button type="button" class="btn-primary btn-sm" id="visit-save" style="margin-bottom:4px;">Καταχώρηση επίσκεψης</button>
 
       ${t.status !== "cancelled" ? '<button type="button" class="add-link" id="tk-cancel-link" style="color:var(--red);">Ακύρωση αιτήματος</button><div id="tk-cancel-confirm"></div>' : ""}
     `;
@@ -2085,6 +2138,90 @@
           }
           clearMsg($("#vlog-msg"));
           await refreshVlogBox();
+        });
+
+        // --- χειροκίνητη καταχώρηση επίσκεψης που ξεχάστηκε εντελώς (χωρίς check-in) ---
+        const manualLink = $("#vlog-manual-add-link");
+        if (manualLink) manualLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          $("#vlog-manual-form").classList.toggle("hidden");
+        });
+        const manualCancel = $("#vlog-manual-cancel");
+        if (manualCancel) manualCancel.addEventListener("click", () => {
+          $("#vlog-manual-form").classList.add("hidden");
+        });
+        const manualSave = $("#vlog-manual-save");
+        if (manualSave) manualSave.addEventListener("click", async () => {
+          const ciVal = $("#vlog-manual-checkin").value;
+          const coVal = $("#vlog-manual-checkout").value;
+          if (!ciVal || !coVal) { showMsg($("#vlog-msg"), "Συμπλήρωσε και τις δύο ώρες.", "error"); return; }
+          const checkinIso = fromLocalInputValue(ciVal);
+          const checkoutIso = fromLocalInputValue(coVal);
+          if (new Date(checkoutIso) <= new Date(checkinIso)) { showMsg($("#vlog-msg"), "Η αναχώρηση πρέπει να είναι μετά την άφιξη.", "error"); return; }
+          manualSave.disabled = true; manualSave.innerHTML = '<span class="spinner"></span>Καταχώρηση...';
+          const { error: mErr } = await sb.from("visit_logs").insert({
+            ticket_id: ticketId, tech_id: USER.id,
+            checkin_at: checkinIso, checkout_at: checkoutIso
+          });
+          manualSave.disabled = false; manualSave.textContent = "Καταχώρηση";
+          if (mErr) { showMsg($("#vlog-msg"), "Σφάλμα: " + mErr.message, "error"); return; }
+          clearMsg($("#vlog-msg"));
+          await refreshVlogBox();
+        });
+
+        // --- διόρθωση ώρας άφιξης της τρέχουσας ανοιχτής επίσκεψης ---
+        const editOpenLink = $("[data-vlog-edit-open]");
+        if (editOpenLink) editOpenLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          $("#vlog-edit-open-form").classList.toggle("hidden");
+        });
+        const fixOpenCancel = $("#vlog-fix-open-cancel");
+        if (fixOpenCancel) fixOpenCancel.addEventListener("click", () => {
+          $("#vlog-edit-open-form").classList.add("hidden");
+        });
+        const fixOpenSave = $("#vlog-fix-open-save");
+        if (fixOpenSave) fixOpenSave.addEventListener("click", async () => {
+          const openId = editOpenLink.dataset.vlogEditOpen;
+          const val = $("#vlog-fix-checkin-open").value;
+          if (!val) return;
+          const iso = fromLocalInputValue(val);
+          fixOpenSave.disabled = true; fixOpenSave.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
+          const { error: fErr } = await sb.from("visit_logs").update({ checkin_at: iso }).eq("id", openId);
+          fixOpenSave.disabled = false; fixOpenSave.textContent = "Αποθήκευση";
+          if (fErr) { showMsg($("#vlog-msg"), "Σφάλμα: " + fErr.message, "error"); return; }
+          clearMsg($("#vlog-msg"));
+          await refreshVlogBox();
+        });
+
+        // --- διόρθωση ώρας άφιξης/αναχώρησης σε ήδη κλεισμένη επίσκεψη ---
+        $$("[data-vlog-edit-done]").forEach(link => {
+          link.addEventListener("click", (e) => {
+            e.preventDefault();
+            $(`#vlog-edit-done-form-${link.dataset.vlogEditDone}`).classList.toggle("hidden");
+          });
+        });
+        $$("[data-vlog-fix-cancel]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            $(`#vlog-edit-done-form-${btn.dataset.vlogFixCancel}`).classList.add("hidden");
+          });
+        });
+        $$("[data-vlog-fix-save]").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const vid = btn.dataset.vlogFixSave;
+            const form = $(`#vlog-edit-done-form-${vid}`);
+            const ciVal = form.querySelector("[data-vlog-fix-checkin]").value;
+            const coVal = form.querySelector("[data-vlog-fix-checkout]").value;
+            if (!ciVal || !coVal) { showMsg($("#vlog-msg"), "Συμπλήρωσε και τις δύο ώρες.", "error"); return; }
+            const checkinIso = fromLocalInputValue(ciVal);
+            const checkoutIso = fromLocalInputValue(coVal);
+            if (new Date(checkoutIso) <= new Date(checkinIso)) { showMsg($("#vlog-msg"), "Η αναχώρηση πρέπει να είναι μετά την άφιξη.", "error"); return; }
+            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>...';
+            const { error: fErr } = await sb.from("visit_logs").update({ checkin_at: checkinIso, checkout_at: checkoutIso }).eq("id", vid);
+            btn.disabled = false; btn.textContent = "Αποθήκευση";
+            if (fErr) { showMsg($("#vlog-msg"), "Σφάλμα: " + fErr.message, "error"); return; }
+            clearMsg($("#vlog-msg"));
+            await refreshVlogBox();
+          });
         });
       }
       wireVlogButtons();
