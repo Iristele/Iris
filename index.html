@@ -12,273 +12,373 @@
      απαραίτητο στο iPhone/iPad για να λειτουργήσουν καθόλου οι ειδοποιήσεις push -->
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="theme-color" content="#0E7C86">
+<meta name="theme-color" content="#17306B">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
+  /* ==========================================================================
+     IRIS — σύστημα σχεδίασης
+     Δομή: (1) χρώμα μάρκας  (2) ουδέτερα  (3) χρώματα κατάστασης  (4) σκούρο θέμα
+           (5) βάση  (6) στοιχεία.
+     Αρχές: λεπτές γραμμές αντί για σκιές, χαμηλός κορεσμός, πλέγμα 4px,
+     κείμενο 13–14px, σκιά ΜΟΝΟ σε ό,τι αιωρείται (παράθυρα, μενού).
+     ========================================================================== */
   :root{
     color-scheme:light;
-    --teal:#0E7C86; --teal-dark:#0A5F67; --teal-light:#E4F3F2; --topbar-h:59px;
-    --ink:#1A2426; --ink-soft:#4B5B5E; --line:#DDE6E6; --bg:#F5F8F8; --card:#FFFFFF;
-    --surface:#FFFFFF; --surface-2:#EEF3F3; --input-bg:#FFFFFF; --on-teal:#FFFFFF; --badge-bg:#C24545;
-    --tile-bg:#EAF6F5; --tile-line:#CFE6E4; --tile-hover:#DCF0EE; --tile-num:#0A5F67;
-    --muted-bg:#EEEEEE; --muted-fg:#777777; --waiting-bg:#F1E7DC; --waiting-fg:#8A5A2B;
-    --unread-bg:#F4FAF9; --danger-hover:#F8DADA;
-    --red:#C24545; --red-bg:#FCEBEB; --green:#1E8E5A; --green-bg:#E7F5EC; --amber:#8A6308; --amber-bg:#FDF1DC;
-    --blue:#3468C0; --blue-bg:#E8EFFB; --purple:#6B3FA0; --purple-bg:#EDE4F9;
-    /* πορτοκαλί (σε εξέλιξη) / κίτρινο (άδειες): -dot = καθαρό χρώμα για τις τελείες,
-       το σκούρο ζευγάρι είναι για κείμενο πάνω στο αντίστοιχο -bg */
-    --orange:#B35E06; --orange-bg:#FBE8D5; --orange-dot:#E8821A;
-    --yellow:#856E00; --yellow-bg:#FAF3C8; --yellow-dot:#EFC81F;
-    --sunday-bg:#FDF0F0; --sunday-bg-hover:#FBE4E4;
-    --radius:10px; --shadow:0 1px 3px rgba(20,40,40,.08), 0 1px 2px rgba(20,40,40,.06);
-    --shadow-panel:-4px 0 24px rgba(20,40,40,.12);
+
+    /* ---- (1) ΧΡΩΜΑ ΜΑΡΚΑΣ ---------------------------------------------- */
+    --brand:#17306B; --brand-strong:#0F2250; --brand-weak:#E9EDF8;
+    --brand-ink:#1B3B85; --brand-ring:rgba(23,48,107,.24); --on-brand:#FFFFFF;
+    --blue:#0E6FA8; --blue-bg:#E4F1FA; --blue-dot:#2A93CE;
+
+    /* ---- (2) ΟΥΔΕΤΕΡΑ — γκρι με ελαφριά ψυχρή απόχρωση, όχι «νεκρό» γκρι -- */
+    --bg:#F7F9FB;
+    --surface:#FFFFFF;
+    --surface-2:#F1F4F8;
+    --surface-3:#E7ECF2;
+    --line:#E3E8EF;
+    --line-soft:#EDF1F6;
+    --line-strong:#CFD8E3;
+    --ink:#101828;
+    --ink-2:#344054;
+    --ink-soft:#5B6B82;
+    --ink-faint:#8A99AE;
+    --card:var(--surface);
+    --input-bg:#FFFFFF;
+    --muted-bg:#EEF1F5; --muted-fg:#6B7A8F;
+    --unread-bg:var(--brand-weak);
+    --danger-hover:#FBDDDD;
+
+    /* ---- (3) ΚΑΤΑΣΤΑΣΕΙΣ ------------------------------------------------ */
+    --blue:#1D4FD8;   --blue-bg:#EAF0FE;   --blue-dot:#3B72F0;
+    --orange:#B4530A; --orange-bg:#FDEDDD; --orange-dot:#EE7F1B;
+    --red:#BC2F2F;    --red-bg:#FDEDED;    --red-dot:#DC4B4B;
+    --green:#15784C;  --green-bg:#E6F6ED;  --green-dot:#1FA163;
+    --yellow:#8A6D00; --yellow-bg:#FCF4D4; --yellow-dot:#E8BE18;
+    --purple:#6B3FA0; --purple-bg:#F0E9FA;
+    --amber:var(--yellow); --amber-bg:var(--yellow-bg);
+    --sunday-bg:#FDF3F3; --sunday-bg-hover:#FAE8E8;
+
+    /* ---- σχήμα, βάθος, κίνηση ------------------------------------------- */
+    --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:12px; --r-full:999px;
+    --radius:var(--r-lg);
+    --topbar-h:60px;
+    --row-h:44px;
+    --shadow:none;
+    --shadow-pop:0 4px 16px rgba(16,24,40,.10), 0 1px 3px rgba(16,24,40,.06);
+    --shadow-panel:0 24px 60px rgba(16,24,40,.22);
+    --ring:0 0 0 3px var(--brand-ring);
+    --t:130ms cubic-bezier(.4,0,.2,1);
   }
-  /* ---- ΣΚΟΥΡΟ ΘΕΜΑ ----
-     Αλλάζουν ΜΟΝΟ οι μεταβλητές· κανένας κανόνας παρακάτω δεν ξαναγράφεται.
-     Το --teal-dark γίνεται ΑΝΟΙΧΤΟ τιρκουάζ επίτηδες: χρησιμοποιείται ως χρώμα
-     κειμένου πάνω σε --teal-light, που εδώ είναι σκούρο φόντο. */
+
+  /* ---- (4) ΣΚΟΥΡΟ ΘΕΜΑ ------------------------------------------------
+     Κανόνες που τηρούνται εδώ: ποτέ καθαρό μαύρο φόντο ούτε καθαρό λευκό
+     κείμενο· οι γραμμές είναι ΠΙΟ ΑΝΟΙΧΤΕΣ από την επιφάνεια (όχι πιο σκούρες)·
+     τα χρώματα κατάστασης ξαναγράφονται πιο ανοιχτά και λιγότερο κορεσμένα
+     αντί να αντιστρέφονται. */
   :root[data-theme="dark"]{
     color-scheme:dark;
-    --teal:#2FA9B3; --teal-dark:#8FDDE4; --teal-light:#15302F;
-    --ink:#E7EEED; --ink-soft:#9CACAB; --line:#273635; --bg:#0E1516; --card:#16201F;
-    --surface:#16201F; --surface-2:#1F2C2B; --input-bg:#111A19; --on-teal:#04211F; --badge-bg:#C24545;
-    --tile-bg:#23403E; --tile-line:#2F5350; --tile-hover:#2C4F4C; --tile-num:#A8E6EB;
-    --muted-bg:#242F2E; --muted-fg:#94A3A2; --waiting-bg:#33281A; --waiting-fg:#DCA968;
-    --unread-bg:#13302F; --danger-hover:#4A2424;
-    --red:#F08A8A; --red-bg:#3A1F1F; --green:#6FD69B; --green-bg:#173020; --amber:#E6B94F; --amber-bg:#332714;
-    --blue:#8AAEF2; --blue-bg:#1C2641; --purple:#BA98EA; --purple-bg:#2B1F3C;
-    --orange:#F0A45C; --orange-bg:#3A2612; --orange-dot:#F0932F;
-    --yellow:#E8D45A; --yellow-bg:#33301A; --yellow-dot:#EFD35A;
-    --sunday-bg:#2A1A1A; --sunday-bg-hover:#352020;
-    --shadow:0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35);
-    --shadow-panel:0 18px 48px rgba(0,0,0,.55);
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink);}
-  code, .mono{font-family:'IBM Plex Mono',monospace;}
-  a{color:var(--teal);}
-  .hidden{display:none !important;}
 
-  /* ---- auth screen ---- */
-  .auth-wrap{max-width:440px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 20px;}
-  .brand{display:flex;align-items:center;gap:10px;}
-  .brand-mark{width:34px;height:34px;border-radius:50%;flex:none;overflow:hidden;}
-  .brand-mark img{width:100%;height:100%;object-fit:cover;display:block;}
-  .brand-logo{height:32px;width:auto;display:block;}
-  .brand-logo-auth{height:60px;width:auto;display:block;}
-  @media (max-width:900px){ .brand-logo-auth{height:48px;} }
-  .brand-name{font-size:20px;font-weight:800;font-style:italic;letter-spacing:-0.01em;}
-  .brand-name .it{background:linear-gradient(180deg,#DCE0E1,#8B9195);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-  .brand-name .supp{background:linear-gradient(180deg,#F5CB52,#C6931B);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px;}
-  .auth-wrap .brand{margin-bottom:26px;}
-  h1{font-size:19px;margin:0 0 6px;}
-  .sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px;line-height:1.5;}
+    --brand:#5B82D6; --brand-strong:#7396E0; --brand-weak:#151E33;
+    --brand-ink:#9DB6EE; --brand-ring:rgba(91,130,214,.32); --on-brand:#08122B;
+    --blue:#79C2EC; --blue-bg:#122734; --blue-dot:#4FAADD;
+
+    --bg:#0A0E14;
+    --surface:#111722;
+    --surface-2:#182030;
+    --surface-3:#1F293B;
+    --line:#242E3F;
+    --line-soft:#1B2432;
+    --line-strong:#33405A;
+    --ink:#E9EEF6;
+    --ink-2:#C2CCDA;
+    --ink-soft:#93A1B5;
+    --ink-faint:#6F7E93;
+    --card:var(--surface);
+    --input-bg:#0D1219;
+    --muted-bg:#1E2635; --muted-fg:#8A99AE;
+    --unread-bg:var(--brand-weak);
+    --danger-hover:#4A2020;
+
+    --blue:#8FB3FA;   --blue-bg:#17233D;   --blue-dot:#6D97F5;
+    --orange:#F3A863; --orange-bg:#33220F; --orange-dot:#EF9236;
+    --red:#F09292;    --red-bg:#361C1C;    --red-dot:#E76D6D;
+    --green:#63D69C;  --green-bg:#0F2D1F;  --green-dot:#3FBF80;
+    --yellow:#E8CE5F; --yellow-bg:#2E2913; --yellow-dot:#DEBE33;
+    --purple:#BFA0EC; --purple-bg:#261D39;
+    --amber:var(--yellow); --amber-bg:var(--yellow-bg);
+    --sunday-bg:#291A1C; --sunday-bg-hover:#332124;
+
+    --shadow:none;
+    --shadow-pop:0 4px 18px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
+    --shadow-panel:0 28px 70px rgba(0,0,0,.7);
+  }
+
+  /* ================= (5) ΒΑΣΗ ================= */
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+       font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  code,.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  a{color:var(--brand-ink);text-underline-offset:2px;}
+  .hidden{display:none !important;}
+  /* οι αριθμοί ευθυγραμμίζονται σε στήλη — μικρή λεπτομέρεια, μεγάλη διαφορά σε πίνακες */
+  .num,.ledger-amt,.stat-tile .num,td,.sched-time,.cal-daynum{font-variant-numeric:tabular-nums;}
+  :focus-visible{outline:none;box-shadow:var(--ring);border-radius:var(--r-sm);}
+  ::selection{background:var(--brand-weak);color:var(--brand-ink);}
+
+  h1{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em;}
+  .sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.55;}
+  .note{font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.55;}
+
+  /* ---- φόρμες ---- */
   .field{margin-bottom:14px;}
   .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  label{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;color:var(--ink-soft);}
-  input, select, textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;background:var(--input-bg);color:var(--ink);}
-  /* τα checkbox/radio ΔΕΝ πρέπει να πιάνουν 100% πλάτος — αλλιώς «πέφτουν» πάνω στο κείμενο
-     της ετικέτας τους (ιδίως σε κινητό, όπου το σύστημα τα μεγαλώνει) */
-  input[type="checkbox"], input[type="radio"]{width:18px;height:18px;min-width:18px;flex:none;padding:0;margin:0;accent-color:var(--teal);}
-  textarea{resize:vertical;min-height:64px;}
-  input:focus, select:focus, textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-light);}
-  button{cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;border-radius:8px;border:none;padding:9px 15px;}
-  .btn-primary{background:var(--teal);color:var(--on-teal);}
-  .btn-primary:hover{background:var(--teal-dark);}
-  .btn-primary:disabled{opacity:.6;cursor:default;}
-  .btn-full{width:100%;margin-top:4px;}
-  .btn-ghost{background:transparent;color:var(--ink-soft);}
+  label{display:block;font-size:12px;font-weight:500;margin-bottom:6px;color:var(--ink-soft);}
+  input,select,textarea{width:100%;padding:9px 11px;font-size:14px;font-family:inherit;
+    color:var(--ink);background:var(--input-bg);
+    border:1px solid var(--line-strong);border-radius:var(--r-sm);
+    transition:border-color var(--t),box-shadow var(--t);}
+  input::placeholder,textarea::placeholder{color:var(--ink-faint);}
+  /* τα checkbox/radio ΔΕΝ πρέπει να πιάνουν 100% πλάτος — αλλιώς «πέφτουν» πάνω στο
+     κείμενο της ετικέτας τους (ιδίως σε κινητό, όπου το σύστημα τα μεγαλώνει) */
+  input[type="checkbox"],input[type="radio"]{width:17px;height:17px;min-width:17px;flex:none;
+    padding:0;margin:0;accent-color:var(--brand);}
+  textarea{resize:vertical;min-height:64px;line-height:1.55;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring);}
+  select{appearance:none;-webkit-appearance:none;padding-right:30px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ink-faint) 50%),
+                     linear-gradient(135deg,var(--ink-faint) 50%,transparent 50%);
+    background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;
+    background-size:5px 5px,5px 5px;background-repeat:no-repeat;}
+
+  /* ---- κουμπιά ---- */
+  button{cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;
+    border-radius:var(--r-sm);border:1px solid transparent;padding:8px 14px;
+    transition:background var(--t),border-color var(--t),color var(--t),transform var(--t);}
+  button:active{transform:scale(.985);}
+  .btn-primary{background:var(--brand);color:var(--on-brand);border-color:var(--brand);}
+  .btn-primary:hover{background:var(--brand-strong);border-color:var(--brand-strong);}
+  .btn-primary:disabled{opacity:.55;cursor:default;transform:none;}
+  .btn-full{width:100%;margin-top:4px;padding:10px 14px;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border-color:transparent;}
   .btn-ghost:hover{color:var(--ink);background:var(--surface-2);}
-  .btn-danger{background:var(--red-bg);color:var(--red);}
+  .btn-danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
   .btn-danger:hover{background:var(--danger-hover);}
   .btn-sm{padding:6px 11px;font-size:12.5px;}
-  .tabs{display:flex;gap:4px;background:var(--teal-light);border-radius:8px;padding:3px;margin-bottom:20px;}
-  .tab{flex:1;text-align:center;padding:8px;border-radius:6px;font-size:13px;font-weight:600;color:var(--teal-dark);cursor:pointer;}
-  .tab.active{background:var(--surface);box-shadow:var(--shadow);}
-  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px;}
+  .add-link{background:none;color:var(--brand-ink);font-weight:500;padding:6px 0;font-size:13px;border:none;}
+  .add-link:hover{text-decoration:underline;}
+
+  .msg{font-size:13px;padding:10px 12px;border-radius:var(--r-sm);margin-bottom:14px;line-height:1.5;}
   .msg-error{background:var(--red-bg);color:var(--red);}
   .msg-ok{background:var(--green-bg);color:var(--green);}
-  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(128,128,128,.35);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(128,128,128,.3);
+    border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;
+    vertical-align:-2px;margin-right:6px;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  /* ---- app shell ---- */
-  .topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;}
+  /* ================= (6) ΣΤΟΙΧΕΙΑ ================= */
+
+  /* ---- οθόνη σύνδεσης ---- */
+  .auth-wrap{max-width:412px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
+    justify-content:center;padding:32px 20px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-logo{height:30px;width:auto;display:block;}
+  .brand-logo-auth{height:56px;width:auto;display:block;}
+  .auth-wrap .brand{margin-bottom:24px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px;}
+  .tabs{display:flex;gap:2px;background:var(--surface-2);border-radius:var(--r-md);padding:3px;margin-bottom:22px;}
+  .tab{flex:1;text-align:center;padding:8px;border-radius:var(--r-sm);font-size:13px;font-weight:500;
+    color:var(--ink-soft);cursor:pointer;transition:background var(--t),color var(--t);}
+  .tab:hover{color:var(--ink);}
+  .tab.active{background:var(--surface);color:var(--ink);font-weight:600;
+    box-shadow:0 1px 2px rgba(16,24,40,.08);}
+
+  /* ---- πάνω μπάρα ---- */
+  .topbar{position:sticky;top:0;z-index:40;background:var(--surface);
+    border-bottom:1px solid var(--line);padding:0 20px;height:var(--topbar-h);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .topbar-left{display:flex;align-items:center;gap:12px;}
-  .topbar-right{display:flex;align-items:center;gap:14px;}
-  .nav-toggle{background:transparent;border:none;color:var(--ink-soft);font-size:18px;line-height:1;padding:7px 10px;border-radius:8px;cursor:pointer;}
+  .topbar-right{display:flex;align-items:center;gap:6px;}
+  .nav-toggle{background:transparent;color:var(--ink-soft);font-size:17px;line-height:1;
+    padding:8px 10px;border-radius:var(--r-sm);}
   .nav-toggle:hover{background:var(--surface-2);color:var(--ink);}
-  .who{font-size:13px;color:var(--ink-soft);}
-  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;margin-left:6px;}
+  .who{font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:2px;}
+  .theme-btn{font-size:15px;line-height:1;padding:8px;background:transparent;}
+  .theme-btn:hover{background:var(--surface-2);}
+  .theme-btn-float{position:fixed;top:16px;right:16px;z-index:60;}
+
+  .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--r-full);
+    font-size:11px;font-weight:500;margin-left:6px;white-space:nowrap;}
   .pill-owner{background:var(--purple-bg);color:var(--purple);}
-  .pill-staff{background:var(--teal-light);color:var(--teal-dark);}
-  .pill-client{background:var(--amber-bg);color:var(--amber);}
+  .pill-staff{background:var(--brand-weak);color:var(--brand-ink);}
+  .pill-client{background:var(--yellow-bg);color:var(--yellow);}
   .pill-external{background:var(--blue-bg);color:var(--blue);}
   .pill-reception{background:var(--green-bg);color:var(--green);}
-  .theme-btn{font-size:15px;line-height:1;padding:7px 9px;}
-  .theme-btn-float{position:fixed;top:16px;right:16px;z-index:60;}
+
+  /* ---- ειδοποιήσεις ---- */
   .notif-wrap{position:relative;}
-  .notif-bell{font-size:16px;position:relative;}
-  .notif-badge{position:absolute;top:-3px;right:-3px;background:var(--badge-bg);color:#fff;border-radius:999px;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;}
-  .notif-panel{position:absolute;top:38px;right:0;width:320px;max-height:360px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);z-index:20;}
-  .notif-panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;}
-  .notif-item{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer;}
-  .notif-item:hover{background:var(--teal-light);}
+  .notif-bell{font-size:15px;position:relative;background:transparent;padding:8px;}
+  .notif-bell:hover{background:var(--surface-2);}
+  .notif-badge{position:absolute;top:0;right:0;background:var(--red-dot);color:#fff;
+    border-radius:var(--r-full);font-size:10px;font-weight:600;min-width:16px;height:16px;
+    line-height:16px;text-align:center;padding:0 4px;border:2px solid var(--surface);}
+  .notif-panel{position:absolute;top:44px;right:0;width:330px;max-height:380px;overflow-y:auto;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-pop);z-index:20;}
+  .notif-panel-head{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;
+    position:sticky;top:0;background:var(--surface);}
+  .notif-item{padding:11px 14px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
+    cursor:pointer;line-height:1.5;transition:background var(--t);}
+  .notif-item:last-child{border-bottom:none;}
+  .notif-item:hover{background:var(--surface-2);}
   .notif-item.unread{background:var(--unread-bg);}
-  .notif-item .notif-time{color:var(--ink-soft);font-size:11px;margin-top:3px;}
-  .vlog-open{background:var(--green-bg);color:var(--green);border-radius:8px;padding:11px 13px;font-size:13px;margin-bottom:10px;line-height:1.5;}
-  .vlog-open.stale{background:var(--amber-bg);color:var(--amber);}
-  .vlog-row{padding:9px 2px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5;}
-  .vlog-row:last-child{border-bottom:none;}
-  .vlog-row .vlog-who{color:var(--ink-soft);font-size:11.5px;}
-  .btn-checkin{width:100%;padding:13px;font-size:15px;margin-bottom:6px;}
-  .geo-link{font-size:11.5px;}
-  /* ---- πλαϊνό μενού αριστερά, με απόκρυψη/εμφάνιση ---- */
+  .notif-item .notif-time{color:var(--ink-faint);font-size:11px;margin-top:3px;}
+
+  /* ---- κέλυφος + πλαϊνό μενού ---- */
   .shell{display:flex;align-items:flex-start;}
-  .nav{width:212px;flex:none;display:flex;flex-direction:column;gap:4px;padding:14px 12px;
-       background:var(--surface);border-right:1px solid var(--line);
-       position:sticky;top:var(--topbar-h);height:calc(100vh - var(--topbar-h));overflow-y:auto;}
-  .nav-item{padding:10px 13px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
-  .nav-item:hover{background:var(--surface-2);}
-  .nav-item.active{background:var(--teal);color:var(--on-teal);}
+  .nav{width:232px;flex:none;display:flex;flex-direction:column;gap:2px;padding:14px 12px;
+    background:var(--surface);border-right:1px solid var(--line);
+    position:sticky;top:var(--topbar-h);height:calc(100vh - var(--topbar-h));overflow-y:auto;}
+  .nav-item{display:flex;align-items:center;gap:10px;height:38px;padding:0 11px;
+    border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:var(--ink-2);
+    cursor:pointer;transition:background var(--t),color var(--t);}
+  .nav-item svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;
+    stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.75;}
+  .nav-item:hover{background:var(--surface-2);color:var(--ink);}
+  .nav-item.active{background:var(--brand-weak);color:var(--brand-ink);font-weight:600;}
+  .nav-item.active svg{opacity:1;}
   body.nav-collapsed .nav{display:none;}
   .nav-backdrop{display:none;}
-  .main{flex:1;min-width:0;max-width:1080px;margin:0 auto;padding:20px 24px 60px;}
+  .main{flex:1;min-width:0;max-width:1120px;margin:0 auto;padding:22px 24px 72px;}
 
-  @media (max-width:900px){
-    /* σε κινητό το μενού «πέφτει» πάνω από το περιεχόμενο αντί να το στριμώχνει */
-    .nav{position:fixed;top:var(--topbar-h);left:0;bottom:0;height:auto;z-index:30;
-         box-shadow:0 12px 34px rgba(10,20,22,.22);}
-    body:not(.nav-collapsed) .nav-backdrop{display:block;position:fixed;top:var(--topbar-h);
-         left:0;right:0;bottom:0;background:rgba(10,20,22,.4);z-index:25;}
-    .topbar{padding:12px 14px;}
-    .main{padding:16px 14px 60px;}
-  }
-  @media (max-width:560px){
-    /* σε στενή οθόνη το όνομα χρήστη έτρωγε το «Αποσύνδεση» — φεύγει, μένουν τα χρήσιμα */
-    .who{display:none;}
-    .brand-name{font-size:17px;}
-    .topbar-left{gap:8px;}
-  }
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);}
-  .panel-head h2{font-size:15.5px;margin:0;}
-  .panel-body{padding:6px 0;}
-  .empty-state{color:var(--ink-soft);font-size:13.5px;padding:34px 20px;text-align:center;}
+  /* ---- πάνελ ---- */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px;border-bottom:1px solid var(--line);}
+  .panel-head h2{font-size:14.5px;font-weight:600;margin:0;letter-spacing:-.005em;}
+  .panel-body{padding:0;}
+  .empty-state{color:var(--ink-soft);font-size:13.5px;padding:44px 20px;text-align:center;line-height:1.6;}
 
+  /* ---- πίνακες ---- */
   table{width:100%;border-collapse:collapse;font-size:13.5px;}
-  th{text-align:left;font-size:11.5px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:9px 20px;border-bottom:1px solid var(--line);}
-  td{padding:12px 20px;border-bottom:1px solid var(--line);}
-  tbody tr{cursor:pointer;}
-  tbody tr:hover{background:var(--teal-light);}
+  th{text-align:left;font-size:11.5px;color:var(--ink-soft);font-weight:600;
+    text-transform:uppercase;letter-spacing:.04em;padding:10px 18px;
+    background:var(--surface);border-bottom:1px solid var(--line);
+    position:sticky;top:var(--topbar-h);z-index:2;}
+  td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  tbody tr{cursor:pointer;transition:background var(--t);}
+  tbody tr:hover{background:var(--surface-2);}
   tbody tr:last-child td{border-bottom:none;}
   .cell-sub{color:var(--ink-soft);font-size:12px;margin-top:2px;}
 
-  .status-pill, .prio-pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600;}
+  /* ---- ετικέτες κατάστασης: μικρό γεμάτο ορθογώνιο με τελεία, όχι μεγάλο «χάπι» ---- */
+  .status-pill,.prio-pill{display:inline-flex;align-items:center;gap:5px;
+    padding:2px 8px;border-radius:var(--r-xs);font-size:11.5px;font-weight:500;
+    line-height:18px;white-space:nowrap;}
+  .status-pill::before{content:"";width:6px;height:6px;border-radius:50%;
+    background:currentColor;flex:none;opacity:.9;}
   .st-new{background:var(--blue-bg);color:var(--blue);}
   .st-progress{background:var(--orange-bg);color:var(--orange);}
   .st-waiting{background:var(--red-bg);color:var(--red);}
   .st-done{background:var(--green-bg);color:var(--green);}
   .st-cancelled{background:var(--muted-bg);color:var(--muted-fg);}
   .prio-urgent{background:var(--red-bg);color:var(--red);}
-  .prio-normal{background:var(--teal-light);color:var(--teal-dark);}
+  .prio-normal{background:var(--surface-2);color:var(--ink-soft);}
   .prio-low{background:var(--muted-bg);color:var(--muted-fg);}
 
-  .filterbar{display:flex;gap:6px;padding:14px 20px 0;flex-wrap:wrap;}
-  .chip{padding:6px 13px;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--surface-2);cursor:pointer;}
-  .chip.active{background:var(--teal);color:var(--on-teal);}
+  /* ---- φίλτρα ---- */
+  .filterbar{display:flex;gap:6px;padding:12px 18px;flex-wrap:wrap;border-bottom:1px solid var(--line);}
+  .chip{padding:5px 12px;border-radius:var(--r-full);font-size:12.5px;font-weight:500;
+    color:var(--ink-soft);background:transparent;border:1px solid var(--line-strong);
+    cursor:pointer;transition:background var(--t),color var(--t),border-color var(--t);}
+  .chip:hover{background:var(--surface-2);color:var(--ink);}
+  .chip.active{background:var(--brand);color:var(--on-brand);border-color:var(--brand);}
 
-  /* ---- drawer/overlay ---- */
-  /* Οι καρτέλες ανοίγουν ΣΤΟ ΚΕΝΤΡΟ της οθόνης σαν κανονικό παράθυρο,
-     όχι σαν στενή λωρίδα στη δεξιά άκρη. */
-  #overlay{position:fixed;inset:0;background:rgba(20,30,32,.45);display:none;align-items:center;justify-content:center;padding:28px;z-index:50;}
+  /* ---- πλακίδια στατιστικών ---- */
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;padding:16px 18px;}
+  .stat-tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:14px 15px;transition:border-color var(--t),background var(--t);}
+  .stat-tile .num{font-size:23px;font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1.2;}
+  .stat-tile .lbl{font-size:11.5px;color:var(--ink-soft);margin-top:4px;font-weight:500;}
+  .stat-tile.balance-due{background:var(--red-bg);border-color:transparent;}
+  .stat-tile.balance-due .num{color:var(--red);}
+  .stat-tile[data-goto]{cursor:pointer;}
+  .stat-tile[data-goto]:hover{border-color:var(--brand);background:var(--surface-2);}
+
+  /* ---- παράθυρα ---- */
+  #overlay{position:fixed;inset:0;background:rgba(10,16,26,.5);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:28px;z-index:50;}
   #overlay.open{display:flex;}
-  /* Το παράθυρο μπορεί να μετακινηθεί (σύρε από την επικεφαλίδα) και να
-     αλλάξει μέγεθος (σύρε από την κάτω-δεξιά γωνία) — βλ. initDrawerDragResize(). */
-  #drawer{width:min(760px,94vw);height:min(88vh,880px);min-width:320px;min-height:260px;max-width:96vw;max-height:96vh;background:var(--surface);box-shadow:var(--shadow-panel);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;resize:both;}
-  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);flex:none;cursor:move;}
-  .drawer-head h3{margin:0;font-size:16px;}
-  .drawer-body{flex:1;overflow-y:auto;padding:20px 22px;}
-  .drawer-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex:none;}
-  .close-x{background:transparent;border:none;color:var(--ink-soft);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer;}
-  .close-x:hover{color:var(--ink);}
+  /* μετακινείται (σύρε από την επικεφαλίδα) και αλλάζει μέγεθος (κάτω-δεξιά γωνία) */
+  #drawer{width:min(760px,94vw);height:min(88vh,880px);min-width:320px;min-height:260px;
+    max-width:96vw;max-height:96vh;background:var(--surface);border:1px solid var(--line);
+    box-shadow:var(--shadow-panel);border-radius:var(--r-lg);
+    display:flex;flex-direction:column;overflow:hidden;resize:both;}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:15px 20px;border-bottom:1px solid var(--line);flex:none;cursor:move;}
+  .drawer-head h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.005em;}
+  .drawer-body{flex:1;overflow-y:auto;padding:20px;}
+  .drawer-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;
+    justify-content:space-between;align-items:center;gap:10px;flex:none;background:var(--surface);}
+  .close-x{background:transparent;color:var(--ink-faint);font-size:18px;line-height:1;padding:4px 8px;}
+  .close-x:hover{color:var(--ink);background:var(--surface-2);}
 
+  .section-title{font-size:11.5px;font-weight:600;margin:22px 0 10px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.05em;}
   .ra-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
   .ra-row input{flex:1;}
-  .remove-x{flex:none;background:var(--red-bg);color:var(--red);border-radius:6px;width:30px;height:34px;font-size:15px;}
-  .add-link{background:none;color:var(--teal);font-weight:600;padding:6px 0;font-size:13px;}
-  .add-link:hover{color:var(--teal-dark);}
+  .remove-x{flex:none;background:transparent;color:var(--ink-faint);border:1px solid var(--line-strong);
+    border-radius:var(--r-sm);width:32px;height:34px;font-size:14px;padding:0;}
+  .remove-x:hover{background:var(--red-bg);color:var(--red);border-color:transparent;}
 
-  .section-title{font-size:12px;font-weight:700;margin:20px 0 10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
-  .note-item{padding:11px 0;border-bottom:1px solid var(--line);}
+  .note-item{padding:11px 0;border-bottom:1px solid var(--line-soft);}
   .note-item:last-child{border-bottom:none;}
-  .note-meta{font-size:11.5px;color:var(--ink-soft);margin-bottom:3px;}
-  .note-body{font-size:13.5px;white-space:pre-wrap;}
+  .note-meta{font-size:11.5px;color:var(--ink-faint);margin-bottom:3px;}
+  .note-body{font-size:13.5px;white-space:pre-wrap;line-height:1.55;}
   .note-add{display:flex;gap:8px;margin-top:12px;}
   .note-add textarea{flex:1;min-height:40px;}
 
-  .note{font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
-
-  /* ---- wide modal (currently unused, kept in case a future screen needs it) ---- */
-  #overlay.overlay-center{align-items:center;justify-content:center;padding:24px;}
-  #drawer.drawer-wide{width:min(920px,94vw);height:min(88vh,760px);border-radius:16px;}
-  .drawer-wide .drawer-body{padding:22px 26px;}
-  .form-row-3{display:grid;grid-template-columns:1fr;gap:0;}
-  .drawer-wide .form-row-3{grid-template-columns:1.6fr 1fr 1fr;gap:12px;}
-  @media (max-width:900px){
-    /* σε κινητό η καρτέλα πιάνει ΟΛΗ την οθόνη — τίποτα στριμωγμένο, ούτε
-       χρειάζεται μετακίνηση/αλλαγή μεγέθους */
-    #overlay{padding:0;}
-    #drawer, #drawer.drawer-wide{width:100vw;height:100%;max-height:100%;border-radius:0;resize:none;}
-    .drawer-head{cursor:default;}
-  }
-
-  /* ---- stat tiles ---- */
-  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:16px 20px 4px;}
-  .stat-tile{background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:10px;padding:13px 15px;transition:background .12s,border-color .12s,transform .12s;}
-  .stat-tile .num{font-size:20px;font-weight:700;color:var(--tile-num);}
-  .stat-tile .lbl{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
-  .stat-tile.balance-due .num{color:var(--red);}
-  .stat-tile.balance-due{background:var(--red-bg);border-color:var(--red-bg);}
-  .stat-tile[data-goto]{cursor:pointer;}
-  .stat-tile[data-goto]:hover{background:var(--tile-hover);border-color:var(--teal);transform:translateY(-1px);}
-  .stat-tile[data-goto]:active{transform:none;}
-
-  /* ---- stock bar ---- */
-  .stock-bar{width:100%;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:4px;}
-  .stock-bar-fill{height:100%;background:var(--teal);}
-  .stock-bar-fill.low{background:var(--red);}
-
-  /* ---- quote line cards ---- */
-  .qline{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;}
-  .qline-top{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;margin-bottom:8px;}
-  .qline-nums{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:center;}
-  .qline-total{font-size:13px;font-weight:700;color:var(--teal-dark);text-align:right;align-self:center;}
-  .qtotal-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0 4px;font-size:14.5px;font-weight:700;border-top:1px solid var(--line);margin-top:6px;}
+  /* ---- επισκέψεις / check-in ---- */
+  .vlog-open{background:var(--green-bg);color:var(--green);border-radius:var(--r-md);
+    padding:11px 13px;font-size:13px;margin-bottom:10px;line-height:1.55;}
+  .vlog-open.stale{background:var(--yellow-bg);color:var(--yellow);}
+  .vlog-row{padding:9px 2px;border-bottom:1px solid var(--line-soft);font-size:12.5px;line-height:1.55;}
+  .vlog-row:last-child{border-bottom:none;}
+  .vlog-row .vlog-who{color:var(--ink-soft);font-size:11.5px;}
+  .btn-checkin{width:100%;padding:12px;font-size:14.5px;margin-bottom:6px;}
+  .geo-link{font-size:11.5px;}
 
   .ledger-row-charge{color:var(--ink);}
   .ledger-row-payment{color:var(--green);}
   .ledger-amt{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;}
-  .banner-cancel{background:var(--muted-bg);color:var(--muted-fg);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .banner-cancel{background:var(--muted-bg);color:var(--muted-fg);border-radius:var(--r-md);
+    padding:10px 12px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;
+    justify-content:space-between;gap:10px;}
 
-  /* ---- schedule ---- */
-  .cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;flex-wrap:wrap;}
-  .cal-nav{display:flex;align-items:center;gap:4px;}
-  .cal-title{font-size:15px;font-weight:700;min-width:160px;text-align:center;text-transform:capitalize;}
+  /* ================= ΠΡΟΓΡΑΜΜΑ / ΗΜΕΡΟΛΟΓΙΟ ================= */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px;flex-wrap:wrap;}
+  .cal-nav{display:flex;align-items:center;gap:2px;}
+  .cal-nav button{padding:6px 10px;}
+  .cal-title{font-size:14.5px;font-weight:600;min-width:170px;text-align:center;
+    text-transform:capitalize;letter-spacing:-.005em;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);
-            border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-  .cal-dow{background:var(--surface);padding:7px 4px;font-size:10.5px;font-weight:700;color:var(--ink-soft);
-           text-align:center;text-transform:uppercase;letter-spacing:.04em;}
-  .cal-cell{background:var(--card);min-height:106px;padding:6px 7px;cursor:pointer;display:flex;flex-direction:column;gap:3px;position:relative;}
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .cal-dow{background:var(--surface);padding:8px 4px;font-size:10.5px;font-weight:600;
+    color:var(--ink-soft);text-align:center;text-transform:uppercase;letter-spacing:.05em;}
+  .cal-cell{background:var(--surface);min-height:108px;padding:6px 7px;cursor:pointer;
+    display:flex;flex-direction:column;gap:3px;position:relative;transition:background var(--t);}
   .cal-cell:hover{background:var(--surface-2);}
-  .cal-cell.other{opacity:.4;}
-  .cal-cell.selected{outline:2px solid var(--teal);outline-offset:-2px;}
-  .cal-daynum{font-size:12px;font-weight:700;width:22px;height:22px;flex:none;
-              display:flex;align-items:center;justify-content:center;}
-  .cal-cell.today .cal-daynum{background:var(--teal);color:var(--on-teal);border-radius:999px;}
-  .cal-ev{font-size:11px;line-height:1.35;padding:2px 5px;border-radius:4px;background:var(--teal-light);
-          color:var(--teal-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* χρώμα βλάβης ανάλογα με το στάδιο (ίδια χρώματα με τα status-pill αλλού στην εφαρμογή):
+  .cal-cell.other{opacity:.38;}
+  .cal-cell.selected{box-shadow:inset 0 0 0 2px var(--brand);}
+  .cal-daynum{font-size:12px;font-weight:600;width:22px;height:22px;flex:none;
+    display:flex;align-items:center;justify-content:center;color:var(--ink-2);}
+  .cal-cell.today .cal-daynum{background:var(--brand);color:var(--on-brand);border-radius:var(--r-full);}
+  .cal-ev{font-size:11px;line-height:1.4;padding:2px 6px;border-radius:var(--r-xs);
+    background:var(--surface-2);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* χρώμα βλάβης ανά στάδιο — ίδια χρώματα με τα status-pill αλλού στην εφαρμογή:
      γαλάζιο = Νέο, πορτοκαλί = Σε εξέλιξη, κόκκινο = Αναμονή, πράσινο = Ολοκληρώθηκε,
      κίτρινο = Άδεια */
   .cal-ev.st-new{background:var(--blue-bg);color:var(--blue);}
@@ -286,55 +386,101 @@
   .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
   .cal-ev.st-done{background:var(--green-bg);color:var(--green);}
   .cal-ev.leave{background:var(--yellow-bg);color:var(--yellow);}
-  .cal-more{font-size:10.5px;color:var(--ink-soft);padding-left:3px;}
+  .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
-  .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);}
-  .cal-dot.st-new{background:var(--blue);}
+  .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
+  .cal-dot.st-new{background:var(--blue-dot);}
   .cal-dot.st-progress{background:var(--orange-dot);}
-  .cal-dot.st-waiting{background:var(--red);}
-  .cal-dot.st-done{background:var(--green);}
+  .cal-dot.st-waiting{background:var(--red-dot);}
+  .cal-dot.st-done{background:var(--green-dot);}
   .cal-dot.leave{background:var(--yellow-dot);}
-  /* Κυριακές: ελαφρύ κόκκινο φόντο + ✕ στη γωνία (κλειστά) */
+  /* Κυριακές & κλειστές μέρες: ελαφρύ κόκκινο φόντο + ✕ στη γωνία */
   .cal-cell.sunday{background:var(--sunday-bg);}
   .cal-cell.sunday:hover{background:var(--sunday-bg-hover);}
   .cal-dow.sunday{color:var(--red);}
-  .cal-sun-x{position:absolute;top:3px;right:5px;font-size:11px;font-weight:700;color:var(--red);opacity:.8;pointer-events:none;line-height:1;}
-  .cal-closed{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.02em;
-              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* προβολή Εβδομάδα: ίδια κελιά με τον μήνα αλλά ψηλότερα — μόνο 7, χωράνε περισσότερα.
+  .cal-sun-x{position:absolute;top:4px;right:6px;font-size:10px;font-weight:700;
+    color:var(--red);opacity:.75;pointer-events:none;line-height:1;}
+  .cal-closed{font-size:9.5px;font-weight:600;color:var(--red);text-transform:uppercase;
+    letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* προβολή Εβδομάδα: ίδια κελιά, ψηλότερα — μόνο 7, χωράνε περισσότερα.
      Ο «αριθμός μέρας» εδώ γράφει και το όνομα («Δε 12»), οπότε θέλει ελεύθερο πλάτος. */
   .cal-cell.week-cell{min-height:190px;}
-  .cal-cell.week-cell .cal-daynum{width:auto;min-width:44px;padding:0 7px;border-radius:999px;}
-  @media (max-width:760px){
-    /* σε κινητό τα κελιά δεν χωράνε κείμενο — δείχνουν τελείες και ανοίγεις τη μέρα από κάτω */
-    .cal-cell{min-height:54px;align-items:center;gap:5px;padding:5px 2px;}
-    .cal-cell.week-cell{min-height:70px;}
-    .cal-ev, .cal-more{display:none;}
-    .cal-dots{display:flex;}
-    .cal-title{min-width:120px;font-size:14px;}
-    .cal-head{padding:12px 14px;}
-  }
-  .sched-day{padding:14px 20px;border-bottom:1px solid var(--line);}
+  .cal-cell.week-cell .cal-daynum{width:auto;min-width:44px;padding:0 8px;border-radius:var(--r-full);}
+
+  .sched-day{padding:14px 18px;border-bottom:1px solid var(--line);}
   .sched-day:last-child{border-bottom:none;}
-  .sched-day-title{font-size:13px;font-weight:700;color:var(--teal-dark);margin-bottom:10px;text-transform:capitalize;}
-  .sched-visit{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;background:var(--bg);margin-bottom:6px;cursor:pointer;}
-  .sched-visit:hover{background:var(--teal-light);}
+  .sched-day-title{font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:10px;
+    text-transform:uppercase;letter-spacing:.04em;}
+  .sched-visit{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-md);
+    background:var(--surface);border:1px solid var(--line);margin-bottom:6px;cursor:pointer;
+    transition:border-color var(--t),background var(--t);}
+  .sched-visit:hover{border-color:var(--brand);background:var(--surface-2);}
   .sched-visit:last-child{margin-bottom:0;}
   .sched-time{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);min-width:78px;}
-  .sched-info{flex:1;font-size:13.5px;}
+  .sched-info{flex:1;font-size:13.5px;min-width:0;}
   .sched-tech{font-size:12px;color:var(--ink-soft);}
-  .sched-leave{background:var(--yellow-bg);border-radius:8px;}
+  .sched-leave{background:var(--yellow-bg);border-color:transparent;}
   .sched-leave .sched-info strong{color:var(--yellow);}
-  /* γραμμή φίλτρων Προγράμματος: σε κινητό το υπόμνημα πέφτει σε δική του σειρά
-     αντί να κόβεται δεξιά */
-  .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 20px 12px;}
-  .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;color:var(--ink);cursor:pointer;}
-  .sched-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);align-items:center;margin-left:auto;}
+  /* γραμμή φίλτρων: σε κινητό το υπόμνημα πέφτει σε δική του σειρά αντί να κόβεται δεξιά */
+  .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 18px 12px;}
+  .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;
+    color:var(--ink-2);cursor:pointer;font-weight:400;}
+  .sched-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);
+    align-items:center;margin-left:auto;}
   .sched-legend span{display:flex;align-items:center;gap:4px;}
   .sched-legend .cal-dot{display:inline-block;}
+
+  /* ================= ΡΕΣΠΟΝΣΙΒ ================= */
+  @media (max-width:900px){
+    /* σε κινητό το μενού «πέφτει» πάνω από το περιεχόμενο αντί να το στριμώχνει */
+    .nav{position:fixed;top:var(--topbar-h);left:0;bottom:0;height:auto;z-index:30;width:268px;
+      box-shadow:var(--shadow-pop);}
+    body:not(.nav-collapsed) .nav-backdrop{display:block;position:fixed;top:var(--topbar-h);
+      left:0;right:0;bottom:0;background:rgba(10,16,26,.45);z-index:25;}
+    .topbar{padding:0 12px;}
+    .main{padding:14px 12px 72px;}
+    .nav-item{height:44px;}     /* δάχτυλο, όχι ποντίκι */
+    /* η καρτέλα πιάνει ΟΛΗ την οθόνη — δεν έχει νόημα μετακίνηση/αλλαγή μεγέθους */
+    #overlay{padding:0;backdrop-filter:none;}
+    #drawer{width:100vw;height:100%;max-height:100%;border-radius:0;border:none;resize:none;}
+    .drawer-head{cursor:default;}
+    .form-row{grid-template-columns:1fr;}
+  }
   @media (max-width:760px){
-    .sched-filters{padding:0 14px 10px;gap:10px 18px;}
+    /* ΠΙΝΑΚΕΣ ΣΕ ΚΙΝΗΤΟ: γίνονται κάρτες. Οι κεφαλίδες φεύγουν και κάθε γραμμή
+       γίνεται ένα μπλοκ — τα δεδομένα εδώ (όνομα, ετικέτες) λένε μόνα τους τι είναι,
+       οπότε δεν χρειάζονται ετικέτες στηλών, και τίποτα δεν κόβεται πλάγια. */
+    th{display:none;}
+    table,tbody,tr,td{display:block;width:100%;}
+    tbody tr{padding:12px 14px;border-bottom:1px solid var(--line);}
+    tbody tr:active{background:var(--surface-2);}
+    td{padding:0;border:none;}
+    td+td{margin-top:5px;}
+    /* οι ετικέτες κατάστασης/προτεραιότητας μπαίνουν στην ίδια σειρά */
+    td:has(.status-pill),td:has(.prio-pill){display:inline-block;width:auto;margin-right:6px;}
+    .panel-head{padding:13px 14px;}
+    .filterbar{padding:10px 14px;}
+    .stat-row{grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;padding:14px;}
+    .stat-tile .num{font-size:20px;}
+    .sched-day,.sched-filters{padding-left:14px;padding-right:14px;}
     .sched-legend{margin-left:0;flex:1 1 100%;}
+    .drawer-body{padding:16px 14px;}
+    /* το ημερολόγιο δεν χωράει κείμενο — τελείες, και ανοίγεις τη μέρα από κάτω */
+    .cal-cell{min-height:56px;align-items:center;gap:5px;padding:5px 2px;}
+    .cal-cell.week-cell{min-height:72px;}
+    .cal-ev,.cal-more,.cal-closed{display:none;}
+    .cal-dots{display:flex;}
+    .cal-title{min-width:118px;font-size:13.5px;}
+    .cal-head{padding:12px 14px;}
+  }
+  @media (max-width:560px){
+    /* σε στενή οθόνη το όνομα χρήστη έτρωγε το «Αποσύνδεση» */
+    .who{display:none;}
+    .topbar-left{gap:6px;}
+    .brand-logo{height:26px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation-duration:.01ms !important;}
   }
 </style>
 </head>
@@ -451,13 +597,13 @@
 
   <div class="shell">
   <div class="nav hidden" id="staff-nav">
-    <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Αρχική</div>
-    <div class="nav-item" data-view="clients" id="nav-clients">Πελάτες</div>
-    <div class="nav-item" data-view="tickets" id="nav-tickets"><span id="nav-tickets-label">Αιτήματα</span></div>
-    <div class="nav-item" data-view="schedule">Πρόγραμμα</div>
-    <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><span id="nav-technicians-label">Τεχνικοί</span></div>
-    <div class="nav-item hidden" data-view="users" id="nav-users">Χρήστες</div>
-    <div class="nav-item hidden" data-view="company" id="nav-company">Εταιρία</div>
+    <div class="nav-item active" data-view="dashboard" id="nav-dashboard"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Αρχική</div>
+    <div class="nav-item" data-view="clients" id="nav-clients"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16.5 6.2a3.2 3.2 0 0 1 0 6"/><path d="M17.5 14.8c2.2.5 3.5 2.3 3.5 4.7"/></svg>Πελάτες</div>
+    <div class="nav-item" data-view="tickets" id="nav-tickets"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15l-3.5-2.5L12 19.5 8.5 17 5 19.5z"/><path d="M9 9h6"/><path d="M9 12.5h4"/></svg><span id="nav-tickets-label">Αιτήματα</span></div>
+    <div class="nav-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.8h17"/><path d="M8 3.5v3M16 3.5v3"/></svg>Πρόγραμμα</div>
+    <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><svg viewBox="0 0 24 24"><path d="M14.5 6.2a3.6 3.6 0 1 1-5 5L5 15.7v3.3h3.3l4.5-4.5a3.6 3.6 0 0 0 5-5z"/></svg><span id="nav-technicians-label">Τεχνικοί</span></div>
+    <div class="nav-item hidden" data-view="users" id="nav-users"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg>Χρήστες</div>
+    <div class="nav-item hidden" data-view="company" id="nav-company"><svg viewBox="0 0 24 24"><path d="M4 20.5V6.5l7-3v17"/><path d="M11 10.5h9v10"/><path d="M4 20.5h17"/><path d="M14.5 14h2M14.5 17h2M7 8.5h1M7 12h1M7 15.5h1"/></svg>Εταιρία</div>
   </div>
   <div class="nav-backdrop" id="nav-backdrop"></div>
 
@@ -643,12 +789,12 @@
         <div class="panel-body" style="padding:0 20px 20px;">
           <p class="sub" style="margin-top:-4px;">Οι μέρες που το μαγαζί είναι κλειστό. Φαίνονται στο ημερολόγιο όπως οι Κυριακές και <strong>δεν μετράνε σαν μέρες άδειας</strong> — αν κάποιος έχει άδεια εκείνη την περίοδο, οι κλειστές μέρες αφαιρούνται αυτόματα, και από τις άδειες που έχουν ήδη καταχωρηθεί.</p>
           <div class="form-row">
-            <div><label for="cl-from">Από</label><input id="cl-from" type="date"></div>
-            <div><label for="cl-to">Έως</label><input id="cl-to" type="date"></div>
+            <div><label for="closure-from">Από</label><input id="closure-from" type="date"></div>
+            <div><label for="closure-to">Έως</label><input id="closure-to" type="date"></div>
           </div>
-          <div style="margin-top:12px;"><label for="cl-name">Περιγραφή</label><input id="cl-name" placeholder="π.χ. Χριστούγεννα, Καθαρά Δευτέρα, Θερινές διακοπές"></div>
-          <div id="cl-preview" class="cell-sub" style="margin-top:8px;"></div>
-          <div style="margin-top:12px;"><button class="btn-primary btn-sm" id="cl-add">+ Προσθήκη κλειστών ημερών</button></div>
+          <div style="margin-top:12px;"><label for="closure-name">Περιγραφή</label><input id="closure-name" placeholder="π.χ. Χριστούγεννα, Καθαρά Δευτέρα, Θερινές διακοπές"></div>
+          <div id="closure-preview" class="cell-sub" style="margin-top:8px;"></div>
+          <div style="margin-top:12px;"><button class="btn-primary btn-sm" id="closure-add">+ Προσθήκη κλειστών ημερών</button></div>
           <div id="closures-list" style="margin-top:18px;"></div>
         </div>
       </div>
@@ -1464,10 +1610,10 @@
   async function loadDashboard(){
     const msgEl = $("#dashboard-msg");
     clearMsg(msgEl);
-    const today = new Date().toISOString().slice(0,10);
-    const in7 = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
+    const today = isoDay(new Date());
+    const in7 = isoDay(new Date(Date.now() + 7*86400000));
 
-    const [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes] = await Promise.all([
+    const [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes, upcomingCountRes] = await Promise.all([
       sb.from("clients").select("id", { count: "exact", head: true }),
       sb.from("tickets_view").select("id, priority").neq("status","done").neq("status","cancelled"),
       sb.from("ledger_entries").select("charge, payment"),
@@ -1476,7 +1622,12 @@
         .neq("status","cancelled").order("scheduled_date").order("scheduled_time").limit(8),
       sb.from("tickets_view").select("id, code, title, clients(name)")
         .eq("priority","urgent").neq("status","done").neq("status","cancelled")
-        .order("created_at",{ ascending:false }).limit(8)
+        .order("created_at",{ ascending:false }).limit(8),
+      // ξεχωριστή καταμέτρηση: η λίστα από κάτω δείχνει 8, ο αριθμός στο πλακίδιο όμως
+      // πρέπει να λέει ΠΟΣΕΣ είναι πραγματικά
+      sb.from("tickets_view").select("id", { count: "exact", head: true })
+        .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
+        .neq("status","cancelled")
     ]);
 
     const firstError = [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes].find(r => r.error);
@@ -1493,7 +1644,7 @@
       <div class="stat-tile" data-goto="clients"><div class="num">${clientsRes.count ?? 0}</div><div class="lbl">Πελάτες</div></div>
       <div class="stat-tile" data-goto="tickets"><div class="num">${openTickets.length}</div><div class="lbl">Ανοιχτά αιτήματα</div></div>
       <div class="stat-tile ${urgentOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${urgentOpenCount}</div><div class="lbl">Επείγοντα</div></div>
-      <div class="stat-tile" data-goto="schedule"><div class="num">${upcoming.length}</div><div class="lbl">Επισκέψεις (7 ημ.)</div></div>
+      <div class="stat-tile" data-goto="schedule"><div class="num">${upcomingCountRes.count ?? upcoming.length}</div><div class="lbl">Επισκέψεις (7 ημ.)</div></div>
       <div class="stat-tile ${balance>0?'balance-due':''}" data-goto="clients"><div class="num">${balance.toFixed(2)}€</div><div class="lbl">Οφειλές πελατών</div></div>
     `;
     $$("#dashboard-stats [data-goto]").forEach(tile => {
@@ -1536,7 +1687,7 @@
     const until = new Date(untilDate + "T00:00:00");
     const days = Math.round((until - today) / 86400000);
     if (days < 0) return ' <span class="pill" style="background:var(--red-bg);color:var(--red);">Έληξε</span>';
-    if (days <= 15) return ` <span class="pill" style="background:var(--amber-bg);color:var(--amber);">Λήγει σε ${days === 0 ? "σήμερα" : days === 1 ? "1 μέρα" : days + " μέρες"}</span>`;
+    if (days <= 15) return ` <span class="pill" style="background:var(--amber-bg);color:var(--amber);">${days === 0 ? "Λήγει σήμερα" : "Λήγει σε " + (days === 1 ? "1 μέρα" : days + " μέρες")}</span>`;
     return "";
   }
   const CLIENT_FILTERS = [["all","Όλοι"],["pending","Σε αναμονή έγκρισης"],["active","Ενεργοί"],["rejected","Απορρίφθηκαν"],["contracts","Πελάτες με σύμβαση"]];
@@ -1774,7 +1925,7 @@
         ` : ""}
 
         <div class="drawer-foot" style="margin:22px -22px -20px;">
-          ${clientId ? '<button type="button" class="btn-danger" id="cl-delete">Διαγραφή</button>' : '<span></span>'}
+          <span></span>
           <button type="submit" class="btn-primary" id="cl-save">Αποθήκευση</button>
         </div>
       </form>
@@ -1880,19 +2031,10 @@
       openTicketDrawer(ticketId, false);
     });
 
-    if (clientId) {
-      $("#cl-delete").addEventListener("click", async () => {
-        const wrap = $("#cl-delete");
-        wrap.outerHTML = `<span style="font-size:13px;">Σίγουρα; <button type="button" class="btn-sm btn-ghost" id="cl-del-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="cl-del-yes">Ναι, διαγραφή</button></span>`;
-        $("#cl-del-no").addEventListener("click", () => closeDrawer());
-        $("#cl-del-yes").addEventListener("click", async () => {
-          const { error } = await sb.from("clients").delete().eq("id", clientId);
-          if (error) { showMsg($("#client-form-msg"), "Σφάλμα διαγραφής: " + error.message, "error"); return; }
-          closeDrawer();
-          await loadClients();
-        });
-      });
-    }
+    // (Η διαγραφή πελάτη γίνεται από την ενότητα «Διαγραφή πελάτη» πιο πάνω, που δείχνει
+    //  και τι άλλο θα διαγραφεί μαζί. Παλιότερα υπήρχε ΚΑΙ δεύτερο κουμπί στο υποσέλιδο με
+    //  το ίδιο id — το ένα από τα δύο δεν δούλευε ποτέ και το άλλο ζητούσε δύο φορές
+    //  επιβεβαίωση. Έμεινε μόνο η πλήρης εκδοχή.)
 
     $("#client-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -1926,7 +2068,11 @@
         showMsg($("#client-form-msg"), "Σφάλμα αποθήκευσης: " + err.message, "error");
         return;
       }
-      // remote access: replace all rows for this client (simple + reliable)
+      // Απομακρυσμένη πρόσβαση + συμβάσεις: σβήνουμε και ξαναγράφουμε όλες τις γραμμές.
+      // ΠΡΟΣΟΧΗ: αν αποτύχει η εισαγωγή μετά τη διαγραφή, ο πελάτης μένει ΧΩΡΙΣ
+      // συμβάσεις/κωδικούς — γι' αυτό ελέγχουμε το σφάλμα και το λέμε καθαρά, αντί να
+      // κλείσει το παράθυρο σαν να αποθηκεύτηκε (που έκανε πριν).
+      let sideError = null;
       if (savedId) {
         await sb.from("remote_access").delete().eq("client_id", savedId);
         const rows = $$("[data-ra-row]").map(row => ({
@@ -1934,9 +2080,11 @@
           label: row.querySelector("[data-ra-label]").value.trim(),
           value: row.querySelector("[data-ra-value]").value.trim()
         })).filter(r => r.label && r.value);
-        if (rows.length) await sb.from("remote_access").insert(rows);
+        if (rows.length) {
+          const { error: raErr } = await sb.from("remote_access").insert(rows);
+          if (raErr) sideError = "Η απομακρυσμένη πρόσβαση δεν αποθηκεύτηκε: " + raErr.message;
+        }
       }
-      // συμβάσεις: replace all rows for this client (ίδιο μοτίβο με remote_access)
       if (savedId) {
         await sb.from("client_contracts").delete().eq("client_id", savedId);
         const crows = $$("[data-contract-row]").map(row => ({
@@ -1945,7 +2093,16 @@
           until_date: row.querySelector("[data-contract-until]").value || null,
           notify_email: row.querySelector("[data-contract-notify]").value.trim() || null
         })).filter(c => c.name);
-        if (crows.length) await sb.from("client_contracts").insert(crows);
+        if (crows.length) {
+          const { error: cErr } = await sb.from("client_contracts").insert(crows);
+          if (cErr) sideError = (sideError ? sideError + " " : "") + "Οι συμβάσεις δεν αποθηκεύτηκαν: " + cErr.message;
+        }
+      }
+      if (sideError) {
+        // τα βασικά στοιχεία ΑΠΟΘΗΚΕΥΤΗΚΑΝ — μένουμε ανοιχτοί για να ξαναδοκιμάσει
+        saveBtn.disabled = false; saveBtn.textContent = "Αποθήκευση";
+        showMsg($("#client-form-msg"), sideError + " Τα υπόλοιπα στοιχεία αποθηκεύτηκαν — ξαναπάτα Αποθήκευση.", "error");
+        return;
       }
       closeDrawer();
       await loadClients();
@@ -2041,7 +2198,7 @@
         </div>
         <div class="form-row">
           <div class="field"><label>Ποσό *</label><input type="number" step="0.01" min="0.01" id="txn-amount" required></div>
-          <div class="field"><label>Ημερομηνία</label><input type="date" id="txn-date" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="field"><label>Ημερομηνία</label><input type="date" id="txn-date" value="${isoDay(new Date())}"></div>
         </div>
         <div class="field"><label>Περιγραφή</label><input id="txn-desc" placeholder="π.χ. Εργασία εγκατάστασης"></div>
 
@@ -2111,7 +2268,7 @@
       }
       const payload = {
         client_id: clientId,
-        entry_date: $("#txn-date").value || new Date().toISOString().slice(0,10),
+        entry_date: $("#txn-date").value || isoDay(new Date()),
         description: $("#txn-desc").value.trim() || (isCharge ? "Χρέωση" : "Πληρωμή"),
         charge: isCharge ? amount : 0,
         payment: isCharge ? 0 : amount,
@@ -2568,6 +2725,9 @@
     $("#note-send").addEventListener("click", async () => {
       const body = $("#note-body").value.trim();
       if (!body) return;
+      const sendBtn = $("#note-send");
+      if (sendBtn.disabled) return;          // διπλό κλικ -> διπλό μήνυμα
+      sendBtn.disabled = true;
       const payload = {
         ticket_id: ticketId,
         author_name: PROFILE.full_name || USER.email,
@@ -2575,7 +2735,7 @@
         body
       };
       const { error } = await sb.from("ticket_notes").insert(payload);
-      if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
+      if (error) { sendBtn.disabled = false; showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
       await openTicketDrawer(ticketId, portalMode);
     });
   }
@@ -2596,6 +2756,18 @@
   }
 
   // Δευτέρα της εβδομάδας που περιέχει το d (για την προβολή Εβδομάδα)
+  // Όταν αλλάζεις μήνα, η «επιλεγμένη μέρα» έμενε στον προηγούμενο μήνα: το πάνελ από
+  // κάτω κρατούσε τον παλιό τίτλο και έλεγε «Καμία επίσκεψη», ενώ η μέρα είχε επισκέψεις.
+  // Πάμε στη 1η του νέου μήνα — ή στο σήμερα, αν ο νέος μήνας είναι ο τρέχων.
+  function syncSelectedToCursor(){
+    const now = new Date();
+    const sameMonth = SCHEDULE_CURSOR.getFullYear() === now.getFullYear()
+                   && SCHEDULE_CURSOR.getMonth() === now.getMonth();
+    SCHEDULE_SELECTED = sameMonth
+      ? isoDay(now)
+      : isoDay(new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth(), 1));
+  }
+
   function startOfWeek(d){
     const dt = new Date(d);
     dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
@@ -2837,6 +3009,7 @@
       renderScheduleDayOnly();
     } else {
       SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() - 1, 1);
+      syncSelectedToCursor();
       renderScheduleCalendar();
     }
   });
@@ -2851,6 +3024,7 @@
       renderScheduleDayOnly();
     } else {
       SCHEDULE_CURSOR = new Date(SCHEDULE_CURSOR.getFullYear(), SCHEDULE_CURSOR.getMonth() + 1, 1);
+      syncSelectedToCursor();
       renderScheduleCalendar();
     }
   });
@@ -2978,23 +3152,23 @@
   }
 
   function updateClosurePreview(){
-    const from = $("#cl-from").value, to = $("#cl-to").value || from;
-    if (!from || to < from) { $("#cl-preview").textContent = ""; return; }
+    const from = $("#closure-from").value, to = $("#closure-to").value || from;
+    if (!from || to < from) { $("#closure-preview").textContent = ""; return; }
     const n = leaveDaysSpan(from, to);
-    $("#cl-preview").textContent = `Καλύπτει ${n} ${n === 1 ? "εργάσιμη μέρα" : "εργάσιμες μέρες"} (η Κυριακή δεν μετράει ούτως ή άλλως).`;
+    $("#closure-preview").textContent = `Καλύπτει ${n} ${n === 1 ? "εργάσιμη μέρα" : "εργάσιμες μέρες"} (η Κυριακή δεν μετράει ούτως ή άλλως).`;
   }
-  $("#cl-from").addEventListener("change", updateClosurePreview);
-  $("#cl-to").addEventListener("change", updateClosurePreview);
+  $("#closure-from").addEventListener("change", updateClosurePreview);
+  $("#closure-to").addEventListener("change", updateClosurePreview);
 
-  $("#cl-add").addEventListener("click", async () => {
+  $("#closure-add").addEventListener("click", async () => {
     clearMsg($("#company-msg"));
-    const from = $("#cl-from").value, to = $("#cl-to").value || from, name = $("#cl-name").value.trim();
+    const from = $("#closure-from").value, to = $("#closure-to").value || from, name = $("#closure-name").value.trim();
     if (!from) { showMsg($("#company-msg"), "Βάλε ημερομηνία «Από».", "error"); return; }
     if (!name) { showMsg($("#company-msg"), "Βάλε μια περιγραφή (π.χ. Χριστούγεννα).", "error"); return; }
     if (to < from) { showMsg($("#company-msg"), "Το «Έως» δεν μπορεί να είναι πριν το «Από».", "error"); return; }
     const { error } = await sb.from("company_closures").insert({ name, start_date: from, end_date: to });
     if (error) { showMsg($("#company-msg"), "Δεν αποθηκεύτηκε: " + error.message, "error"); return; }
-    $("#cl-from").value = ""; $("#cl-to").value = ""; $("#cl-name").value = "";
+    $("#closure-from").value = ""; $("#closure-to").value = ""; $("#closure-name").value = "";
     updateClosurePreview();
     await loadClosures();
     renderClosures();
@@ -3408,6 +3582,11 @@
       const clientId = role === "client" ? ($("#usr-client").value || null) : null;
       const { error } = await sb.from("profiles").update({ role, client_id: clientId }).eq("id", userId);
       if (error) { showMsg($("#user-form-msg"), "Σφάλμα: " + error.message, "error"); return; }
+      // ο ρόλος άλλαξε -> οι λίστες τεχνικών (ανάθεση βλάβης, φίλτρο Προγράμματος)
+      // πρέπει να ξαναχτιστούν, αλλιώς ο νέος τεχνικός δεν εμφανίζεται πουθενά
+      STAFF_USERS_CACHE = [];
+      const techSel = $("#sched-filter-tech");
+      if (techSel) delete techSel.dataset.populated;
       closeDrawer();
       await loadUsers();
     });
