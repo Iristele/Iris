@@ -466,7 +466,7 @@
         <div class="panel-body">
           <div id="clients-msg" style="padding:0 20px;"></div>
           <table>
-            <thead><tr><th>Επωνυμία</th><th>Τύπος / Πόλη</th><th>Επικοινωνία</th></tr></thead>
+            <thead id="clients-thead"><tr><th>Επωνυμία</th><th>Τύπος / Πόλη</th><th>Επικοινωνία</th></tr></thead>
             <tbody id="clients-tbody"></tbody>
           </table>
         </div>
@@ -1369,15 +1369,33 @@
     if (status === "rejected") return ' <span class="pill" style="background:var(--red-bg);color:var(--red);">Απορρίφθηκε</span>';
     return "";
   }
-  const CLIENT_FILTERS = [["all","Όλοι"],["pending","Σε αναμονή έγκρισης"],["active","Ενεργοί"],["rejected","Απορρίφθηκαν"]];
+  // Πόσες μέρες μέχρι τη λήξη μιας σύμβασης — pill "Έληξε" (κόκκινο) αν πέρασε,
+  // "Λήγει σε X μέρες" (πορτοκαλί) αν λήγει μέσα στις επόμενες 15 μέρες.
+  function contractStatusPill(untilDate){
+    if (!untilDate) return "";
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const until = new Date(untilDate + "T00:00:00");
+    const days = Math.round((until - today) / 86400000);
+    if (days < 0) return ' <span class="pill" style="background:var(--red-bg);color:var(--red);">Έληξε</span>';
+    if (days <= 15) return ` <span class="pill" style="background:var(--amber-bg);color:var(--amber);">Λήγει σε ${days === 0 ? "σήμερα" : days === 1 ? "1 μέρα" : days + " μέρες"}</span>`;
+    return "";
+  }
+  const CLIENT_FILTERS = [["all","Όλοι"],["pending","Σε αναμονή έγκρισης"],["active","Ενεργοί"],["rejected","Απορρίφθηκαν"],["contracts","Πελάτες με σύμβαση"]];
   let CLIENT_STATUS_FILTER = "all";
-  $("#client-filters").innerHTML = CLIENT_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("");
+  let CONTRACT_NAME_FILTER = "all";
+  $("#client-filters").innerHTML = CLIENT_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("")
+    + `<select id="contract-name-filter" class="hidden" style="width:auto;min-width:200px;"><option value="all">Όλες οι συμβάσεις</option></select>`;
   $("#client-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
     if (!chip) return;
     $$("#client-filters .chip").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
     CLIENT_STATUS_FILTER = chip.dataset.f;
+    $("#contract-name-filter").classList.toggle("hidden", CLIENT_STATUS_FILTER !== "contracts");
+    loadClients();
+  });
+  $("#contract-name-filter").addEventListener("change", () => {
+    CONTRACT_NAME_FILTER = $("#contract-name-filter").value;
     loadClients();
   });
 
@@ -1385,10 +1403,42 @@
     // φέρνουμε ΠΑΝΤΑ όλους τους πελάτες — το CLIENTS_CACHE το χρησιμοποιούν και άλλες
     // οθόνες (επιλογή πελάτη σε νέο αίτημα, Χρήστες), οπότε δεν πρέπει να φιλτράρεται
     const { data, error } = await sb.from("clients").select("*").order("name");
+    const thead = $("#clients-thead");
     const tbody = $("#clients-tbody");
     if (error) { showMsg($("#clients-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     clearMsg($("#clients-msg"));
     CLIENTS_CACHE = data || [];
+
+    // «Πελάτες με σύμβαση»: μία γραμμή ανά σύμβαση (όχι ανά πελάτη), ταξινομημένες
+    // κατά ημερομηνία λήξης (πιο επείγουσα πρώτη) και με φίλτρο ανά όνομα σύμβασης.
+    if (CLIENT_STATUS_FILTER === "contracts") {
+      thead.innerHTML = "<tr><th>Σύμβαση</th><th>Πελάτης</th><th>Λήξη</th></tr>";
+      const { data: cdata, error: cerr } = await sb.from("client_contracts")
+        .select("*, clients(name)").order("until_date", { ascending:true, nullsFirst:false });
+      if (cerr) { showMsg($("#clients-msg"), "Σφάλμα φόρτωσης συμβάσεων: " + cerr.message, "error"); return; }
+      const allContracts = cdata || [];
+      const names = Array.from(new Set(allContracts.map(c => c.name))).sort((a,b) => a.localeCompare(b, "el"));
+      if (!names.includes(CONTRACT_NAME_FILTER)) CONTRACT_NAME_FILTER = "all";
+      $("#contract-name-filter").innerHTML = `<option value="all">Όλες οι συμβάσεις</option>` +
+        names.map(n => `<option value="${escapeHtml(n)}" ${n===CONTRACT_NAME_FILTER?"selected":""}>${escapeHtml(n)}</option>`).join("");
+      const rows = CONTRACT_NAME_FILTER === "all" ? allContracts : allContracts.filter(c => c.name === CONTRACT_NAME_FILTER);
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state">Δεν υπάρχουν ακόμα συμβάσεις${CONTRACT_NAME_FILTER !== "all" ? " σε αυτή την κατηγορία" : ""}.</div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(c => `
+        <tr data-client-id="${c.client_id}">
+          <td><strong>${escapeHtml(c.name)}</strong>${contractStatusPill(c.until_date)}</td>
+          <td>${escapeHtml(c.clients ? c.clients.name : "—")}</td>
+          <td>${c.until_date ? new Date(c.until_date + "T00:00:00").toLocaleDateString("el-GR") : "— χωρίς ημερομηνία —"}</td>
+        </tr>`).join("");
+      tbody.querySelectorAll("tr[data-client-id]").forEach(tr => {
+        tr.addEventListener("click", () => openClientDrawer(tr.dataset.clientId));
+      });
+      return;
+    }
+
+    thead.innerHTML = "<tr><th>Επωνυμία</th><th>Τύπος / Πόλη</th><th>Επικοινωνία</th></tr>";
     const rows = CLIENT_STATUS_FILTER === "all"
       ? CLIENTS_CACHE
       : CLIENTS_CACHE.filter(c => (c.status || "active") === CLIENT_STATUS_FILTER);
@@ -1412,11 +1462,13 @@
   $("#new-client-btn").addEventListener("click", () => openClientDrawer(null));
 
   async function openClientDrawer(clientId){
-    let client = { name:"", type:"Άλλο", city:"", contact:"", phone:"", email:"", contract_until:"" };
+    let client = { name:"", type:"Άλλο", city:"", contact:"", phone:"", email:"" };
     let remoteAccess = [];
     let equipment = [];
     let ledger = [];
     let ticketCount = 0;
+    let clientTickets = [];
+    let contracts = [];
     if (clientId) {
       const { data } = await sb.from("clients").select("*").eq("id", clientId).single();
       if (data) client = data;
@@ -1426,8 +1478,11 @@
       equipment = eq || [];
       const { data: led } = await sb.from("ledger_entries").select("*").eq("client_id", clientId).order("entry_date", { ascending:false }).order("created_at", { ascending:false });
       ledger = led || [];
-      const { count: tc } = await sb.from("tickets").select("id", { count:"exact", head:true }).eq("client_id", clientId);
+      const { data: tks, count: tc } = await sb.from("tickets_view").select("id, code, title, status, created_at", { count:"exact" }).eq("client_id", clientId).order("created_at", { ascending:false });
+      clientTickets = tks || [];
       ticketCount = tc || 0;
+      const { data: cts } = await sb.from("client_contracts").select("*").eq("client_id", clientId).order("until_date", { ascending:true, nullsFirst:false });
+      contracts = cts || [];
     }
     const totalCharge = ledger.reduce((s,l) => s + Number(l.charge||0), 0);
     const totalPayment = ledger.reduce((s,l) => s + Number(l.payment||0), 0);
@@ -1439,6 +1494,21 @@
         <input placeholder="Τιμή" value="${escapeHtml(r.value || "")}" data-ra-value>
         <button type="button" class="remove-x" data-ra-remove>✕</button>
       </div>`).join("");
+
+    const contractRowsHtml = (list) => list.map((c) => `
+      <div class="ra-row" data-contract-row>
+        <input placeholder="Όνομα σύμβασης (π.χ. Συντήρηση καμερών)" value="${escapeHtml(c.name || "")}" data-contract-name>
+        <input type="date" value="${c.until_date || ""}" data-contract-until title="Λήξη">
+        <button type="button" class="remove-x" data-contract-remove>✕</button>
+      </div>`).join("");
+
+    const ticketHistoryHtml = clientTickets.length === 0
+      ? '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν ακόμα αιτήματα/βλάβες για αυτόν τον πελάτη.</div>'
+      : clientTickets.map(t => `
+          <div class="vlog-row" data-ticket-id="${t.id}" style="cursor:pointer;">
+            <strong>${escapeHtml(t.code)}</strong> — ${escapeHtml(t.title)}
+            <div class="vlog-who">${STATUS_LABEL[t.status] || t.status} · ${new Date(t.created_at).toLocaleDateString("el-GR")}</div>
+          </div>`).join("");
 
     openDrawer(clientId ? "Στοιχεία πελάτη" : "Νέος πελάτης", `
       <form id="client-form">
@@ -1493,10 +1563,17 @@
           <div class="field"><label>Υπεύθυνος επικοινωνίας</label><input id="cl-contact" value="${escapeHtml(client.contact || "")}"></div>
           <div class="field"><label>Τηλέφωνο</label><input id="cl-phone" value="${escapeHtml(client.phone || "")}"></div>
         </div>
-        <div class="form-row">
-          <div class="field"><label>Email</label><input type="email" id="cl-email" value="${escapeHtml(client.email || "")}"></div>
-          <div class="field"><label>Σύμβαση συντήρησης έως</label><input type="date" id="cl-contract" value="${client.contract_until || ""}"></div>
-        </div>
+        <div class="field"><label>Email</label><input type="email" id="cl-email" value="${escapeHtml(client.email || "")}"></div>
+
+        ${clientId ? `
+        <div class="section-title">Ιστορικό βλαβών${clientTickets.length ? " (" + clientTickets.length + ")" : ""}</div>
+        <div id="client-tickets-list">${ticketHistoryHtml}</div>` : ""}
+
+        <div class="section-title">Συμβάσεις</div>
+        ${clientId ? `
+        <div id="contract-list">${contractRowsHtml(contracts)}</div>
+        <button type="button" class="add-link" id="contract-add">+ Προσθήκη σύμβασης</button>
+        ` : `<p class="cell-sub" style="margin:-4px 0 8px;">Θα μπορείς να προσθέσεις συμβάσεις αφού αποθηκεύσεις πρώτα τον πελάτη.</p>`}
 
         ${clientId ? `
         <div class="section-title">Διαγραφή πελάτη</div>
@@ -1614,6 +1691,26 @@
     }
     wireRaRemove();
 
+    const contractAddBtn = $("#contract-add");
+    if (contractAddBtn) contractAddBtn.addEventListener("click", () => {
+      $("#contract-list").insertAdjacentHTML("beforeend", contractRowsHtml([{ name:"", until_date:"" }]));
+      wireContractRemove();
+    });
+    function wireContractRemove(){
+      $$("[data-contract-remove]").forEach(btn => {
+        btn.onclick = () => btn.closest("[data-contract-row]").remove();
+      });
+    }
+    wireContractRemove();
+
+    $$("#client-tickets-list [data-ticket-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        const ticketId = el.dataset.ticketId;
+        closeDrawer();
+        openTicketDrawer(ticketId, false);
+      });
+    });
+
     if (clientId) {
       $("#cl-delete").addEventListener("click", async () => {
         const wrap = $("#cl-delete");
@@ -1645,8 +1742,7 @@
         city: $("#cl-city").value.trim() || null,
         contact: $("#cl-contact").value.trim() || null,
         phone: $("#cl-phone").value.trim() || null,
-        email: $("#cl-email").value.trim() || null,
-        contract_until: $("#cl-contract").value || null
+        email: $("#cl-email").value.trim() || null
       };
       let savedId = clientId;
       let err;
@@ -1670,6 +1766,16 @@
           value: row.querySelector("[data-ra-value]").value.trim()
         })).filter(r => r.label && r.value);
         if (rows.length) await sb.from("remote_access").insert(rows);
+      }
+      // συμβάσεις: replace all rows for this client (ίδιο μοτίβο με remote_access)
+      if (savedId) {
+        await sb.from("client_contracts").delete().eq("client_id", savedId);
+        const crows = $$("[data-contract-row]").map(row => ({
+          client_id: savedId,
+          name: row.querySelector("[data-contract-name]").value.trim(),
+          until_date: row.querySelector("[data-contract-until]").value || null
+        })).filter(c => c.name);
+        if (crows.length) await sb.from("client_contracts").insert(crows);
       }
       closeDrawer();
       await loadClients();
