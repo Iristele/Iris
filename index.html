@@ -395,6 +395,7 @@
     </div>
     </div>
     <div class="topbar-right">
+      <button class="btn-ghost btn-sm" id="refresh-btn" title="Ανανέωση" aria-label="Ανανέωση">🔄</button>
       <button class="btn-ghost btn-sm theme-btn" id="theme-btn" title="Σκούρο / φωτεινό θέμα" aria-label="Θέμα">🌙</button>
       <div class="notif-wrap hidden" id="notif-wrap">
         <button class="btn-ghost btn-sm notif-bell" id="notif-btn">🔔<span class="notif-badge hidden" id="notif-badge">0</span></button>
@@ -1018,6 +1019,41 @@
     if (view === "technicians") loadTechnicians();
     if (view === "users") loadUsers();
   }
+
+  // ================= REFRESH (χειροκίνητο κουμπί + αυτόματο σε επιστροφή) =================
+  // Στο κινητό, όταν αφήνεις την Iris στο παρασκήνιο και ξαναμπαίνεις, ο browser
+  // συχνά δείχνει την ΠΑΛΙΑ σελίδα από τη μνήμη (bfcache) αντί να ξαναφέρει
+  // δεδομένα — δεν αρκεί να «αλλάξεις σελίδα» μέσα στην εφαρμογή, χρειάζεται
+  // πραγματικό ξαναφόρτωμα δεδομένων. Το κουμπί 🔄 το κάνει χειροκίνητα, και οι
+  // δύο listeners παρακάτω το κάνουν αυτόματα μόλις η σελίδα ξαναγίνει ορατή.
+  async function refreshCurrent(){
+    if (!USER) return;
+    const btn = $("#refresh-btn");
+    if (btn) { btn.disabled = true; btn.style.opacity = "0.5"; }
+    try {
+      if (PROFILE && PROFILE.role === "client") {
+        if (!$("#view-portal").classList.contains("hidden")) await loadPortal(PROFILE.client_id);
+      } else {
+        const activeItem = $(".nav-item.active");
+        const view = activeItem ? activeItem.dataset.view : null;
+        if (view) await showStaffView(view);
+        if ($("#notif-wrap") && !$("#notif-wrap").classList.contains("hidden")) {
+          await loadNotifications();
+          if (!$("#view-dashboard").classList.contains("hidden")) await loadOnsiteNow();
+        }
+      }
+    } catch (e) {
+      // best-effort — ποτέ μην μπλοκάρεις τίποτα αν αποτύχει η ανανέωση
+    }
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+  }
+  $("#refresh-btn").addEventListener("click", refreshCurrent);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshCurrent();
+  });
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) refreshCurrent();
+  });
 
   // ================= BOOT / ROLE ROUTING =================
   async function boot(){
