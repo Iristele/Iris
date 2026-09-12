@@ -8,6 +8,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- manifest.json + apple-touch-icon: επιτρέπουν «Προσθήκη στην Αρχική οθόνη»,
+     απαραίτητο στο iPhone/iPad για να λειτουργήσουν καθόλου οι ειδοποιήσεις push -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#0E7C86">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
@@ -201,7 +206,7 @@
 
   .note{font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
 
-  /* ---- wide modal (quotes) ---- */
+  /* ---- wide modal (currently unused, kept in case a future screen needs it) ---- */
   #overlay.overlay-center{align-items:center;justify-content:center;padding:24px;}
   #drawer.drawer-wide{width:min(920px,94vw);height:min(88vh,760px);border-radius:16px;}
   .drawer-wide .drawer-body{padding:22px 26px;}
@@ -398,6 +403,10 @@
             <strong>Ειδοποιήσεις</strong>
             <button type="button" class="add-link" id="notif-mark-all" style="padding:0;">Όλα ως διαβασμένα</button>
           </div>
+          <div style="padding:8px 14px;border-bottom:1px solid var(--line);">
+            <button type="button" class="add-link" id="push-btn" style="padding:0;font-size:12px;">📳 Ενεργοποίηση ειδοποιήσεων συσκευής</button>
+            <div id="push-msg" style="margin-top:4px;"></div>
+          </div>
           <div id="notif-list"></div>
         </div>
       </div>
@@ -411,9 +420,6 @@
     <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Αρχική</div>
     <div class="nav-item" data-view="clients" id="nav-clients">Πελάτες</div>
     <div class="nav-item" data-view="tickets" id="nav-tickets"><span id="nav-tickets-label">Αιτήματα</span></div>
-    <div class="nav-item" data-view="inventory" id="nav-inventory">Αποθήκη</div>
-    <div class="nav-item" data-view="quotes" id="nav-quotes">Προσφορές</div>
-    <div class="nav-item" data-view="expenses" id="nav-expenses">Έξοδα</div>
     <div class="nav-item" data-view="schedule">Πρόγραμμα</div>
     <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><span id="nav-technicians-label">Τεχνικοί</span></div>
     <div class="nav-item hidden" data-view="users" id="nav-users">Χρήστες</div>
@@ -486,96 +492,6 @@
           <table>
             <thead><tr><th>Κωδικός</th><th>Πελάτης / Τίτλος</th><th>Προτεραιότητα</th><th>Κατάσταση</th></tr></thead>
             <tbody id="tickets-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- staff: inventory -->
-    <div id="view-inventory" class="hidden">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Αποθήκη</h2>
-          <div style="display:flex;gap:8px;">
-            <button class="btn-ghost btn-sm" id="new-supplier-btn">+ Νέος προμηθευτής</button>
-            <button class="btn-primary btn-sm" id="new-item-btn">+ Νέο είδος</button>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div id="inventory-msg" style="padding:0 20px;"></div>
-          <table>
-            <thead><tr><th>Είδος</th><th>Απόθεμα</th><th>Τιμή</th><th>Προμηθευτής</th></tr></thead>
-            <tbody id="inventory-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- staff: quotes -->
-    <div id="view-quotes" class="hidden">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Προσφορές</h2>
-          <button class="btn-primary btn-sm" id="new-quote-btn">+ Νέα προσφορά</button>
-        </div>
-        <div class="filterbar" id="quote-filters"></div>
-        <div class="panel-body">
-          <div id="quotes-msg" style="padding:0 20px;"></div>
-          <table>
-            <thead><tr><th>Κωδικός</th><th>Πελάτης</th><th>Ημερομηνία</th><th>Σύνολο</th><th>Κατάσταση</th></tr></thead>
-            <tbody id="quotes-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- staff: expenses -->
-    <div id="view-expenses" class="hidden">
-      <!-- ΤΑΜΕΙΟ: έσοδα − έξοδα της περιόδου -->
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="cal-head">
-          <div class="cal-nav">
-            <button type="button" class="btn-ghost btn-sm" id="cash-prev" aria-label="Προηγούμενη περίοδος">‹</button>
-            <input type="date" id="cash-from" style="width:auto;min-width:145px;">
-            <span class="cell-sub">έως</span>
-            <input type="date" id="cash-to" style="width:auto;min-width:145px;">
-            <button type="button" class="btn-ghost btn-sm" id="cash-next" aria-label="Επόμενη περίοδος">›</button>
-          </div>
-          <div class="filterbar" id="cash-quick" style="padding:0;">
-            <div class="chip active" data-range="today">Σήμερα</div>
-            <div class="chip" data-range="yesterday">Χθες</div>
-            <div class="chip" data-range="week">7 ημέρες</div>
-            <div class="chip" data-range="month">Μήνας</div>
-          </div>
-        </div>
-        <div class="cal-title" id="cash-title" style="text-align:left;padding:0 20px 4px;min-width:0;"></div>
-        <div id="cashbook-msg" style="padding:0 20px 8px;"></div>
-        <div class="stat-row" id="cashbook-stats"></div>
-        <div class="panel-body" style="padding:12px 20px 18px;">
-          <table>
-            <thead><tr><th>Τρόπος</th><th style="text-align:right;">Εισπράξεις</th><th style="text-align:right;">Έξοδα</th><th style="text-align:right;">Καθαρό</th></tr></thead>
-            <tbody id="cashbook-methods"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head"><h2>Εισπράξεις</h2></div>
-        <div class="panel-body" id="cashbook-income" style="padding:6px 0;"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Έξοδα</h2>
-          <button class="btn-primary btn-sm" id="new-expense-btn">+ Νέο έξοδο</button>
-        </div>
-        <div class="filterbar" id="expense-filters"></div>
-        <div class="stat-row" id="expense-stats"></div>
-        <div class="panel-body">
-          <div id="expenses-msg" style="padding:0 20px;"></div>
-          <table>
-            <thead><tr><th>Ημερομηνία</th><th>Κατηγορία / Προμηθευτής</th><th>Σημείωση</th><th>Ποσό</th></tr></thead>
-            <tbody id="expenses-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -882,6 +798,74 @@
     await loadNotifications();
   });
 
+  // ================= PUSH NOTIFICATIONS (ήχος/δόνηση στη συσκευή) =================
+  // Ξεχωριστό από το πάνω κουδουνάκι (που δουλεύει μόνο όσο η σελίδα είναι
+  // ανοιχτή): αυτό εγγράφει τη συσκευή ώστε να λαμβάνει ειδοποίηση ΑΚΟΜΑ ΚΙ ΑΝ
+  // η Iris είναι κλειστή, μέσω του Edge Function "send-assignment-push"
+  // (βλ. schema_v16.sql). Στο iPhone/iPad δουλεύει ΜΟΝΟ αν η σελίδα έχει γίνει
+  // «Προσθήκη στην Αρχική οθόνη» από το Safari — απλό άνοιγμα σε tab δεν αρκεί.
+  const VAPID_PUBLIC_KEY = "BCfYlCWYUphNM2Si94Bg9cRv9RCjYZ_k2m0zThOxzgWKNycJ7HuNZunN9LeCiOf7U2j20dc2fvaQRjVvdw7wgVo";
+
+  function urlBase64ToUint8Array(base64String){
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    const arr = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+    return arr;
+  }
+  function pushSupported(){
+    return "serviceWorker" in navigator && "PushManager" in window && window.isSecureContext;
+  }
+  async function refreshPushButton(){
+    const btn = $("#push-btn");
+    if (!btn) return;
+    if (!pushSupported()) {
+      btn.textContent = "📳 Ειδοποιήσεις μη διαθέσιμες σε αυτόν τον browser";
+      return;
+    }
+    if (Notification.permission === "granted") {
+      btn.textContent = "📳 Ειδοποιήσεις συσκευής: ενεργές ✓";
+    } else if (Notification.permission === "denied") {
+      btn.textContent = "📳 Ειδοποιήσεις μπλοκαρισμένες (άλλαξέ το στις ρυθμίσεις browser)";
+    } else {
+      btn.textContent = "📳 Ενεργοποίηση ειδοποιήσεων συσκευής";
+    }
+  }
+  async function enablePushNotifications(){
+    clearMsg($("#push-msg"));
+    if (!pushSupported()) {
+      showMsg($("#push-msg"), "Σε iPhone/iPad: άνοιξε την Iris στο Safari, πάτα «Κοινή χρήση» και μετά «Προσθήκη στην Αρχική οθόνη» — άνοιξέ την ΑΠΟ ΕΚΕΙ και δοκίμασε ξανά.", "error");
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        showMsg($("#push-msg"), "Δεν δόθηκε άδεια ειδοποιήσεων.", "error");
+        await refreshPushButton();
+        return;
+      }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+      const json = sub.toJSON();
+      const { error } = await sb.from("push_subscriptions").upsert({
+        user_id: USER.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth
+      }, { onConflict: "endpoint" });
+      if (error) { showMsg($("#push-msg"), "Σφάλμα αποθήκευσης: " + error.message, "error"); return; }
+      showMsg($("#push-msg"), "Ενεργοποιήθηκε.", "ok");
+      await refreshPushButton();
+    } catch (err) {
+      showMsg($("#push-msg"), "Σφάλμα: " + err.message, "error");
+    }
+  }
+  $("#push-btn").addEventListener("click", enablePushNotifications);
+
   // ================= FORGOT / RESET PASSWORD =================
   function showAuthForm(which){
     // which: "login" | "signup" | "forgot" | "reset"
@@ -1024,18 +1008,12 @@
     $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
     $("#view-clients").classList.toggle("hidden", view !== "clients");
     $("#view-tickets").classList.toggle("hidden", view !== "tickets");
-    $("#view-inventory").classList.toggle("hidden", view !== "inventory");
-    $("#view-quotes").classList.toggle("hidden", view !== "quotes");
-    $("#view-expenses").classList.toggle("hidden", view !== "expenses");
     $("#view-schedule").classList.toggle("hidden", view !== "schedule");
     $("#view-technicians").classList.toggle("hidden", view !== "technicians");
     $("#view-users").classList.toggle("hidden", view !== "users");
     if (view === "dashboard") loadDashboard();
     if (view === "clients") loadClients();
     if (view === "tickets") loadTickets();
-    if (view === "inventory") loadInventory();
-    if (view === "quotes") loadQuotes();
-    if (view === "expenses") loadExpenses();
     if (view === "schedule") loadSchedule();
     if (view === "technicians") loadTechnicians();
     if (view === "users") loadUsers();
@@ -1051,9 +1029,6 @@
     $("#view-dashboard").classList.add("hidden");
     $("#view-clients").classList.add("hidden");
     $("#view-tickets").classList.add("hidden");
-    $("#view-inventory").classList.add("hidden");
-    $("#view-quotes").classList.add("hidden");
-    $("#view-expenses").classList.add("hidden");
     $("#view-schedule").classList.add("hidden");
     $("#view-technicians").classList.add("hidden");
     $("#view-users").classList.add("hidden");
@@ -1080,26 +1055,24 @@
     if (profile.role === "owner" || profile.role === "staff" || profile.role === "external" || profile.role === "reception") {
       const isOwnerRole = profile.role === "owner";
       const isReception = profile.role === "reception";
-      // owner and reception both run the "back office" — full Πελάτες/Αποθήκη/Προσφορές/
-      // Έξοδα access — reception just doesn't get Dashboard/Πελάτες-tab/Χρήστες and lands
-      // on Πρόγραμμα instead of Dashboard (it's the front desk, not accounting).
+      // owner and reception both run the "back office" — full Πελάτες access —
+      // reception just doesn't get Dashboard/Πελάτες-tab/Χρήστες and lands on
+      // Πρόγραμμα instead of Dashboard (it's the front desk, not accounting).
       const isBackOffice = isOwnerRole || isReception;
       $("#staff-nav").classList.remove("hidden");
       $("#nav-toggle").classList.remove("hidden");
       initNavState();
       $("#nav-users").classList.toggle("hidden", !isOwnerRole);
       // simplified "Technician" nav for staff/external: only their own jobs + schedule.
-      // Full admin tabs (Αρχική/Πελάτες/Αποθήκη/Προσφορές/Έξοδα) stay owner/reception-only.
+      // Full admin tabs (Αρχική/Πελάτες) stay owner/reception-only.
       $("#nav-dashboard").classList.toggle("hidden", !isOwnerRole);
       $("#nav-clients").classList.toggle("hidden", !isOwnerRole);
-      $("#nav-inventory").classList.toggle("hidden", !isBackOffice);
-      $("#nav-quotes").classList.toggle("hidden", !isBackOffice);
-      $("#nav-expenses").classList.toggle("hidden", !isBackOffice);
       $("#nav-tickets-label").textContent = isBackOffice ? "Αιτήματα" : "Οι εργασίες μου";
       // reception doesn't do field visits, so it has no place in the technicians/leave screen
       $("#nav-technicians").classList.toggle("hidden", isReception);
       $("#nav-technicians-label").textContent = isOwnerRole ? "Τεχνικοί" : "Οι άδειές μου";
       $("#notif-wrap").classList.remove("hidden");
+      await refreshPushButton();
       await loadNotifications();
       if (!NOTIF_POLL_STARTED) {
         NOTIF_POLL_STARTED = true;
@@ -1300,14 +1273,11 @@
     clearMsg(msgEl);
     const today = new Date().toISOString().slice(0,10);
     const in7 = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
-    const monthStart = today.slice(0,7) + "-01";
 
-    const [clientsRes, openTicketsRes, ledgerRes, expensesRes, inventoryRes, upcomingRes, urgentRes] = await Promise.all([
+    const [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes] = await Promise.all([
       sb.from("clients").select("id", { count: "exact", head: true }),
       sb.from("tickets_view").select("id, priority").neq("status","done").neq("status","cancelled"),
       sb.from("ledger_entries").select("charge, payment"),
-      sb.from("expenses").select("amount").gte("expense_date", monthStart),
-      sb.from("inventory_items").select("stock, max_stock"),
       sb.from("tickets_view").select("id, code, title, scheduled_date, scheduled_time, clients(name)")
         .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
         .neq("status","cancelled").order("scheduled_date").order("scheduled_time").limit(8),
@@ -1316,14 +1286,12 @@
         .order("created_at",{ ascending:false }).limit(8)
     ]);
 
-    const firstError = [clientsRes, openTicketsRes, ledgerRes, expensesRes, inventoryRes, upcomingRes, urgentRes].find(r => r.error);
+    const firstError = [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes].find(r => r.error);
     if (firstError) { showMsg(msgEl, "Σφάλμα φόρτωσης: " + firstError.error.message, "error"); return; }
 
     const openTickets = openTicketsRes.data || [];
     const urgentOpenCount = openTickets.filter(t => t.priority === "urgent").length;
     const balance = (ledgerRes.data || []).reduce((s,l) => s + Number(l.charge||0) - Number(l.payment||0), 0);
-    const monthExpenses = (expensesRes.data || []).reduce((s,e) => s + Number(e.amount||0), 0);
-    const lowStock = (inventoryRes.data || []).filter(i => i.max_stock > 0 && i.stock / i.max_stock < 0.25).length;
     const upcoming = upcomingRes.data || [];
 
     // κάθε πλακίδιο οδηγεί στην αντίστοιχη κατηγορία
@@ -1334,8 +1302,6 @@
       <div class="stat-tile ${urgentOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${urgentOpenCount}</div><div class="lbl">Επείγοντα</div></div>
       <div class="stat-tile" data-goto="schedule"><div class="num">${upcoming.length}</div><div class="lbl">Επισκέψεις (7 ημ.)</div></div>
       <div class="stat-tile ${balance>0?'balance-due':''}" data-goto="clients"><div class="num">${balance.toFixed(2)}€</div><div class="lbl">Οφειλές πελατών</div></div>
-      <div class="stat-tile" data-goto="expenses"><div class="num">${monthExpenses.toFixed(2)}€</div><div class="lbl">Έξοδα μήνα</div></div>
-      <div class="stat-tile ${lowStock>0?'balance-due':''}" data-goto="inventory"><div class="num">${lowStock}</div><div class="lbl">Χαμηλό απόθεμα</div></div>
     `;
     $$("#dashboard-stats [data-goto]").forEach(tile => {
       tile.addEventListener("click", () => goToView(tile.dataset.goto));
@@ -1607,7 +1573,7 @@
         </div>
 
         <div class="section-title">Εξοπλισμός</div>
-        ${equipment.length === 0 ? '<div class="cell-sub" style="padding:6px 0 0;">Δεν έχει καταχωρηθεί ακόμα εξοπλισμός (γίνεται από την Αποθήκη).</div>' : equipment.map(e => `
+        ${equipment.length === 0 ? '<div class="cell-sub" style="padding:6px 0 0;">Δεν έχει καταχωρηθεί ακόμα εξοπλισμός.</div>' : equipment.map(e => `
           <div class="note-item"><div style="font-size:13px;"><strong>${escapeHtml(e.type)}</strong> — ${escapeHtml(e.detail)}</div></div>`).join("")}
         ` : ""}
 
@@ -2051,7 +2017,6 @@
     const { data: t, error } = await sb.from("tickets_view").select("*, clients(name)").eq("id", ticketId).single();
     if (error || !t) { return; }
     const { data: notes } = await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at");
-    if (!portalMode && INVENTORY_CACHE.length === 0) await loadInventory();
     if (!portalMode && STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
 
     async function fetchVlogs(){
@@ -2066,30 +2031,10 @@
       return `<option value="" ${!selectedId?"selected":""}>— Χωρίς ανάθεση —</option>` +
         STAFF_USERS_CACHE.map(u => `<option value="${u.id}" ${u.id===selectedId?"selected":""}>${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})</option>`).join("");
     }
-    function visitItemOptionsHtml(selectedId){
-      return `<option value="" ${!selectedId?"selected":""}>— Χειροκίνητη καταχώρηση —</option>` +
-        INVENTORY_CACHE.map(it => `<option value="${it.id}" data-price="${it.price}" data-name="${escapeHtml(it.name)}" data-category="${escapeHtml(it.category||"")}" ${it.id===selectedId?"selected":""}>${escapeHtml(it.name)} (απόθεμα: ${it.stock})</option>`).join("");
-    }
-    function visitLineHtml(line){
-      return `
-      <div class="qline" data-vline-row>
-        <div class="qline-top">
-          <select data-vline-item>${visitItemOptionsHtml(line.itemId)}</select>
-          <button type="button" class="remove-x" data-vline-remove>✕</button>
-        </div>
-        <input data-vline-desc placeholder="Περιγραφή υλικού" value="${escapeHtml(line.description || "")}" style="margin-bottom:8px;">
-        <div class="qline-nums">
-          <input type="number" step="1" min="0" data-vline-qty placeholder="Ποσότητα" value="${line.qty}">
-          <input type="number" step="0.01" min="0" data-vline-price placeholder="Τιμή" value="${line.price}">
-          <div class="qline-total" data-vline-total>${(Number(line.qty)*Number(line.price)).toFixed(2)}€</div>
-        </div>
-      </div>`;
-    }
-
     // Τεχνικός/Εξωτερικός συνεργάτης: απλοποιημένη προβολή — μόνο κατάσταση,
     // check-in/out (με χειροκίνητη διόρθωση) και σημειώσεις. Ο owner και η
     // Reception συνεχίζουν να βλέπουν το πλήρες drawer ακριβώς όπως σήμερα
-    // (προγραμματισμός/ανάθεση, υλικά & χρέωση, προτεραιότητα, παραστατικό).
+    // (προγραμματισμός/ανάθεση, προτεραιότητα, παραστατικό).
     const isFieldRole = !portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role);
 
     const staffControls = portalMode ? "" : `
@@ -2120,44 +2065,6 @@
           <div class="field"><label>Ώρα έναρξης</label><input type="time" id="tk-sched-time" value="${t.scheduled_time || ""}"></div>
           <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
         </div>
-      </div>
-
-      <div class="${isFieldRole ? "hidden" : ""}">
-        <div class="section-title">Υλικά &amp; χρέωση επίσκεψης</div>
-        <div id="visit-lines">${visitLineHtml({ itemId:"", description:"", qty:1, price:0 })}</div>
-        <button type="button" class="add-link" id="visit-add-line">+ Προσθήκη υλικού</button>
-        <div class="qtotal-row" style="font-size:13px;padding:10px 0 4px;"><span>Σύνολο υλικών</span><span id="visit-materials-total">0.00€</span></div>
-        <div class="field"><label>Επιπλέον χρέωση εργασίας (€)</label><input type="number" step="0.01" min="0" id="visit-labor" value="0"></div>
-        <div class="qtotal-row"><span>Συνολική χρέωση επίσκεψης</span><span id="visit-grand-total">0.00€</span></div>
-        <div class="form-row">
-          <div class="field"><label>Παραστατικό</label>
-            <select id="visit-doc-series">
-              <option value="TDA">ΤΔΑ</option>
-              <option value="TPY">ΤΠΥ</option>
-              <option value="">Χωρίς παραστατικό</option>
-            </select>
-          </div>
-          <div class="field"><label>Πληρωμή</label>
-            <select id="visit-paid">
-              <option value="no">Θα μείνει υπόλοιπο</option>
-              <option value="yes">Πληρώθηκε τώρα</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row hidden" id="visit-method-row">
-          <div class="field"><label>Τρόπος πληρωμής</label>
-            <select id="visit-method">
-              <option value="cash">Μετρητά</option>
-              <option value="card">Κάρτα</option>
-              <option value="bank">Τραπεζική κατάθεση</option>
-            </select>
-          </div>
-          <div class="field hidden" id="visit-bank-field"><label>Τράπεζα</label>
-            <select id="visit-bank">${BANKS.map(b => `<option>${b}</option>`).join("")}</select>
-          </div>
-        </div>
-        <div id="visit-msg"></div>
-        <button type="button" class="btn-primary btn-sm" id="visit-save" style="margin-bottom:4px;">Καταχώρηση επίσκεψης</button>
       </div>
 
       ${t.status !== "cancelled" ? '<button type="button" class="add-link" id="tk-cancel-link" style="color:var(--red);">Ακύρωση αιτήματος</button><div id="tk-cancel-confirm"></div>' : ""}
@@ -2334,131 +2241,6 @@
       }
       wireVlogButtons();
 
-      function wireVisitLine(row){
-        const sel = row.querySelector("[data-vline-item]");
-        const descInput = row.querySelector("[data-vline-desc]");
-        const qtyInput = row.querySelector("[data-vline-qty]");
-        const priceInput = row.querySelector("[data-vline-price]");
-        const totalEl = row.querySelector("[data-vline-total]");
-        const removeBtn = row.querySelector("[data-vline-remove]");
-        function refreshLineTotal(){
-          const lt = (parseFloat(qtyInput.value)||0) * (parseFloat(priceInput.value)||0);
-          totalEl.textContent = lt.toFixed(2) + "€";
-          refreshVisitTotals();
-        }
-        sel.addEventListener("change", () => {
-          const opt = sel.options[sel.selectedIndex];
-          if (opt.value) { descInput.value = opt.dataset.name; priceInput.value = opt.dataset.price; }
-          refreshLineTotal();
-        });
-        qtyInput.addEventListener("input", refreshLineTotal);
-        priceInput.addEventListener("input", refreshLineTotal);
-        removeBtn.addEventListener("click", () => { row.remove(); refreshVisitTotals(); });
-      }
-      function refreshVisitTotals(){
-        let materials = 0;
-        $$("[data-vline-row]").forEach(row => {
-          const q = parseFloat(row.querySelector("[data-vline-qty]").value) || 0;
-          const p = parseFloat(row.querySelector("[data-vline-price]").value) || 0;
-          materials += q * p;
-        });
-        $("#visit-materials-total").textContent = materials.toFixed(2) + "€";
-        const labor = parseFloat($("#visit-labor").value) || 0;
-        $("#visit-grand-total").textContent = (materials + labor).toFixed(2) + "€";
-      }
-      $$("[data-vline-row]").forEach(wireVisitLine);
-      refreshVisitTotals();
-      $("#visit-add-line").addEventListener("click", () => {
-        $("#visit-lines").insertAdjacentHTML("beforeend", visitLineHtml({ itemId:"", description:"", qty:1, price:0 }));
-        wireVisitLine($("#visit-lines").lastElementChild);
-        refreshVisitTotals();
-      });
-      $("#visit-labor").addEventListener("input", refreshVisitTotals);
-      $("#visit-paid").addEventListener("change", () => {
-        $("#visit-method-row").classList.toggle("hidden", $("#visit-paid").value !== "yes");
-      });
-      $("#visit-method").addEventListener("change", () => {
-        $("#visit-bank-field").classList.toggle("hidden", $("#visit-method").value !== "bank");
-      });
-      $("#visit-save").addEventListener("click", async () => {
-        const btn = $("#visit-save");
-        const lines = $$("[data-vline-row]").map(row => ({
-          itemId: row.querySelector("[data-vline-item]").value || null,
-          description: row.querySelector("[data-vline-desc]").value.trim(),
-          qty: parseFloat(row.querySelector("[data-vline-qty]").value) || 0,
-          price: parseFloat(row.querySelector("[data-vline-price]").value) || 0
-        })).filter(l => l.description && l.qty > 0);
-        const labor = parseFloat($("#visit-labor").value) || 0;
-        const materialsTotal = lines.reduce((s,l) => s + l.qty * l.price, 0);
-        const grandTotal = materialsTotal + labor;
-        if (lines.length === 0 && labor <= 0) {
-          showMsg($("#visit-msg"), "Πρόσθεσε τουλάχιστον ένα υλικό ή μια χρέωση εργασίας.", "error");
-          return;
-        }
-        for (const l of lines) {
-          if (l.itemId) {
-            const item = INVENTORY_CACHE.find(i => i.id === l.itemId);
-            if (item && l.qty > item.stock) {
-              showMsg($("#visit-msg"), `Δεν υπάρχει αρκετό απόθεμα για "${item.name}" (διαθέσιμο: ${item.stock}).`, "error");
-              return;
-            }
-          }
-        }
-        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Καταχώρηση...';
-        try {
-          for (const l of lines) {
-            if (l.itemId) {
-              const item = INVENTORY_CACHE.find(i => i.id === l.itemId);
-              const { error: stErr } = await sb.from("inventory_items").update({ stock: item.stock - l.qty }).eq("id", l.itemId);
-              if (stErr) throw stErr;
-              item.stock -= l.qty;
-            }
-            const { error: eqErr } = await sb.from("equipment").insert({
-              client_id: t.client_id,
-              type: (l.itemId && INVENTORY_CACHE.find(i => i.id === l.itemId)?.category) || "Υλικό",
-              detail: l.description + (l.qty > 1 ? " x" + l.qty : "")
-            });
-            if (eqErr) throw eqErr;
-          }
-          if (grandTotal > 0) {
-            const series = $("#visit-doc-series").value;
-            let docNumber = null;
-            if (series) {
-              const { data, error: docErr } = await sb.rpc("next_doc_number", { p_key: series });
-              if (docErr) throw docErr;
-              docNumber = data;
-            }
-            const { error: chErr } = await sb.from("ledger_entries").insert({
-              client_id: t.client_id,
-              description: "Επίσκεψη " + t.code + (t.title ? " — " + t.title : ""),
-              charge: grandTotal, payment: 0, doc_number: docNumber
-            });
-            if (chErr) throw chErr;
-            if ($("#visit-paid").value === "yes") {
-              const { data: payDoc, error: payErr } = await sb.rpc("next_doc_number", { p_key: "APY" });
-              if (payErr) throw payErr;
-              const method = $("#visit-method").value;
-              const { error: payInsErr } = await sb.from("ledger_entries").insert({
-                client_id: t.client_id,
-                description: "Πληρωμή επίσκεψης " + t.code,
-                charge: 0, payment: grandTotal, doc_number: payDoc,
-                method, bank: method === "bank" ? $("#visit-bank").value : null,
-                settles_doc: docNumber
-              });
-              if (payInsErr) throw payInsErr;
-            }
-          }
-          showMsg($("#visit-msg"), "Καταχωρήθηκε επιτυχώς.", "ok");
-          $("#visit-lines").innerHTML = visitLineHtml({ itemId:"", description:"", qty:1, price:0 });
-          wireVisitLine($("#visit-lines").firstElementChild);
-          $("#visit-labor").value = "0";
-          refreshVisitTotals();
-        } catch (err) {
-          showMsg($("#visit-msg"), "Σφάλμα: " + err.message, "error");
-        }
-        btn.disabled = false; btn.textContent = "Καταχώρηση επίσκεψης";
-      });
-
       $("#tk-save").addEventListener("click", async () => {
         const assignedId = $("#tk-assigned").value || null;
         const assignedUser = assignedId ? STAFF_USERS_CACHE.find(u => u.id === assignedId) : null;
@@ -2514,720 +2296,6 @@
       await openTicketDrawer(ticketId, portalMode);
     });
   }
-
-  // ================= SUPPLIERS (shared by inventory + expenses) =================
-  let SUPPLIERS_CACHE = [];
-  async function loadSuppliers(){
-    const { data } = await sb.from("suppliers").select("*").order("name");
-    SUPPLIERS_CACHE = data || [];
-    return SUPPLIERS_CACHE;
-  }
-  function supplierOptionsHtml(selectedId){
-    return `<option value="">— Χωρίς προμηθευτή —</option>` +
-      SUPPLIERS_CACHE.map(s => `<option value="${s.id}" ${s.id===selectedId?"selected":""}>${escapeHtml(s.name)}</option>`).join("");
-  }
-  $("#new-supplier-btn").addEventListener("click", () => openSupplierDrawer());
-  function openSupplierDrawer(supplierId){
-    const s = supplierId ? SUPPLIERS_CACHE.find(x => x.id === supplierId) : null;
-    const listHtml = SUPPLIERS_CACHE.length === 0
-      ? '<div class="cell-sub" style="padding:8px 2px;">Δεν υπάρχουν ακόμα προμηθευτές.</div>'
-      : SUPPLIERS_CACHE.map(x => `
-          <div class="vlog-row" data-sup-id="${x.id}" style="cursor:pointer;">
-            <strong>${escapeHtml(x.name)}</strong>
-            <div class="vlog-who">${x.vat_number ? "ΑΦΜ " + escapeHtml(x.vat_number) : "— χωρίς ΑΦΜ —"}</div>
-          </div>`).join("");
-
-    openDrawer(s ? "Προμηθευτής" : "Νέος προμηθευτής", `
-      <form id="supplier-form">
-        <div id="sup-msg"></div>
-        <div class="field"><label>Επωνυμία *</label><input id="sup-name" required value="${s ? escapeHtml(s.name) : ""}"></div>
-        <div class="field">
-          <label>ΑΦΜ</label><input id="sup-vat" inputmode="numeric" maxlength="12" value="${s ? escapeHtml(s.vat_number || "") : ""}">
-          <div id="sup-vat-note" style="margin-top:4px;"></div>
-        </div>
-        <div class="drawer-foot" style="margin:22px -22px -20px;">
-          <span></span>
-          <button type="submit" class="btn-primary">Αποθήκευση</button>
-        </div>
-      </form>
-      ${s ? "" : `<div class="section-title">Υπάρχοντες προμηθευτές</div>
-        <p class="cell-sub" style="margin:-4px 0 6px;">Πάτα σε έναν για να συμπληρώσεις ή να αλλάξεις το ΑΦΜ του.</p>
-        <div id="sup-list">${listHtml}</div>`}
-    `);
-    wireVatHint("#sup-vat", "#sup-vat-note");
-    $$("#sup-list [data-sup-id]").forEach(el => {
-      el.addEventListener("click", () => openSupplierDrawer(el.dataset.supId));
-    });
-    $("#supplier-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = $("#sup-name").value.trim();
-      if (!name) return;
-      const payload = { name, vat_number: normalizeVat($("#sup-vat").value) || null };
-      const { error } = supplierId
-        ? await sb.from("suppliers").update(payload).eq("id", supplierId)
-        : await sb.from("suppliers").insert(payload);
-      if (error) { showMsg($("#sup-msg"), "Σφάλμα: " + error.message, "error"); return; }
-      await loadSuppliers();
-      closeDrawer();
-      await loadInventory();
-    });
-  }
-
-  // ================= INVENTORY (staff) =================
-  let INVENTORY_CACHE = [];
-  async function loadInventory(){
-    await loadSuppliers();
-    const { data, error } = await sb.from("inventory_items").select("*, suppliers(name)").order("name");
-    const tbody = $("#inventory-tbody");
-    if (error) { showMsg($("#inventory-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
-    clearMsg($("#inventory-msg"));
-    INVENTORY_CACHE = data || [];
-    if (INVENTORY_CACHE.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Δεν υπάρχουν ακόμα είδη στην αποθήκη.</div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = INVENTORY_CACHE.map(it => {
-      const pct = it.max_stock > 0 ? Math.min(100, Math.round(100 * it.stock / it.max_stock)) : 100;
-      const low = it.max_stock > 0 && it.stock / it.max_stock < 0.25;
-      return `
-      <tr data-id="${it.id}">
-        <td><strong>${escapeHtml(it.name)}</strong><div class="cell-sub">${escapeHtml(it.category || "")}</div></td>
-        <td>${it.stock}${it.max_stock ? " / " + it.max_stock : ""}<div class="stock-bar"><div class="stock-bar-fill ${low?'low':''}" style="width:${pct}%;"></div></div></td>
-        <td>${Number(it.price).toFixed(2)}€</td>
-        <td>${escapeHtml(it.suppliers ? it.suppliers.name : "—")}
-          <div><button type="button" class="btn-sm btn-primary" data-assign="${it.id}" style="margin-top:6px;">Καταχώρηση σε πελάτη</button></div>
-        </td>
-      </tr>`;
-    }).join("");
-    tbody.querySelectorAll("tr[data-id]").forEach(tr => {
-      tr.addEventListener("click", (e) => {
-        if (e.target.closest("[data-assign]")) return;
-        openInventoryDrawer(tr.dataset.id);
-      });
-    });
-    tbody.querySelectorAll("[data-assign]").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        if (CLIENTS_CACHE.length === 0) await loadClients();
-        openAssignDrawer(btn.dataset.assign);
-      });
-    });
-  }
-
-  $("#new-item-btn").addEventListener("click", async () => { await loadSuppliers(); openInventoryDrawer(null); });
-
-  async function openInventoryDrawer(itemId){
-    let item = { sku:"", name:"", category:"", stock:0, max_stock:0, price:0, supplier_id:null };
-    if (itemId) {
-      const found = INVENTORY_CACHE.find(i => i.id === itemId);
-      if (found) item = found;
-    }
-    openDrawer(itemId ? "Επεξεργασία είδους" : "Νέο είδος", `
-      <form id="item-form">
-        <div id="item-msg"></div>
-        <div class="form-row">
-          <div class="field"><label>SKU *</label><input id="it-sku" required value="${escapeHtml(item.sku)}"></div>
-          <div class="field"><label>Επωνυμία *</label><input id="it-name" required value="${escapeHtml(item.name)}"></div>
-        </div>
-        <div class="field"><label>Κατηγορία</label><input id="it-category" value="${escapeHtml(item.category || "")}"></div>
-        <div class="form-row">
-          <div class="field"><label>Απόθεμα</label><input type="number" id="it-stock" value="${item.stock}"></div>
-          <div class="field"><label>Μέγιστο απόθεμα</label><input type="number" id="it-max" value="${item.max_stock}"></div>
-        </div>
-        <div class="form-row">
-          <div class="field"><label>Τιμή (€)</label><input type="number" step="0.01" id="it-price" value="${item.price}"></div>
-          <div class="field"><label>Προμηθευτής</label><select id="it-supplier">${supplierOptionsHtml(item.supplier_id)}</select></div>
-        </div>
-        <div class="drawer-foot" style="margin:22px -22px -20px;">
-          ${itemId ? '<button type="button" class="btn-danger" id="it-delete">Διαγραφή</button>' : '<span></span>'}
-          <button type="submit" class="btn-primary">Αποθήκευση</button>
-        </div>
-      </form>
-    `);
-    if (itemId) {
-      $("#it-delete").addEventListener("click", async () => {
-        const { error } = await sb.from("inventory_items").delete().eq("id", itemId);
-        if (error) { showMsg($("#item-msg"), "Σφάλμα: " + error.message, "error"); return; }
-        closeDrawer();
-        await loadInventory();
-      });
-    }
-    $("#item-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const payload = {
-        sku: $("#it-sku").value.trim(),
-        name: $("#it-name").value.trim(),
-        category: $("#it-category").value.trim() || null,
-        stock: parseInt($("#it-stock").value || "0", 10),
-        max_stock: parseInt($("#it-max").value || "0", 10),
-        price: parseFloat($("#it-price").value || "0"),
-        supplier_id: $("#it-supplier").value || null
-      };
-      const { error } = itemId
-        ? await sb.from("inventory_items").update(payload).eq("id", itemId)
-        : await sb.from("inventory_items").insert(payload);
-      if (error) { showMsg($("#item-msg"), "Σφάλμα: " + error.message, "error"); return; }
-      closeDrawer();
-      await loadInventory();
-    });
-  }
-
-  function openAssignDrawer(itemId){
-    const item = INVENTORY_CACHE.find(i => i.id === itemId);
-    if (!item) return;
-    openDrawer("Καταχώρηση σε πελάτη", `
-      <form id="assign-form">
-        <div id="assign-msg"></div>
-        <p class="sub">${escapeHtml(item.name)} — διαθέσιμο απόθεμα: ${item.stock}</p>
-        <div class="field"><label>Πελάτης *</label>
-          <select id="as-client" required>
-            <option value="">— Επιλογή πελάτη —</option>
-            ${CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
-          </select>
-        </div>
-        <div class="field"><label>Ποσότητα</label><input type="number" id="as-qty" min="1" value="1"></div>
-        <div class="field"><label>Παραστατικό</label>
-          <select id="as-doc">
-            <option value="TDA">ΤΔΑ</option>
-            <option value="TPY">ΤΠΥ</option>
-            <option value="">Χωρίς παραστατικό</option>
-          </select>
-        </div>
-        <div class="drawer-foot" style="margin:22px -22px -20px;">
-          <span></span>
-          <button type="submit" class="btn-primary">Καταχώρηση</button>
-        </div>
-      </form>
-    `);
-    $("#assign-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const clientId = $("#as-client").value;
-      const qty = parseInt($("#as-qty").value || "1", 10);
-      if (!clientId || qty < 1) { showMsg($("#assign-msg"), "Συμπλήρωσε πελάτη και ποσότητα.", "error"); return; }
-      if (qty > item.stock) { showMsg($("#assign-msg"), "Δεν υπάρχει αρκετό απόθεμα.", "error"); return; }
-      const series = $("#as-doc").value;
-      let docNumber = null;
-      if (series) {
-        const { data, error } = await sb.rpc("next_doc_number", { p_key: series });
-        if (error) { showMsg($("#assign-msg"), "Σφάλμα παραστατικού: " + error.message, "error"); return; }
-        docNumber = data;
-      }
-      const { error: e1 } = await sb.from("inventory_items").update({ stock: item.stock - qty }).eq("id", itemId);
-      if (e1) { showMsg($("#assign-msg"), "Σφάλμα αποθέματος: " + e1.message, "error"); return; }
-      await sb.from("equipment").insert({ client_id: clientId, type: item.category || "Εξοπλισμός", detail: item.name + (qty > 1 ? " (x" + qty + ")" : "") });
-      if (docNumber || true) {
-        await sb.from("ledger_entries").insert({
-          client_id: clientId,
-          description: "Παραλαβή: " + item.name + (qty > 1 ? " x" + qty : ""),
-          charge: Number(item.price) * qty,
-          payment: 0,
-          doc_number: docNumber
-        });
-      }
-      closeDrawer();
-      await loadInventory();
-    });
-  }
-
-  // ================= QUOTES (staff) =================
-  let QUOTE_STATUS_FILTER = "all";
-  const QUOTE_STATUS_LABEL = { draft:"Πρόχειρη", sent:"Στάλθηκε", accepted:"Αποδεκτή", rejected:"Απορρίφθηκε" };
-  const QUOTE_STATUS_PILL = { draft:"st-new", sent:"st-progress", accepted:"st-done", rejected:"st-cancelled" };
-  const QUOTE_FILTERS = [["all","Όλες"],["draft","Πρόχειρη"],["sent","Στάλθηκε"],["accepted","Αποδεκτή"],["rejected","Απορρίφθηκε"]];
-  $("#quote-filters").innerHTML = QUOTE_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("");
-  $("#quote-filters").addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-f]");
-    if (!chip) return;
-    $$("#quote-filters .chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    QUOTE_STATUS_FILTER = chip.dataset.f;
-    loadQuotes();
-  });
-
-  async function loadQuotes(){
-    let q = sb.from("quotes_view").select("id, code, quote_date, status, client_id, clients(name), quote_items(qty, unit_price)").order("created_at", { ascending:false });
-    if (QUOTE_STATUS_FILTER !== "all") q = q.eq("status", QUOTE_STATUS_FILTER);
-    const { data, error } = await q;
-    const tbody = $("#quotes-tbody");
-    if (error) { showMsg($("#quotes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
-    clearMsg($("#quotes-msg"));
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Δεν υπάρχουν ακόμα προσφορές.</div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.map(qt => {
-      const total = (qt.quote_items || []).reduce((s,l) => s + Number(l.qty) * Number(l.unit_price), 0);
-      return `
-      <tr data-id="${qt.id}">
-        <td class="mono">${escapeHtml(qt.code)}</td>
-        <td>${escapeHtml(qt.clients ? qt.clients.name : "—")}</td>
-        <td>${qt.quote_date}</td>
-        <td>${total.toFixed(2)}€</td>
-        <td><span class="status-pill ${QUOTE_STATUS_PILL[qt.status]}">${QUOTE_STATUS_LABEL[qt.status]}</span></td>
-      </tr>`;
-    }).join("");
-    tbody.querySelectorAll("tr[data-id]").forEach(tr => {
-      tr.addEventListener("click", () => openQuoteDrawer(tr.dataset.id));
-    });
-  }
-
-  $("#new-quote-btn").addEventListener("click", async () => {
-    if (CLIENTS_CACHE.length === 0) await loadClients();
-    if (INVENTORY_CACHE.length === 0) await loadInventory();
-    openQuoteDrawer(null);
-  });
-
-  async function openQuoteDrawer(quoteId){
-    if (INVENTORY_CACHE.length === 0) await loadInventory();
-    if (CLIENTS_CACHE.length === 0) await loadClients();
-    let quote = { client_id:"", quote_date: new Date().toISOString().slice(0,10), status:"draft", note:"" };
-    let items = [{ sku:"", description:"", qty:1, unit_price:0 }];
-    if (quoteId) {
-      const { data } = await sb.from("quotes").select("*").eq("id", quoteId).single();
-      if (data) quote = data;
-      const { data: qi } = await sb.from("quote_items").select("*").eq("quote_id", quoteId);
-      if (qi && qi.length) items = qi;
-    }
-
-    function itemOptionsHtml(selectedSku){
-      return `<option value="" ${!selectedSku?"selected":""}>— Προσαρμοσμένο —</option>` +
-        INVENTORY_CACHE.map(it => `<option value="${it.sku}" data-price="${it.price}" data-name="${escapeHtml(it.name)}" ${it.sku===selectedSku?"selected":""}>${escapeHtml(it.name)} (${Number(it.price).toFixed(2)}€)</option>`).join("");
-    }
-    function lineHtml(line, idx){
-      return `
-      <div class="qline" data-line-row data-idx="${idx}">
-        <div class="qline-top">
-          <select data-line-item>${itemOptionsHtml(line.sku)}</select>
-          <button type="button" class="remove-x" data-line-remove>✕</button>
-        </div>
-        <input data-line-desc placeholder="Περιγραφή" value="${escapeHtml(line.description || "")}" style="margin-bottom:8px;">
-        <div class="qline-nums">
-          <input type="number" step="0.01" min="0" data-line-qty placeholder="Ποσότητα" value="${line.qty}">
-          <input type="number" step="0.01" min="0" data-line-price placeholder="Τιμή" value="${line.unit_price}">
-          <div class="qline-total" data-line-total>${(Number(line.qty)*Number(line.unit_price)).toFixed(2)}€</div>
-        </div>
-      </div>`;
-    }
-
-    openDrawer(quoteId ? "Προσφορά" : "Νέα προσφορά", `
-      <form id="quote-form">
-        <div id="qt-msg"></div>
-        <div class="form-row-3">
-          <div class="field"><label>Πελάτης *</label>
-            <select id="qt-client" required>
-              <option value="">— Επιλογή πελάτη —</option>
-              ${CLIENTS_CACHE.map(c => `<option value="${c.id}" ${c.id===quote.client_id?"selected":""}>${escapeHtml(c.name)}</option>`).join("")}
-            </select>
-          </div>
-          <div class="field"><label>Ημερομηνία</label><input type="date" id="qt-date" value="${quote.quote_date}"></div>
-          <div class="field"><label>Κατάσταση</label>
-            <select id="qt-status">
-              ${Object.entries(QUOTE_STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${quote.status===k?"selected":""}>${l}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="section-title">Είδη</div>
-        <div id="qt-lines">${items.map(lineHtml).join("")}</div>
-        <button type="button" class="add-link" id="qt-add-line">+ Προσθήκη είδους</button>
-        <div class="qtotal-row"><span>Σύνολο προσφοράς</span><span id="qt-total">0.00€</span></div>
-
-        <div class="field"><label>Σημείωση</label><textarea id="qt-note">${escapeHtml(quote.note || "")}</textarea></div>
-
-        <div class="drawer-foot" style="margin:22px -26px -22px;">
-          ${quoteId ? '<span id="qt-delete-wrap"><button type="button" class="btn-danger" id="qt-delete">Διαγραφή</button></span>' : '<span></span>'}
-          <button type="submit" class="btn-primary" id="qt-save">Αποθήκευση</button>
-        </div>
-      </form>
-    `, true);
-
-    function wireLine(row){
-      const sel = row.querySelector("[data-line-item]");
-      const descInput = row.querySelector("[data-line-desc]");
-      const qtyInput = row.querySelector("[data-line-qty]");
-      const priceInput = row.querySelector("[data-line-price]");
-      const totalEl = row.querySelector("[data-line-total]");
-      const removeBtn = row.querySelector("[data-line-remove]");
-
-      function refreshTotal(){
-        const t = (parseFloat(qtyInput.value)||0) * (parseFloat(priceInput.value)||0);
-        totalEl.textContent = t.toFixed(2) + "€";
-        refreshGrandTotal();
-      }
-      sel.addEventListener("change", () => {
-        const opt = sel.options[sel.selectedIndex];
-        if (opt.value) {
-          descInput.value = opt.dataset.name;
-          priceInput.value = opt.dataset.price;
-        }
-        refreshTotal();
-      });
-      qtyInput.addEventListener("input", refreshTotal);
-      priceInput.addEventListener("input", refreshTotal);
-      removeBtn.addEventListener("click", () => { row.remove(); refreshGrandTotal(); });
-    }
-    function refreshGrandTotal(){
-      let sum = 0;
-      $$("[data-line-row]").forEach(row => {
-        const q = parseFloat(row.querySelector("[data-line-qty]").value) || 0;
-        const p = parseFloat(row.querySelector("[data-line-price]").value) || 0;
-        sum += q * p;
-      });
-      $("#qt-total").textContent = sum.toFixed(2) + "€";
-    }
-    $$("[data-line-row]").forEach(wireLine);
-    refreshGrandTotal();
-
-    $("#qt-add-line").addEventListener("click", () => {
-      $("#qt-lines").insertAdjacentHTML("beforeend", lineHtml({ sku:"", description:"", qty:1, unit_price:0 }, Date.now()));
-      const newRow = $("#qt-lines").lastElementChild;
-      wireLine(newRow);
-      refreshGrandTotal();
-    });
-
-    if (quoteId) {
-      $("#qt-delete").addEventListener("click", () => {
-        $("#qt-delete-wrap").innerHTML = `Σίγουρα; <button type="button" class="btn-sm btn-ghost" id="qt-del-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="qt-del-yes">Ναι, διαγραφή</button>`;
-        $("#qt-del-no").addEventListener("click", () => closeDrawer());
-        $("#qt-del-yes").addEventListener("click", async () => {
-          const { error } = await sb.from("quotes").delete().eq("id", quoteId);
-          if (error) { showMsg($("#qt-msg"), "Σφάλμα: " + error.message, "error"); return; }
-          closeDrawer();
-          await loadQuotes();
-        });
-      });
-    }
-
-    $("#quote-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = $("#qt-save");
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
-      const payload = {
-        client_id: $("#qt-client").value,
-        quote_date: $("#qt-date").value || new Date().toISOString().slice(0,10),
-        status: $("#qt-status").value,
-        note: $("#qt-note").value.trim() || null
-      };
-      let savedId = quoteId;
-      let err;
-      if (quoteId) {
-        ({ error: err } = await sb.from("quotes").update(payload).eq("id", quoteId));
-      } else {
-        const { data, error } = await sb.from("quotes").insert(payload).select("id").single();
-        err = error; if (data) savedId = data.id;
-      }
-      if (err) {
-        btn.disabled = false; btn.textContent = "Αποθήκευση";
-        showMsg($("#qt-msg"), "Σφάλμα: " + err.message, "error");
-        return;
-      }
-      if (savedId) {
-        await sb.from("quote_items").delete().eq("quote_id", savedId);
-        const lines = $$("[data-line-row]").map(row => ({
-          quote_id: savedId,
-          sku: row.querySelector("[data-line-item]").value || null,
-          description: row.querySelector("[data-line-desc]").value.trim(),
-          qty: parseFloat(row.querySelector("[data-line-qty]").value) || 0,
-          unit_price: parseFloat(row.querySelector("[data-line-price]").value) || 0
-        })).filter(l => l.description);
-        if (lines.length) await sb.from("quote_items").insert(lines);
-      }
-      closeDrawer();
-      await loadQuotes();
-    });
-  }
-
-  // ================= EXPENSES (staff) =================
-  const EXPENSE_CATEGORIES = ["Προμήθεια εξοπλισμού","Ενοίκιο","ΔΕΗ/Ρεύμα","Νερό","Τηλέφωνο/Internet","Καύσιμα","Συντήρηση οχήματος","Μισθοδοσία","Πληρωμή υπαλλήλου","Λογιστής/Φόρος","Διαφήμιση","Διάφορα"];
-  let EXPENSE_CATEGORY_FILTER = "all";
-  $("#expense-filters").innerHTML = ["all", ...EXPENSE_CATEGORIES].map(c => `<div class="chip ${c==='all'?'active':''}" data-f="${escapeHtml(c)}">${c==='all'?'Όλα':c}</div>`).join("");
-  $("#expense-filters").addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-f]");
-    if (!chip) return;
-    $$("#expense-filters .chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    EXPENSE_CATEGORY_FILTER = chip.dataset.f;
-    loadExpenses();
-  });
-
-  async function loadExpenses(){
-    await loadSuppliers();
-    // Η περίοδος του ταμείου κυβερνάει και τη λίστα εξόδων. Τα έξοδα ΟΛΗΣ της
-    // περιόδου (χωρίς φίλτρο κατηγορίας) πάνε στο ταμείο, ώστε το σύνολο να μη
-    // χαλάει όταν κοιτάς μία κατηγορία.
-    const { data: allInRange, error: rangeErr } = await sb.from("expenses").select("*, suppliers(name)")
-      .gte("expense_date", CASH_FROM).lte("expense_date", CASH_TO)
-      .order("expense_date", { ascending:false }).order("created_at", { ascending:false });
-    if (rangeErr) { showMsg($("#expenses-msg"), "Σφάλμα φόρτωσης: " + rangeErr.message, "error"); return; }
-    const inRange = allInRange || [];
-    await renderCashbook(inRange);
-
-    const tbody = $("#expenses-tbody");
-    clearMsg($("#expenses-msg"));
-    const rows = EXPENSE_CATEGORY_FILTER === "all"
-      ? inRange
-      : inRange.filter(x => x.category === EXPENSE_CATEGORY_FILTER);
-    const total = rows.reduce((s,r) => s + Number(r.amount||0), 0);
-    $("#expense-stats").innerHTML = `
-      <div class="stat-tile"><div class="num">${rows.length}</div><div class="lbl">Καταχωρήσεις</div></div>
-      <div class="stat-tile"><div class="num">${total.toFixed(2)}€</div><div class="lbl">Σύνολο</div></div>`;
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Δεν υπάρχουν έξοδα σε αυτή την περίοδο.</div></td></tr>';
-      return;
-    }
-    const methodLabel = { cash:"Μετρητά", card:"Κάρτα", bank:"Τραπεζική κατάθεση" };
-    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
-    const staffName = (id) => { const u = STAFF_USERS_CACHE.find(s => s.id === id); return u ? (u.full_name || u.email) : "—"; };
-    const payerLabel = (x) => {
-      if (x.payer === "employee") return "πλήρωσε: " + escapeHtml(staffName(x.payer_id));
-      if (x.payer === "other") return "πλήρωσε: " + escapeHtml(x.payer_note || "άλλο");
-      if (x.payer === "shop") return "πλήρωσε: το μαγαζί";
-      return "";
-    };
-    tbody.innerHTML = rows.map(x => `
-      <tr data-id="${x.id}">
-        <td>${x.expense_date}</td>
-        <td><strong>${escapeHtml(x.category)}</strong><div class="cell-sub">${x.employee_id ? "προς " + escapeHtml(staffName(x.employee_id)) : escapeHtml(x.suppliers ? x.suppliers.name : "—")}</div></td>
-        <td>${escapeHtml(x.note || "—")}<div class="cell-sub">${x.method ? `${methodLabel[x.method]||x.method}${x.bank ? " · " + escapeHtml(x.bank) : ""}${x.txn_ref ? " · αρ. " + escapeHtml(x.txn_ref) : ""}` : ""}${payerLabel(x) ? (x.method ? " · " : "") + payerLabel(x) : ""}</div></td>
-        <td class="ledger-amt">${Number(x.amount).toFixed(2)}€</td>
-      </tr>`).join("");
-    tbody.querySelectorAll("tr[data-id]").forEach(tr => {
-      tr.addEventListener("click", () => openExpenseDrawer(tr.dataset.id));
-    });
-  }
-
-  $("#new-expense-btn").addEventListener("click", async () => { await loadSuppliers(); openExpenseDrawer(null); });
-
-  async function openExpenseDrawer(expenseId){
-    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
-    let ex = { expense_date: new Date().toISOString().slice(0,10), category: EXPENSE_CATEGORIES[0], supplier_id:null, amount:0, note:"", method:"cash", bank:null, txn_ref:"", payer:"shop", payer_id:null, payer_note:"", employee_id:null };
-    if (expenseId) {
-      const { data } = await sb.from("expenses").select("*").eq("id", expenseId).single();
-      if (data) ex = data;
-    }
-    openDrawer(expenseId ? "Επεξεργασία εξόδου" : "Νέο έξοδο", `
-      <form id="expense-form">
-        <div id="ex-msg"></div>
-        <div class="form-row">
-          <div class="field"><label>Ημερομηνία</label><input type="date" id="ex-date" value="${ex.expense_date}"></div>
-          <div class="field"><label>Ποσό (€) *</label><input type="number" step="0.01" id="ex-amount" required value="${ex.amount}"></div>
-        </div>
-        <div class="field"><label>Είδος εξόδου</label>
-          <select id="ex-category">${EXPENSE_CATEGORIES.map(c => `<option ${ex.category===c?"selected":""}>${c}</option>`).join("")}</select>
-        </div>
-        <div class="field"><label>Προμηθευτής</label><select id="ex-supplier">${supplierOptionsHtml(ex.supplier_id)}</select></div>
-
-        <div class="field ${["Μισθοδοσία","Πληρωμή υπαλλήλου"].includes(ex.category) ? "" : "hidden"}" id="ex-employee-field">
-          <label>Πληρωμή σε</label>
-          <select id="ex-employee">
-            <option value="">— Επίλεξε υπάλληλο —</option>
-            ${STAFF_USERS_CACHE.map(u => `<option value="${u.id}" ${u.id===ex.employee_id?"selected":""}>${escapeHtml(u.full_name || u.email)}</option>`).join("")}
-          </select>
-        </div>
-
-        <div class="field"><label>Ποιος έκανε το έξοδο</label>
-          <select id="ex-payer">
-            <option value="shop" ${(ex.payer||"shop")==='shop'?'selected':''}>Το μαγαζί</option>
-            <option value="employee" ${ex.payer==='employee'?'selected':''}>Υπάλληλος</option>
-            <option value="other" ${ex.payer==='other'?'selected':''}>Άλλο</option>
-          </select>
-        </div>
-        <div class="field ${ex.payer==='employee'?'':'hidden'}" id="ex-payer-who-field">
-          <label>Ποιος υπάλληλος</label>
-          <select id="ex-payer-who">
-            <option value="">— Επίλεξε —</option>
-            ${STAFF_USERS_CACHE.map(u => `<option value="${u.id}" ${u.id===ex.payer_id?"selected":""}>${escapeHtml(u.full_name || u.email)}</option>`).join("")}
-          </select>
-        </div>
-        <div class="field ${ex.payer==='other'?'':'hidden'}" id="ex-payer-note-field">
-          <label>Διευκρίνιση *</label>
-          <input id="ex-payer-note" value="${escapeHtml(ex.payer_note || "")}" placeholder="π.χ. πληρώθηκε από τον λογιστή">
-        </div>
-        <div class="field"><label>Σημείωση</label><input id="ex-note" value="${escapeHtml(ex.note || "")}"></div>
-        <div class="field"><label>Τρόπος πληρωμής</label>
-          <select id="ex-method">
-            <option value="cash" ${ex.method==='cash'?'selected':''}>Μετρητά</option>
-            <option value="card" ${ex.method==='card'?'selected':''}>Κάρτα</option>
-            <option value="bank" ${ex.method==='bank'?'selected':''}>Τραπεζική κατάθεση</option>
-          </select>
-        </div>
-        <div class="form-row ${ex.method==='bank'?'':'hidden'}" id="ex-bank-row">
-          <div class="field"><label>Τράπεζα</label><select id="ex-bank">${BANKS.map(b => `<option ${ex.bank===b?"selected":""}>${b}</option>`).join("")}</select></div>
-          <div class="field"><label>Αριθμός συναλλαγής</label><input id="ex-txn" value="${escapeHtml(ex.txn_ref || "")}"></div>
-        </div>
-        <div class="drawer-foot" style="margin:22px -22px -20px;">
-          ${expenseId ? '<button type="button" class="btn-danger" id="ex-delete">Διαγραφή</button>' : '<span></span>'}
-          <button type="submit" class="btn-primary">Αποθήκευση</button>
-        </div>
-      </form>
-    `);
-    $("#ex-method").addEventListener("change", () => {
-      $("#ex-bank-row").classList.toggle("hidden", $("#ex-method").value !== "bank");
-    });
-    $("#ex-payer").addEventListener("change", () => {
-      const v = $("#ex-payer").value;
-      $("#ex-payer-who-field").classList.toggle("hidden", v !== "employee");
-      $("#ex-payer-note-field").classList.toggle("hidden", v !== "other");
-    });
-    $("#ex-category").addEventListener("change", () => {
-      const isSalary = ["Μισθοδοσία","Πληρωμή υπαλλήλου"].includes($("#ex-category").value);
-      $("#ex-employee-field").classList.toggle("hidden", !isSalary);
-    });
-    if (expenseId) {
-      $("#ex-delete").addEventListener("click", async () => {
-        const { error } = await sb.from("expenses").delete().eq("id", expenseId);
-        if (error) { showMsg($("#ex-msg"), "Σφάλμα: " + error.message, "error"); return; }
-        closeDrawer();
-        await loadExpenses();
-      });
-    }
-    $("#expense-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const method = $("#ex-method").value;
-      const payer = $("#ex-payer").value;
-      const category = $("#ex-category").value;
-      const isSalary = ["Μισθοδοσία","Πληρωμή υπαλλήλου"].includes(category);
-      if (payer === "other" && !$("#ex-payer-note").value.trim()) {
-        showMsg($("#ex-msg"), "Γράψε ποιος έκανε το έξοδο στη διευκρίνιση.", "error");
-        return;
-      }
-      const payload = {
-        expense_date: $("#ex-date").value,
-        amount: parseFloat($("#ex-amount").value || "0"),
-        category,
-        supplier_id: $("#ex-supplier").value || null,
-        note: $("#ex-note").value.trim() || null,
-        method,
-        bank: method === "bank" ? $("#ex-bank").value : null,
-        txn_ref: method === "bank" ? $("#ex-txn").value.trim() || null : null,
-        payer,
-        payer_id: payer === "employee" ? ($("#ex-payer-who").value || null) : null,
-        payer_note: payer === "other" ? $("#ex-payer-note").value.trim() : null,
-        employee_id: isSalary ? ($("#ex-employee").value || null) : null
-      };
-      const { error } = expenseId
-        ? await sb.from("expenses").update(payload).eq("id", expenseId)
-        : await sb.from("expenses").insert(payload);
-      if (error) { showMsg($("#ex-msg"), "Σφάλμα: " + error.message, "error"); return; }
-      closeDrawer();
-      await loadExpenses();
-    });
-  }
-
-  // ================= ΤΑΜΕΙΟ (μέσα στα Έξοδα) =================
-  // Δεν χρειάστηκε τίποτα καινούργιο στη βάση: έσοδα = οι ΕΙΣΠΡΑΞΕΙΣ των πελατών
-  // (ledger_entries.payment), έξοδα = ο πίνακας expenses. Οι χρεώσεις (τιμολόγηση)
-  // δείχνονται ξεχωριστά, γιατί δεν είναι κίνηση χρημάτων.
-  // Η ίδια περίοδος κυβερνάει ΚΑΙ τη λίστα εξόδων από κάτω.
-  let CASH_FROM = isoDay(new Date());
-  let CASH_TO = isoDay(new Date());
-  const METHOD_LABEL = { cash:"Μετρητά", card:"Κάρτα", bank:"Τράπεζα" };
-
-  function shiftDays(iso, n){ const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return isoDay(d); }
-  function daysBetween(a, b){
-    return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000) + 1;
-  }
-  function setCashRange(from, to, quick){
-    CASH_FROM = from; CASH_TO = to;
-    $$("#cash-quick .chip").forEach(c => c.classList.toggle("active", c.dataset.range === quick));
-    loadExpenses();
-  }
-  function applyQuickRange(kind){
-    const today = isoDay(new Date());
-    if (kind === "today") return setCashRange(today, today, "today");
-    if (kind === "yesterday") { const y = shiftDays(today, -1); return setCashRange(y, y, "yesterday"); }
-    if (kind === "week") return setCashRange(shiftDays(today, -6), today, "week");
-    if (kind === "month") {
-      const d = new Date();
-      return setCashRange(isoDay(new Date(d.getFullYear(), d.getMonth(), 1)), today, "month");
-    }
-  }
-
-  async function renderCashbook(expenses){
-    $("#cash-from").value = CASH_FROM;
-    $("#cash-to").value = CASH_TO;
-    const single = CASH_FROM === CASH_TO;
-    $("#cash-title").textContent = single
-      ? new Date(CASH_FROM + "T00:00:00").toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
-      : `${new Date(CASH_FROM + "T00:00:00").toLocaleDateString("el-GR", { day:"numeric", month:"long" })} – ${new Date(CASH_TO + "T00:00:00").toLocaleDateString("el-GR", { day:"numeric", month:"long", year:"numeric" })} · ${daysBetween(CASH_FROM, CASH_TO)} ημέρες`;
-
-    const { data: ledger, error } = await sb.from("ledger_entries").select("*, clients(name)")
-      .gte("entry_date", CASH_FROM).lte("entry_date", CASH_TO)
-      .order("entry_date").order("created_at");
-    if (error) { showMsg($("#cashbook-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
-    clearMsg($("#cashbook-msg"));
-
-    const payments = (ledger || []).filter(l => Number(l.payment || 0) > 0);
-    const income = payments.reduce((s,l) => s + Number(l.payment || 0), 0);
-    const billed = (ledger || []).reduce((s,l) => s + Number(l.charge || 0), 0);
-    const outgo = expenses.reduce((s,e) => s + Number(e.amount || 0), 0);
-
-    // ανά τρόπο πληρωμής — τα «μετρητά» λένε τι πρέπει να υπάρχει στο συρτάρι
-    const per = { cash:{in:0,out:0}, card:{in:0,out:0}, bank:{in:0,out:0} };
-    payments.forEach(l => { per[per[l.method] ? l.method : "cash"].in += Number(l.payment || 0); });
-    expenses.forEach(e => { per[per[e.method] ? e.method : "cash"].out += Number(e.amount || 0); });
-    const cashNet = per.cash.in - per.cash.out;
-
-    $("#cashbook-stats").innerHTML = `
-      <div class="stat-tile"><div class="num">${income.toFixed(2)}€</div><div class="lbl">Εισπράξεις</div></div>
-      <div class="stat-tile ${outgo>0?'balance-due':''}"><div class="num">${outgo.toFixed(2)}€</div><div class="lbl">Έξοδα</div></div>
-      <div class="stat-tile ${income-outgo<0?'balance-due':''}"><div class="num">${(income-outgo).toFixed(2)}€</div><div class="lbl">${single ? "Διαφορά ημέρας" : "Διαφορά περιόδου"}</div></div>
-      <div class="stat-tile ${cashNet<0?'balance-due':''}"><div class="num">${cashNet.toFixed(2)}€</div><div class="lbl">Μετρητά στο ταμείο</div></div>
-      <div class="stat-tile"><div class="num">${billed.toFixed(2)}€</div><div class="lbl">Χρεώσεις (τιμολόγηση)</div></div>`;
-
-    $("#cashbook-methods").innerHTML = ["cash","card","bank"].map(m => `
-      <tr>
-        <td><strong>${METHOD_LABEL[m]}</strong></td>
-        <td class="ledger-amt" style="color:var(--green);">${per[m].in.toFixed(2)}€</td>
-        <td class="ledger-amt" style="color:var(--red);">${per[m].out.toFixed(2)}€</td>
-        <td class="ledger-amt"><strong>${(per[m].in - per[m].out).toFixed(2)}€</strong></td>
-      </tr>`).join("") + `
-      <tr>
-        <td><strong>Σύνολο</strong></td>
-        <td class="ledger-amt" style="color:var(--green);"><strong>${income.toFixed(2)}€</strong></td>
-        <td class="ledger-amt" style="color:var(--red);"><strong>${outgo.toFixed(2)}€</strong></td>
-        <td class="ledger-amt"><strong>${(income-outgo).toFixed(2)}€</strong></td>
-      </tr>`;
-
-    $("#cashbook-income").innerHTML = payments.length === 0
-      ? '<div class="empty-state">Καμία είσπραξη σε αυτή την περίοδο.</div>'
-      : `<div style="padding:0 20px;">${payments.map(l => `
-          <div class="sched-visit" ${l.client_id ? `data-client="${l.client_id}"` : ""}>
-            ${single ? "" : `<div class="sched-time">${l.entry_date.split("-").reverse().slice(0,2).join("/")}</div>`}
-            <div class="sched-info">
-              <strong>${escapeHtml(l.clients ? l.clients.name : "—")}</strong>
-              <div class="sched-tech">${escapeHtml(l.description || "")}${l.doc_number ? " · " + escapeHtml(l.doc_number) : ""} · ${METHOD_LABEL[l.method] || "Μετρητά"}${l.bank ? " · " + escapeHtml(l.bank) : ""}</div>
-            </div>
-            <div class="ledger-amt" style="color:var(--green);font-weight:700;">+${Number(l.payment).toFixed(2)}€</div>
-          </div>`).join("")}</div>`;
-    $$("#cashbook-income [data-client]").forEach(el => {
-      el.addEventListener("click", async () => {
-        if (CLIENTS_CACHE.length === 0) await loadClients();
-        await openClientDrawer(el.dataset.client);
-      });
-    });
-  }
-
-  $("#cash-prev").addEventListener("click", () => {
-    const n = daysBetween(CASH_FROM, CASH_TO);
-    setCashRange(shiftDays(CASH_FROM, -n), shiftDays(CASH_TO, -n), null);
-  });
-  $("#cash-next").addEventListener("click", () => {
-    const n = daysBetween(CASH_FROM, CASH_TO);
-    setCashRange(shiftDays(CASH_FROM, n), shiftDays(CASH_TO, n), null);
-  });
-  $("#cash-quick").addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-range]");
-    if (chip) applyQuickRange(chip.dataset.range);
-  });
-  ["#cash-from", "#cash-to"].forEach(sel => {
-    $(sel).addEventListener("change", () => {
-      let from = $("#cash-from").value || CASH_FROM;
-      let to = $("#cash-to").value || CASH_TO;
-      if (to < from) { if (sel === "#cash-from") to = from; else from = to; }
-      setCashRange(from, to, null);
-    });
-  });
 
   // ================= SCHEDULE (staff) =================
   let SCHEDULE_MODE = "calendar";
