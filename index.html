@@ -182,8 +182,10 @@
      όχι σαν στενή λωρίδα στη δεξιά άκρη. */
   #overlay{position:fixed;inset:0;background:rgba(20,30,32,.45);display:none;align-items:center;justify-content:center;padding:28px;z-index:50;}
   #overlay.open{display:flex;}
-  #drawer{width:min(760px,94vw);height:min(88vh,880px);background:var(--surface);box-shadow:var(--shadow-panel);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;}
-  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);flex:none;}
+  /* Το παράθυρο μπορεί να μετακινηθεί (σύρε από την επικεφαλίδα) και να
+     αλλάξει μέγεθος (σύρε από την κάτω-δεξιά γωνία) — βλ. initDrawerDragResize(). */
+  #drawer{width:min(760px,94vw);height:min(88vh,880px);min-width:320px;min-height:260px;max-width:96vw;max-height:96vh;background:var(--surface);box-shadow:var(--shadow-panel);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;resize:both;}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);flex:none;cursor:move;}
   .drawer-head h3{margin:0;font-size:16px;}
   .drawer-body{flex:1;overflow-y:auto;padding:20px 22px;}
   .drawer-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex:none;}
@@ -213,9 +215,11 @@
   .form-row-3{display:grid;grid-template-columns:1fr;gap:0;}
   .drawer-wide .form-row-3{grid-template-columns:1.6fr 1fr 1fr;gap:12px;}
   @media (max-width:900px){
-    /* σε κινητό η καρτέλα πιάνει ΟΛΗ την οθόνη — τίποτα στριμωγμένο */
+    /* σε κινητό η καρτέλα πιάνει ΟΛΗ την οθόνη — τίποτα στριμωγμένο, ούτε
+       χρειάζεται μετακίνηση/αλλαγή μεγέθους */
     #overlay{padding:0;}
-    #drawer, #drawer.drawer-wide{width:100vw;height:100%;max-height:100%;border-radius:0;}
+    #drawer, #drawer.drawer-wide{width:100vw;height:100%;max-height:100%;border-radius:0;resize:none;}
+    .drawer-head{cursor:default;}
   }
 
   /* ---- stat tiles ---- */
@@ -923,7 +927,21 @@
   });
 
   // ================= DRAWER =================
+  // Κάθε φορά που ανοίγει ένα «παράθυρο» ξεκινάει από την προεπιλεγμένη θέση/
+  // μέγεθος στο κέντρο της οθόνης — ό,τι μετακίνηση/αλλαγή μεγέθους έκανε ο
+  // χρήστης σε προηγούμενο παράθυρο δεν κουβαλιέται στο επόμενο.
+  function resetDrawerGeometry(){
+    drawer.style.position = "";
+    drawer.style.left = "";
+    drawer.style.top = "";
+    drawer.style.margin = "";
+    drawer.style.width = "";
+    drawer.style.height = "";
+    overlay.style.alignItems = "";
+    overlay.style.justifyContent = "";
+  }
   function openDrawer(title, bodyHtml, wide){
+    resetDrawerGeometry();
     $("#drawer-title").textContent = title;
     $("#drawer-body").innerHTML = bodyHtml;
     if (wide) { overlay.classList.add("overlay-center"); drawer.classList.add("drawer-wide"); }
@@ -937,6 +955,64 @@
   }
   $("#drawer-close").addEventListener("click", closeDrawer);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) closeDrawer(); });
+
+  // ---- μετακίνηση του παραθύρου (σύρε από την επικεφαλίδα) ----
+  // Η αλλαγή μεγέθους (κάτω-δεξιά γωνία) γίνεται με το CSS resize:both πιο
+  // πάνω — δεν χρειάζεται JS γι' αυτήν. Εδώ φτιάχνουμε μόνο το drag.
+  (function initDrawerDrag(){
+    const MOBILE_BREAKPOINT = 900; // ίδιο με το media query πιο πάνω· σε κινητό δεν σέρνεται
+    const head = drawer.querySelector(".drawer-head");
+    let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+    function beginDrag(clientX, clientY){
+      if (window.innerWidth <= MOBILE_BREAKPOINT) return;
+      const rect = drawer.getBoundingClientRect();
+      drawer.style.position = "fixed";
+      drawer.style.left = rect.left + "px";
+      drawer.style.top = rect.top + "px";
+      drawer.style.margin = "0";
+      overlay.style.alignItems = "flex-start";
+      overlay.style.justifyContent = "flex-start";
+      dragging = true;
+      startX = clientX; startY = clientY;
+      startLeft = rect.left; startTop = rect.top;
+      document.body.style.userSelect = "none";
+    }
+    function moveDrag(clientX, clientY){
+      if (!dragging) return;
+      const rect = drawer.getBoundingClientRect();
+      let newLeft = startLeft + (clientX - startX);
+      let newTop = startTop + (clientY - startY);
+      newLeft = Math.min(Math.max(newLeft, -rect.width + 80), window.innerWidth - 80);
+      newTop = Math.min(Math.max(newTop, 0), window.innerHeight - 60);
+      drawer.style.left = newLeft + "px";
+      drawer.style.top = newTop + "px";
+    }
+    function endDrag(){
+      dragging = false;
+      document.body.style.userSelect = "";
+    }
+
+    head.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".close-x")) return;
+      e.preventDefault();
+      beginDrag(e.clientX, e.clientY);
+    });
+    window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+    window.addEventListener("mouseup", endDrag);
+
+    head.addEventListener("touchstart", (e) => {
+      if (e.target.closest(".close-x")) return;
+      const t = e.touches[0];
+      beginDrag(t.clientX, t.clientY);
+    }, { passive:true });
+    window.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      moveDrag(t.clientX, t.clientY);
+    }, { passive:true });
+    window.addEventListener("touchend", endDrag);
+  })();
 
   // ================= NAV =================
   $$(".nav-item").forEach(item => {
@@ -1466,7 +1542,6 @@
   async function openClientDrawer(clientId){
     let client = { name:"", type:"Άλλο", city:"", contact:"", phone:"", email:"" };
     let remoteAccess = [];
-    let equipment = [];
     let ledger = [];
     let ticketCount = 0;
     let clientTickets = [];
@@ -1476,8 +1551,6 @@
       if (data) client = data;
       const { data: ra } = await sb.from("remote_access").select("*").eq("client_id", clientId);
       remoteAccess = ra || [];
-      const { data: eq } = await sb.from("equipment").select("*").eq("client_id", clientId).order("created_at", { ascending:false });
-      equipment = eq || [];
       const { data: led } = await sb.from("ledger_entries").select("*").eq("client_id", clientId).order("entry_date", { ascending:false }).order("created_at", { ascending:false });
       ledger = led || [];
       const { data: tks, count: tc } = await sb.from("tickets_view").select("id, code, title, status, created_at", { count:"exact" }).eq("client_id", clientId).order("created_at", { ascending:false });
@@ -1505,13 +1578,23 @@
         <button type="button" class="remove-x" data-contract-remove>✕</button>
       </div>`).join("");
 
+    // Δείχνουμε πάντα το πιο πρόσφατο αίτημα/βλάβη ως κάρτα (πάτημα το ανοίγει)·
+    // τα παλαιότερα κρύβονται σε ένα dropdown από κάτω — διαλέγεις ποιο θες.
+    const mostRecentTicket = clientTickets[0];
+    const olderTickets = clientTickets.slice(1);
     const ticketHistoryHtml = clientTickets.length === 0
       ? '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν ακόμα αιτήματα/βλάβες για αυτόν τον πελάτη.</div>'
-      : clientTickets.map(t => `
-          <div class="vlog-row" data-ticket-id="${t.id}" style="cursor:pointer;">
-            <strong>${escapeHtml(t.code)}</strong> — ${escapeHtml(t.title)}
-            <div class="vlog-who">${STATUS_LABEL[t.status] || t.status} · ${new Date(t.created_at).toLocaleDateString("el-GR")}</div>
-          </div>`).join("");
+      : `
+        <div class="vlog-row" data-ticket-id="${mostRecentTicket.id}" style="cursor:pointer;">
+          <strong>${escapeHtml(mostRecentTicket.code)}</strong> — ${escapeHtml(mostRecentTicket.title)}
+          <div class="vlog-who">${STATUS_LABEL[mostRecentTicket.status] || mostRecentTicket.status} · ${new Date(mostRecentTicket.created_at).toLocaleDateString("el-GR")}</div>
+        </div>
+        ${olderTickets.length ? `
+        <select id="client-older-tickets" style="margin-top:8px;width:100%;">
+          <option value="">Παλαιότερα αιτήματα (${olderTickets.length})…</option>
+          ${olderTickets.map(t => `<option value="${t.id}">${escapeHtml(t.code)} — ${escapeHtml(t.title)} (${new Date(t.created_at).toLocaleDateString("el-GR")})</option>`).join("")}
+        </select>` : ""}
+      `;
 
     openDrawer(clientId ? "Στοιχεία πελάτη" : "Νέος πελάτης", `
       <form id="client-form">
@@ -1568,15 +1651,15 @@
         </div>
         <div class="field"><label>Email</label><input type="email" id="cl-email" value="${escapeHtml(client.email || "")}"></div>
 
-        ${clientId ? `
-        <div class="section-title">Ιστορικό βλαβών${clientTickets.length ? " (" + clientTickets.length + ")" : ""}</div>
-        <div id="client-tickets-list">${ticketHistoryHtml}</div>` : ""}
-
         <div class="section-title">Συμβάσεις</div>
         ${clientId ? `
         <div id="contract-list">${contractRowsHtml(contracts)}</div>
         <button type="button" class="add-link" id="contract-add">+ Προσθήκη σύμβασης</button>
         ` : `<p class="cell-sub" style="margin:-4px 0 8px;">Θα μπορείς να προσθέσεις συμβάσεις αφού αποθηκεύσεις πρώτα τον πελάτη.</p>`}
+
+        ${clientId ? `
+        <div class="section-title">Ιστορικό βλαβών${clientTickets.length ? " (" + clientTickets.length + ")" : ""}</div>
+        <div id="client-tickets-list">${ticketHistoryHtml}</div>` : ""}
 
         ${clientId ? `
         <div class="section-title">Διαγραφή πελάτη</div>
@@ -1607,10 +1690,6 @@
           <button type="button" class="add-link" id="cl-new-txn">+ Κίνηση</button>
           <button type="button" class="add-link" id="cl-print">Λήψη για εκτύπωση</button>
         </div>
-
-        <div class="section-title">Εξοπλισμός</div>
-        ${equipment.length === 0 ? '<div class="cell-sub" style="padding:6px 0 0;">Δεν έχει καταχωρηθεί ακόμα εξοπλισμός.</div>' : equipment.map(e => `
-          <div class="note-item"><div style="font-size:13px;"><strong>${escapeHtml(e.type)}</strong> — ${escapeHtml(e.detail)}</div></div>`).join("")}
         ` : ""}
 
         <div class="drawer-foot" style="margin:22px -22px -20px;">
@@ -1651,7 +1730,6 @@
       const parts = [];
       if (ticketCount) parts.push(ticketCount + (ticketCount === 1 ? " αίτημα" : " αιτήματα"));
       if (ledger.length) parts.push(ledger.length + (ledger.length === 1 ? " κίνηση λογαριασμού" : " κινήσεις λογαριασμού"));
-      if (equipment.length) parts.push(equipment.length + (equipment.length === 1 ? " εγγραφή εξοπλισμού" : " εγγραφές εξοπλισμού"));
       const what = parts.length
         ? `Θα διαγραφούν ΚΑΙ: ${parts.join(", ")}.`
         : "Δεν έχει αιτήματα ή κινήσεις.";
@@ -1712,6 +1790,13 @@
         closeDrawer();
         openTicketDrawer(ticketId, false);
       });
+    });
+    const olderTicketsSelect = $("#client-older-tickets");
+    if (olderTicketsSelect) olderTicketsSelect.addEventListener("change", () => {
+      const ticketId = olderTicketsSelect.value;
+      if (!ticketId) return;
+      closeDrawer();
+      openTicketDrawer(ticketId, false);
     });
 
     if (clientId) {
