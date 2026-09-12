@@ -2639,8 +2639,12 @@
         let guard = 0;
         while (d <= last && guard++ < 400) {
           const key = isoDay(d);
-          if (!fromISO || key >= fromISO) {
-            if (!toISO || key <= toISO) (byDay[key] = byDay[key] || []).push({ __leave:true, who: nameOf(l.tech_id), kind: l.kind });
+          // Η άδεια δεν «καταναλώνει» Κυριακές ούτε κλειστές μέρες (δεν μετράνε ούτε στο
+          // υπόλοιπο ημερών του υπαλλήλου), οπότε δεν τον δείχνουμε σε άδεια εκείνες τις
+          // μέρες — το μαγαζί είναι ούτως ή άλλως κλειστό και δεν θα λείψει από πουθενά.
+          const shopOpen = d.getDay() !== 0 && !closedDayName(key);
+          if (shopOpen && (!fromISO || key >= fromISO) && (!toISO || key <= toISO)) {
+            (byDay[key] = byDay[key] || []).push({ __leave:true, who: nameOf(l.tech_id), kind: l.kind });
           }
           d.setDate(d.getDate() + 1);
         }
