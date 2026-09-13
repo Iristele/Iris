@@ -595,6 +595,8 @@
     </div>
   </div>
 
+  <div id="license-banner" class="hidden" style="padding:10px 16px;font-size:14px;text-align:center;font-weight:600;"></div>
+
   <div class="shell">
   <div class="nav hidden" id="staff-nav">
     <div class="nav-item active" data-view="dashboard" id="nav-dashboard"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Αρχική</div>
@@ -784,6 +786,18 @@
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h2>Άδεια χρήσης</h2></div>
+        <div class="panel-body" style="padding:0 20px 20px;">
+          <div id="license-status-box" class="cell-sub" style="margin-top:-4px;">—</div>
+          <div class="form-row" style="margin-top:12px;">
+            <div style="flex:1;"><label for="license-key-input">Κλειδί ανανέωσης</label><input id="license-key-input" placeholder="ILK-20270913-0010-XXXXXXXXXXXX" autocapitalize="off" autocorrect="off"></div>
+          </div>
+          <div style="margin-top:12px;"><button class="btn-primary btn-sm" id="license-key-apply">Ενεργοποίηση κλειδιού</button></div>
+          <div id="license-key-msg" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head"><h2>Κλειστές μέρες (αργίες, γιορτές)</h2></div>
         <div class="panel-body" style="padding:0 20px 20px;">
@@ -849,6 +863,7 @@
 
   let PROFILE = null;   // {role, client_id, full_name, email}
   let USER = null;
+  let LICENSE = null;   // {active, expires_at, days_left, user_count, max_users, reason} από public.license_status()
   let CLIENTS_CACHE = [];        // for the ticket-creation client picker
   let TICKET_STATUS_FILTER = "all";
   let STAFF_USERS_CACHE = [];    // owner/staff/external profiles, for the ticket "Ανάθεση σε" picker
@@ -1382,6 +1397,7 @@
       return;
     }
     PROFILE = profile;
+    await checkLicense();
 
     const roleLabel = { owner:"Διαχειριστής", staff:"Τεχνικός", external:"Εξωτερικός συνεργάτης", client:"Πελάτης", reception:"Reception" }[profile.role] || profile.role;
     const pillClass = { owner:"pill-owner", staff:"pill-staff", external:"pill-external", client:"pill-client", reception:"pill-reception" }[profile.role] || "";
@@ -3085,6 +3101,42 @@
   }
   function closedDayName(iso){ return CLOSED_DAYS.get(iso) || null; }
 
+  // Ελέγχει την κατάσταση της άδειας χρήσης (public.license_status()) και δείχνει
+  // το πάνω μπάνερ αν έχει λήξει ή ξεπεράστηκε το όριο χρηστών. Ποτέ δεν μπλοκάρει
+  // το boot αν κάτι πάει στραβά εδώ — best effort, ίδιο πνεύμα με refreshCurrent().
+  async function checkLicense(){
+    const banner = $("#license-banner");
+    try {
+      const { data, error } = await sb.rpc("license_status");
+      if (error) throw error;
+      LICENSE = Array.isArray(data) ? data[0] : data;
+      if (!banner) return;
+      if (!LICENSE || LICENSE.expires_at == null) {
+        banner.classList.add("hidden");
+        banner.textContent = "";
+        return;
+      }
+      if (!LICENSE.active) {
+        banner.textContent = LICENSE.reason === "user_limit"
+          ? `Ξεπεράστηκε το όριο χρηστών (${LICENSE.user_count}/${LICENSE.max_users}) — λειτουργία μόνο προβολής, χωρίς αποθήκευση.`
+          : "Η άδεια χρήσης της εφαρμογής έχει λήξει — λειτουργία μόνο προβολής, χωρίς αποθήκευση.";
+        banner.style.background = "var(--red-bg)";
+        banner.style.color = "var(--red)";
+        banner.classList.remove("hidden");
+      } else if (LICENSE.days_left != null && LICENSE.days_left <= 15) {
+        banner.textContent = `Η άδεια χρήσης λήγει σε ${LICENSE.days_left} ${LICENSE.days_left === 1 ? "μέρα" : "μέρες"}.`;
+        banner.style.background = "var(--amber-bg)";
+        banner.style.color = "var(--amber)";
+        banner.classList.remove("hidden");
+      } else {
+        banner.classList.add("hidden");
+        banner.textContent = "";
+      }
+    } catch (e) {
+      // δεν εμποδίζει τίποτα αν αποτύχει ο έλεγχος
+    }
+  }
+
   async function loadCompanyContext(){
     const [infoRes] = await Promise.all([
       sb.from("company_settings").select("*").eq("id", 1).maybeSingle(),
@@ -3107,7 +3159,44 @@
     Object.entries(COMPANY_FIELDS).forEach(([sel, key]) => { $(sel).value = c[key] || ""; });
     renderClosures();
     updateClosurePreview();
+    renderLicensePanel();
   }
+
+  // Γεμίζει το πλαίσιο κατάστασης άδειας στην καρτέλα Εταιρία, με βάση το
+  // πιο πρόσφατο LICENSE από checkLicense() (καλείται ήδη στο boot()).
+  function renderLicensePanel(){
+    const box = $("#license-status-box");
+    if (!box) return;
+    if (!LICENSE || !LICENSE.expires_at) {
+      box.textContent = "Άγνωστη κατάσταση άδειας.";
+      return;
+    }
+    const until = new Date(LICENSE.expires_at + "T00:00:00").toLocaleDateString("el-GR");
+    const usersPart = LICENSE.max_users != null ? ` · Χρήστες: ${LICENSE.user_count}/${LICENSE.max_users}` : "";
+    if (!LICENSE.active) {
+      const why = LICENSE.reason === "user_limit" ? "ξεπεράστηκε το όριο χρηστών" : "έληξε στις " + until;
+      box.innerHTML = `<span style="color:var(--red);font-weight:600;">Ανενεργή — ${why}.</span> Μόνο προβολή δεδομένων, χωρίς αποθήκευση, μέχρι να μπει νέο κλειδί.${usersPart}`;
+    } else if (LICENSE.days_left != null && LICENSE.days_left <= 15) {
+      box.innerHTML = `<span style="color:var(--amber);font-weight:600;">Λήγει σε ${LICENSE.days_left} ${LICENSE.days_left === 1 ? "μέρα" : "μέρες"}</span> (${until}).${usersPart}`;
+    } else {
+      box.innerHTML = `Ενεργή, ισχύει έως ${until}.${usersPart}`;
+    }
+  }
+
+  $("#license-key-apply").addEventListener("click", async () => {
+    const key = $("#license-key-input").value.trim();
+    clearMsg($("#license-key-msg"));
+    if (!key) { showMsg($("#license-key-msg"), "Γράψε πρώτα το κλειδί.", "error"); return; }
+    const btn = $("#license-key-apply");
+    btn.disabled = true;
+    const { error } = await sb.rpc("apply_license_key", { p_key: key });
+    btn.disabled = false;
+    if (error) { showMsg($("#license-key-msg"), "Δεν έγινε αποδεκτό: " + error.message, "error"); return; }
+    $("#license-key-input").value = "";
+    showMsg($("#license-key-msg"), "Το κλειδί ενεργοποιήθηκε.", "ok");
+    await checkLicense();
+    renderLicensePanel();
+  });
 
   function renderClosures(){
     const box = $("#closures-list");
