@@ -969,6 +969,14 @@
     // το θαυμαστικό του «Προς τιμολόγηση» το βάζει το CSS (.status-pill.st-to_invoice::before)
     return `<span class="status-pill st-${status}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[status] || status}</span>`;
   }
+  // Ο πελάτης δεν βλέπει εσωτερική ορολογία τιμολόγησης («Προς τιμολόγηση» /
+  // «Τιμολογημένο») — από τη στιγμή που ο τεχνικός βάλει «Προς τιμολόγηση», ο
+  // πελάτης βλέπει απλώς ότι η βλάβη έκλεισε, και αυτό ΔΕΝ αλλάζει ξανά όταν
+  // μπει μετά «Τιμολογημένο» (ίδια ένδειξη, πράσινη, και για τις δύο καταστάσεις).
+  function clientStatusPillHtml(status){
+    if (CLOSED_STATUSES.has(status)) return `<span class="status-pill st-done">Ολοκληρώθηκε</span>`;
+    return `<span class="status-pill st-${status}">${STATUS_LABEL[status] || status}</span>`;
+  }
   const PRIORITY_LABEL = { urgent:"Επείγον", normal:"Κανονικό", low:"Χαμηλή" };
 
   function escapeHtml(s){
@@ -2436,9 +2444,13 @@
       return;
     }
     const { data: notes } = await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at");
-    // ιστορικό κατάστασης (schema_v21): ποιος την άλλαξε και πότε
-    const { data: history } = await sb.from("ticket_status_history")
-      .select("*, profiles(full_name, email)").eq("ticket_id", ticketId).order("changed_at");
+    // ιστορικό κατάστασης (schema_v21): ποιος την άλλαξε και πότε — εσωτερικό,
+    // ο πελάτης δεν το βλέπει καθόλου (πέρα από τη δική του συνομιλία, τίποτα
+    // άλλο σε μορφή «ιστορικού/log»), οπότε ούτε καν το ζητάμε στο portal.
+    const { data: history } = portalMode
+      ? { data: [] }
+      : await sb.from("ticket_status_history")
+          .select("*, profiles(full_name, email)").eq("ticket_id", ticketId).order("changed_at");
     if (!portalMode && STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
 
     // ΠΡΟΣΟΧΗ: αν αυτό αποτύχει σιωπηλά και γυρίσει [], η εφαρμογή νομίζει ότι δεν
@@ -2532,11 +2544,11 @@
         ${escapeHtml(t.opening_note)}
       </div>` : ""}
       ${portalMode ? `
-        <p style="font-size:13px;"><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span> ${statusPillHtml(t.status)}</p>
+        <p style="font-size:13px;"><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span> ${clientStatusPillHtml(t.status)}</p>
         ${t.scheduled_date ? `<p class="cell-sub">✅ Προγραμματίστηκε επίσκεψη: ${t.scheduled_date}${t.scheduled_time ? " · " + t.scheduled_time : ""}</p>` : (t.preferred_date ? `<p class="cell-sub">📅 Ζήτησες επίσκεψη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""} — θα επιβεβαιωθεί από το κατάστημα</p>` : "")}
       ` : staffControls}
 
-      ${historyHtml}
+      ${!portalMode ? historyHtml : ""}
 
       <div class="section-title">Συνομιλία</div>
       <div id="notes-list">
