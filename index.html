@@ -1911,6 +1911,15 @@
     let ticketCount = 0;
     let clientTickets = [];
     let contracts = [];
+    // Νέος πελάτης: μπορεί να συνδεθεί κατευθείαν με έναν χρήστη που έχει ήδη
+    // κάνει εγγραφή μόνος του (role='client', χωρίς ακόμα καρτέλα πελάτη) —
+    // γλιτώνει το χειροκίνητο αντιγράφω-στοιχεία-και-μετά-πήγαινε-σύνδεσε-τον
+    // στους Χρήστες που περιγράφει το schema_v18.
+    let unlinkedClientUsers = [];
+    if (!clientId) {
+      if (USERS_CACHE.length === 0) await loadUsers();
+      unlinkedClientUsers = USERS_CACHE.filter(u => u.role === "client" && !u.client_id);
+    }
     if (clientId) {
       const { data } = await sb.from("clients").select("*").eq("id", clientId).single();
       if (data) client = data;
@@ -1974,9 +1983,37 @@
         </select>` : ""}
       `;
 
+    // Σύνδεση με ήδη-εγγεγραμμένο χρήστη — μόνο στη δημιουργία νέου πελάτη.
+    // Το εικονίδιο 🔍 ανοίγει πάνελ αναζήτησης με όνομα/ΑΦΜ/email/επωνυμία,
+    // ίδιο μοτίβο με την αναζήτηση πελάτη στο «Νέο αίτημα».
+    const userLinkHtml = !clientId ? `
+      <div class="field"><label>Χρήστης (προαιρετικό)</label>
+        <div style="display:flex;gap:8px;">
+          <select id="cl-user-link" style="flex:1;">
+            <option value="">— Χωρίς σύνδεση με χρήστη —</option>
+            ${unlinkedClientUsers.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email || "—")} (${escapeHtml(u.email || "")})</option>`).join("")}
+          </select>
+          <button type="button" class="btn-ghost btn-sm" id="cl-user-search-btn" style="flex:none;" title="Αναζήτηση χρήστη (όνομα/ΑΦΜ/email/επωνυμία)" aria-label="Αναζήτηση χρήστη">🔍</button>
+        </div>
+        <p class="cell-sub" style="margin:4px 0 0;">Αν έχει ήδη κάνει εγγραφή, διάλεξέ τον εδώ — συμπληρώνονται αυτόματα τα στοιχεία του και συνδέεται ο λογαριασμός του με αυτή την καρτέλα.</p>
+      </div>
+      <div id="cl-user-search-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
+        <p class="cell-sub" style="margin:0 0 8px;">Γράψε σε ένα ή περισσότερα πεδία — τα κριτήρια συνδυάζονται.</p>
+        <div class="form-row">
+          <div class="field"><label>Όνομα</label><input id="clu-name"></div>
+          <div class="field"><label>ΑΦΜ</label><input id="clu-vat" inputmode="numeric" maxlength="12"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Email</label><input id="clu-email"></div>
+          <div class="field"><label>Επωνυμία</label><input id="clu-company"></div>
+        </div>
+        <div id="cl-user-search-results"></div>
+      </div>` : "";
+
     openDrawer(clientId ? "Στοιχεία πελάτη" : "Νέος πελάτης", `
       <form id="client-form">
         <div id="client-form-msg"></div>
+        ${userLinkHtml}
         ${clientId && client.status === "pending" ? `
           <div class="vlog-open stale" style="margin-bottom:14px;">
             <strong>Νέα εγγραφή — περιμένει έγκριση.</strong><br>
@@ -2108,6 +2145,82 @@
       $("#cl-trade-field").classList.toggle("hidden", !isCompany);
     });
 
+    // Σύνδεση με χρήστη (μόνο νέος πελάτης): επιλογή από dropdown ή αναζήτηση,
+    // συμπληρώνει αυτόματα τη φόρμα από τα signup_* στοιχεία του λογαριασμού.
+    // full_name δεν είναι χωρισμένο σε όνομα/επώνυμο στη βάση — γίνεται best-effort
+    // σπάσιμο εδώ μόνο για ιδιώτες, ο owner διορθώνει αν χρειάζεται.
+    if (!clientId) {
+      function applyUserToClientForm(userId){
+        const u = unlinkedClientUsers.find(x => x.id === userId);
+        if (!u) return;
+        const isCompany = !!(u.signup_company_name && u.signup_company_name.trim());
+        $("#cl-entity").value = isCompany ? "company" : "individual";
+        $("#cl-entity").dispatchEvent(new Event("change"));
+        if (isCompany) {
+          $("#cl-name").value = u.signup_company_name || "";
+          $("#cl-trade-name").value = u.signup_trade_name || "";
+        } else {
+          $("#cl-name").value = u.full_name || "";
+          const parts = (u.full_name || "").trim().split(/\s+/).filter(Boolean);
+          $("#cl-first-name").value = parts[0] || "";
+          $("#cl-last-name").value = parts.length > 1 ? parts.slice(1).join(" ") : "";
+        }
+        const validTypes = ["Ξενοδοχείο","Εστιατόριο","Επιχείρηση","Άλλο"];
+        if (u.signup_business_type && validTypes.includes(u.signup_business_type)) $("#cl-type").value = u.signup_business_type;
+        $("#cl-vat").value = u.signup_vat_number || "";
+        $("#cl-tax-office").value = u.signup_tax_office || "";
+        $("#cl-address").value = u.signup_address || "";
+        $("#cl-city").value = u.signup_city || "";
+        $("#cl-phone").value = u.signup_phone || "";
+        $("#cl-email").value = u.email || "";
+      }
+      $("#cl-user-link").addEventListener("change", () => {
+        if ($("#cl-user-link").value) applyUserToClientForm($("#cl-user-link").value);
+      });
+      function renderUserSearchResults(){
+        const name = $("#clu-name").value.trim().toLowerCase();
+        const vat = $("#clu-vat").value.trim().toLowerCase();
+        const email = $("#clu-email").value.trim().toLowerCase();
+        const company = $("#clu-company").value.trim().toLowerCase();
+        const box = $("#cl-user-search-results");
+        if (!name && !vat && !email && !company) {
+          box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Πληκτρολόγησε σε κάποιο πεδίο για να δεις αποτελέσματα.</div>';
+          return;
+        }
+        const matches = unlinkedClientUsers.filter(u =>
+          (!name || (u.full_name || "").toLowerCase().includes(name)) &&
+          (!vat || (u.signup_vat_number || "").toLowerCase().includes(vat)) &&
+          (!email || (u.email || "").toLowerCase().includes(email)) &&
+          (!company || (u.signup_company_name || "").toLowerCase().includes(company))
+        );
+        if (matches.length === 0) {
+          box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Δεν βρέθηκε χρήστης με αυτά τα κριτήρια.</div>';
+          return;
+        }
+        const shown = matches.slice(0, 25);
+        box.innerHTML = shown.map(u => `
+          <div class="vlog-row" data-user-id="${u.id}" style="cursor:pointer;">
+            <strong>${escapeHtml(u.full_name || u.email || "—")}</strong>
+            <div class="vlog-who">${[u.signup_company_name, u.signup_vat_number, u.email].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+          </div>`).join("") + (matches.length > shown.length ? `<div class="cell-sub" style="padding:6px 0;">…και ${matches.length - shown.length} ακόμα — γράψε κάτι πιο συγκεκριμένο.</div>` : "");
+        box.querySelectorAll("[data-user-id]").forEach(el => {
+          el.addEventListener("click", () => {
+            $("#cl-user-link").value = el.dataset.userId;
+            $("#cl-user-search-panel").classList.add("hidden");
+            applyUserToClientForm(el.dataset.userId);
+          });
+        });
+      }
+      $("#cl-user-search-btn").addEventListener("click", () => {
+        const panel = $("#cl-user-search-panel");
+        panel.classList.toggle("hidden");
+        if (!panel.classList.contains("hidden")) renderUserSearchResults();
+      });
+      ["#clu-name", "#clu-vat", "#clu-email", "#clu-company"].forEach(sel => {
+        $(sel).addEventListener("input", renderUserSearchResults);
+      });
+    }
+
     $("#ra-add").addEventListener("click", () => {
       $("#ra-list").insertAdjacentHTML("beforeend", raRowsHtml([{ label:"", value:"" }]));
       wireRaRemove();
@@ -2212,6 +2325,15 @@
           p_contracts: contractRows
         });
         if (sideErr) sideError = "Η απομακρυσμένη πρόσβαση/συμβάσεις δεν αποθηκεύτηκαν: " + sideErr.message;
+
+        // Σύνδεση με χρήστη — μόνο στη δημιουργία νέου πελάτη (το πεδίο δεν
+        // υπάρχει καν στη φόρμα επεξεργασίας υπάρχοντος πελάτη).
+        const linkUserId = !clientId && $("#cl-user-link") ? $("#cl-user-link").value : "";
+        if (linkUserId) {
+          const { error: linkErr } = await sb.from("profiles").update({ client_id: savedId }).eq("id", linkUserId);
+          if (linkErr) sideError = (sideError ? sideError + " " : "") + "Ο λογαριασμός χρήστη δεν συνδέθηκε: " + linkErr.message;
+          else await loadUsers();
+        }
       }
       if (sideError) {
         // τα βασικά στοιχεία ΑΠΟΘΗΚΕΥΤΗΚΑΝ — μένουμε ανοιχτοί για να ξαναδοκιμάσει
