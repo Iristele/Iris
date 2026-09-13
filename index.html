@@ -917,7 +917,7 @@
         <div class="panel-body">
           <div id="portal-msg" style="padding:0 20px;"></div>
           <table>
-            <thead><tr><th>Κωδικός</th><th>Τίτλος</th><th>Προτεραιότητα</th><th>Κατάσταση</th></tr></thead>
+            <thead><tr><th>Αριθμός δελτίου</th><th>Ημερομηνία</th></tr></thead>
             <tbody id="portal-tickets-tbody"></tbody>
           </table>
         </div>
@@ -2313,6 +2313,7 @@
         <div class="field"><label>Κατηγορία</label><input id="tk-category" placeholder="π.χ. Κάμερες, PBX, POS"></div>
         <div class="field"><label>Τίτλος *</label><input id="tk-title" required></div>
         <div class="field"><label>Περιγραφή</label><textarea id="tk-desc"></textarea></div>
+        <div class="field"><label>Σημείωση</label><textarea id="tk-note" placeholder="π.χ. ώρες πρόσβασης, τηλέφωνο επικοινωνίας, οδηγίες — ό,τι χρειάζεται να ξέρει ο τεχνικός"></textarea></div>
         <div class="form-row">
           <div class="field"><label>Προτεραιότητα</label>
             <select id="tk-priority">
@@ -2397,6 +2398,7 @@
         category: $("#tk-category").value.trim() || null,
         title: $("#tk-title").value.trim(),
         description: $("#tk-desc").value.trim() || null,
+        opening_note: $("#tk-note").value.trim() || null,
         priority: $("#tk-priority").value,
         preferred_date: $("#tk-pref-date").value || null,
         status: "new",
@@ -2423,7 +2425,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -2521,6 +2523,10 @@
       <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients ? t.clients.name : "")}</strong> ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
+      ${t.opening_note ? `<div style="font-size:13px;white-space:pre-wrap;background:var(--tile-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px;">
+        <div class="cell-sub" style="margin-bottom:4px;">Σημείωση ανοίγματος — ${escapeHtml(t.profiles ? (t.profiles.full_name || t.profiles.email) : "—")}</div>
+        ${escapeHtml(t.opening_note)}
+      </div>` : ""}
       ${portalMode ? `
         <p style="font-size:13px;"><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span> ${statusPillHtml(t.status)}</p>
         ${t.scheduled_date ? `<p class="cell-sub">✅ Προγραμματίστηκε επίσκεψη: ${t.scheduled_date}${t.scheduled_time ? " · " + t.scheduled_time : ""}</p>` : (t.preferred_date ? `<p class="cell-sub">📅 Ζήτησες επίσκεψη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""} — θα επιβεβαιωθεί από το κατάστημα</p>` : "")}
@@ -3812,20 +3818,18 @@
       $("#portal-client-meta").textContent = [client.type, client.city].filter(Boolean).join(" · ") || " ";
     }
     const { data: tickets, error } = await sb
-      .from("tickets_view").select("id, code, title, status, priority").eq("client_id", clientId).order("created_at", { ascending:false });
+      .from("tickets_view").select("id, code, calendar_date").eq("client_id", clientId).order("calendar_date", { ascending:false });
     const tbody = $("#portal-tickets-tbody");
     if (error) { showMsg($("#portal-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     clearMsg($("#portal-msg"));
     if (!tickets || tickets.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Δεν έχεις ακόμα αιτήματα.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2"><div class="empty-state">Δεν έχεις ακόμα βλάβες.</div></td></tr>';
       return;
     }
     tbody.innerHTML = tickets.map(t => `
       <tr data-id="${t.id}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td>${escapeHtml(t.title)}</td>
-        <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span></td>
-        <td>${statusPillHtml(t.status)}</td>
+        <td>${t.calendar_date ? new Date(t.calendar_date + "T00:00:00").toLocaleDateString("el-GR") : "—"}</td>
       </tr>`).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
       tr.addEventListener("click", () => openTicketDrawer(tr.dataset.id, true));
