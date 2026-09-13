@@ -281,6 +281,14 @@
   .st-new{background:var(--blue-bg);color:var(--blue);}
   .st-progress{background:var(--orange-bg);color:var(--orange);}
   .st-waiting{background:var(--red-bg);color:var(--red);}
+  .st-to_invoice{background:var(--red-dot);color:#fff;font-weight:600;}
+  /* αντί για τελεία, θαυμαστικό — «θέλει τιμολόγιο» πρέπει να χτυπάει στο μάτι.
+     Μόνο στις ετικέτες κατάστασης· στα chip και στο ημερολόγιο το βάζει το JS. */
+  .status-pill.st-to_invoice::before{content:"!";background:transparent;width:auto;height:auto;
+    border-radius:0;font-weight:800;font-size:12.5px;line-height:1;opacity:1;}
+  .cal-ev.st-to_invoice{background:var(--red-dot);color:#fff;font-weight:600;}
+  .cal-dot.st-to_invoice{background:var(--red-dot);box-shadow:0 0 0 2px var(--red-bg);}
+  .hist-dot.st-to_invoice{color:var(--red-dot);}
   .st-done{background:var(--green-bg);color:var(--green);}
   .st-cancelled{background:var(--muted-bg);color:var(--muted-fg);}
   /* ξεχασμένη βλάβη: ανοιχτή πάνω από μία εβδομάδα */
@@ -441,6 +449,18 @@
   .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 18px 12px;}
   .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;
     color:var(--ink-2);cursor:pointer;font-weight:400;}
+  /* φίλτρο κατάστασης βλάβης στο Πρόγραμμα: μικρά chip που ανάβουν/σβήνουν */
+  .sched-status-filter{display:flex;gap:5px;flex-wrap:wrap;}
+  .sf-chip{padding:3px 9px;border-radius:var(--r-full);font-size:11.5px;font-weight:500;
+    cursor:pointer;border:1px solid var(--line-strong);background:transparent;
+    color:var(--ink-soft);transition:background var(--t),color var(--t),border-color var(--t);}
+  .sf-chip:hover{background:var(--surface-2);color:var(--ink);}
+  .sf-chip.on{border-color:transparent;}
+  .sf-chip.on.st-new{background:var(--blue-bg);color:var(--blue);}
+  .sf-chip.on.st-progress{background:var(--orange-bg);color:var(--orange);}
+  .sf-chip.on.st-waiting{background:var(--red-bg);color:var(--red);}
+  .sf-chip.on.st-to_invoice{background:var(--red-dot);color:#fff;}
+  .sf-chip.on.st-done{background:var(--green-bg);color:var(--green);}
   .sched-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);
     align-items:center;margin-left:auto;}
   .sched-legend span{display:flex;align-items:center;gap:4px;}
@@ -615,7 +635,7 @@
   <div class="nav hidden" id="staff-nav">
     <div class="nav-item active" data-view="dashboard" id="nav-dashboard"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Αρχική</div>
     <div class="nav-item" data-view="clients" id="nav-clients"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16.5 6.2a3.2 3.2 0 0 1 0 6"/><path d="M17.5 14.8c2.2.5 3.5 2.3 3.5 4.7"/></svg>Πελάτες</div>
-    <div class="nav-item" data-view="tickets" id="nav-tickets"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15l-3.5-2.5L12 19.5 8.5 17 5 19.5z"/><path d="M9 9h6"/><path d="M9 12.5h4"/></svg><span id="nav-tickets-label">Αιτήματα</span></div>
+    <div class="nav-item" data-view="tickets" id="nav-tickets"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15l-3.5-2.5L12 19.5 8.5 17 5 19.5z"/><path d="M9 9h6"/><path d="M9 12.5h4"/></svg><span id="nav-tickets-label">Βλάβες</span></div>
     <div class="nav-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.8h17"/><path d="M8 3.5v3M16 3.5v3"/></svg>Πρόγραμμα</div>
     <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><svg viewBox="0 0 24 24"><path d="M14.5 6.2a3.6 3.6 0 1 1-5 5L5 15.7v3.3h3.3l4.5-4.5a3.6 3.6 0 0 0 5-5z"/></svg><span id="nav-technicians-label">Τεχνικοί</span></div>
     <div class="nav-item hidden" data-view="users" id="nav-users"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg>Χρήστες</div>
@@ -631,7 +651,7 @@
 
     <div id="pending-msg" class="panel hidden" style="padding:26px;">
       <h1 id="pending-title">Η εγγραφή σου καταχωρήθηκε</h1>
-      <p class="sub" id="pending-text">Τα στοιχεία σου στάλθηκαν στο κατάστημα για έλεγχο. Μόλις εγκριθεί ο λογαριασμός σου θα μπορείς να καταχωρείς αιτήματα και να βλέπεις την πορεία τους.</p>
+      <p class="sub" id="pending-text">Τα στοιχεία σου στάλθηκαν στο κατάστημα για έλεγχο. Μόλις εγκριθεί ο λογαριασμός σου θα μπορείς να καταχωρείς βλάβες και να βλέπεις την πορεία τους.</p>
       <div id="pending-details" class="cell-sub"></div>
     </div>
 
@@ -649,7 +669,7 @@
         <div class="panel-body" id="dashboard-onsite" style="padding:4px 0;"></div>
       </div>
       <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head"><h2>Επείγοντα ανοιχτά αιτήματα</h2></div>
+        <div class="panel-head"><h2>Επείγουσες ανοιχτές βλάβες</h2></div>
         <div class="panel-body" id="dashboard-urgent" style="padding:4px 0;"></div>
       </div>
       <div class="panel">
@@ -680,8 +700,8 @@
     <div id="view-tickets" class="hidden">
       <div class="panel">
         <div class="panel-head">
-          <h2>Αιτήματα</h2>
-          <button class="btn-primary btn-sm" id="new-ticket-btn">+ Νέο αίτημα</button>
+          <h2>Βλάβες</h2>
+          <button class="btn-primary btn-sm" id="new-ticket-btn">+ Νέα βλάβη</button>
         </div>
         <div class="filterbar" id="ticket-filters"></div>
         <div class="panel-body">
@@ -718,6 +738,7 @@
           <select id="sched-filter-tech" class="hidden" style="font-size:13px;max-width:190px;width:auto;">
             <option value="">Όλοι οι τεχνικοί</option>
           </select>
+          <div class="sched-status-filter" id="sched-filter-status"></div>
           <div class="sched-legend">
             <span><span class="cal-dot st-new"></span>Νέο</span>
             <span><span class="cal-dot st-progress"></span>Σε εξέλιξη</span>
@@ -837,8 +858,8 @@
       </div>
       <div class="panel">
         <div class="panel-head">
-          <h2>Τα αιτήματά μου</h2>
-          <button class="btn-primary btn-sm" id="portal-new-ticket-btn">+ Νέο αίτημα</button>
+          <h2>Οι βλάβες μου</h2>
+          <button class="btn-primary btn-sm" id="portal-new-ticket-btn">+ Νέα βλάβη</button>
         </div>
         <div class="panel-body">
           <div id="portal-msg" style="padding:0 20px;"></div>
@@ -887,7 +908,14 @@
   // owner and reception always see everything (reception dispatches, doesn't do visits).
   const FIELD_ROLES = new Set(["staff", "external"]);
 
-  const STATUS_LABEL = { new:"Νέο", progress:"Σε εξέλιξη", waiting:"Αναμονή ανταλλακτικού", done:"Ολοκληρώθηκε", cancelled:"Ακυρωμένο" };
+  const STATUS_LABEL = { new:"Νέο", progress:"Σε εξέλιξη", waiting:"Αναμονή", to_invoice:"Προς τιμολόγηση", done:"Τιμολογημένο" };
+  // «Προς τιμολόγηση» θέλει να χτυπάει στο μάτι — είναι λεφτά που περιμένουν
+  const STATUS_ICON = { to_invoice:"! " };
+  const CLOSED_STATUSES = new Set(["to_invoice","done"]);
+  function statusPillHtml(status, extraStyle){
+    // το θαυμαστικό του «Προς τιμολόγηση» το βάζει το CSS (.status-pill.st-to_invoice::before)
+    return `<span class="status-pill st-${status}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[status] || status}</span>`;
+  }
   const PRIORITY_LABEL = { urgent:"Επείγον", normal:"Κανονικό", low:"Χαμηλή" };
 
   function escapeHtml(s){
@@ -1435,7 +1463,7 @@
       // Full admin tabs (Αρχική/Πελάτες) stay owner/reception-only.
       $("#nav-dashboard").classList.toggle("hidden", !isOwnerRole);
       $("#nav-clients").classList.toggle("hidden", !isOwnerRole);
-      $("#nav-tickets-label").textContent = isBackOffice ? "Αιτήματα" : "Οι εργασίες μου";
+      $("#nav-tickets-label").textContent = isBackOffice ? "Βλάβες" : "Οι εργασίες μου";
       // reception doesn't do field visits, so it has no place in the technicians/leave screen
       $("#nav-technicians").classList.toggle("hidden", isReception);
       $("#nav-technicians-label").textContent = isOwnerRole ? "Τεχνικοί" : "Οι άδειές μου";
@@ -1599,7 +1627,7 @@
           </div>`;
       }).join("");
     } else if (!open) {
-      html += '<div class="cell-sub" style="padding:8px 2px;">Δεν έχει καταγραφεί ακόμα επίσκεψη σε αυτό το αίτημα.</div>';
+      html += '<div class="cell-sub" style="padding:8px 2px;">Δεν έχει καταγραφεί ακόμα επίσκεψη σε αυτή τη βλάβη.</div>';
     }
     return html;
   }
@@ -1649,18 +1677,18 @@
 
     const [clientsRes, openTicketsRes, upcomingRes, urgentRes, upcomingCountRes] = await Promise.all([
       sb.from("clients").select("id", { count: "exact", head: true }),
-      sb.from("tickets_view").select("id, priority, created_at").neq("status","done").neq("status","cancelled"),
+      sb.from("tickets_view").select("id, priority, created_at").neq("status","done"),
       sb.from("tickets_view").select("id, code, title, scheduled_date, scheduled_time, clients(name)")
         .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
-        .neq("status","cancelled").order("scheduled_date").order("scheduled_time").limit(8),
+        .order("scheduled_date").order("scheduled_time").limit(8),
       sb.from("tickets_view").select("id, code, title, clients(name)")
-        .eq("priority","urgent").neq("status","done").neq("status","cancelled")
+        .eq("priority","urgent").neq("status","done")
         .order("created_at",{ ascending:false }).limit(8),
       // ξεχωριστή καταμέτρηση: η λίστα από κάτω δείχνει 8, ο αριθμός στο πλακίδιο όμως
       // πρέπει να λέει ΠΟΣΕΣ είναι πραγματικά
       sb.from("tickets_view").select("id", { count: "exact", head: true })
         .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
-        .neq("status","cancelled")
+        
     ]);
 
     const firstError = [clientsRes, openTicketsRes, upcomingRes, urgentRes].find(r => r.error);
@@ -1675,7 +1703,7 @@
     $("#dashboard-stats").innerHTML = `
       <div class="stat-tile" data-goto="technicians"><div class="num" id="stat-onsite-num">0</div><div class="lbl">Σε δουλειά τώρα</div></div>
       <div class="stat-tile" data-goto="clients"><div class="num">${clientsRes.count ?? 0}</div><div class="lbl">Πελάτες</div></div>
-      <div class="stat-tile" data-goto="tickets"><div class="num">${openTickets.length}</div><div class="lbl">Ανοιχτά αιτήματα</div></div>
+      <div class="stat-tile" data-goto="tickets"><div class="num">${openTickets.length}</div><div class="lbl">Ανοιχτές βλάβες</div></div>
       <div class="stat-tile ${urgentOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${urgentOpenCount}</div><div class="lbl">Επείγοντα</div></div>
       <div class="stat-tile ${staleOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${staleOpenCount}</div><div class="lbl">Ξεχασμένα (&gt;1 εβδ.)</div></div>
       <div class="stat-tile" data-goto="schedule"><div class="num">${upcomingCountRes.count ?? upcoming.length}</div><div class="lbl">Επισκέψεις (7 ημ.)</div></div>
@@ -1686,7 +1714,7 @@
 
     const urgentList = urgentRes.data || [];
     $("#dashboard-urgent").innerHTML = urgentList.length === 0
-      ? '<div class="empty-state">Δεν υπάρχουν επείγοντα ανοιχτά αιτήματα.</div>'
+      ? '<div class="empty-state">Δεν υπάρχουν επείγουσες ανοιχτές βλάβες.</div>'
       : urgentList.map(t => `
         <div class="sched-visit" data-id="${t.id}">
           <div class="sched-info"><strong>${escapeHtml(t.clients ? t.clients.name : "")}</strong> — ${escapeHtml(t.title)}</div>
@@ -1848,12 +1876,12 @@
         <button type="button" class="remove-x" data-contract-remove>✕</button>
       </div>`).join("");
 
-    // Δείχνουμε πάντα το πιο πρόσφατο αίτημα/βλάβη ως κάρτα (πάτημα το ανοίγει)·
+    // Δείχνουμε πάντα την πιο πρόσφατη βλάβη ως κάρτα (πάτημα το ανοίγει)·
     // τα παλαιότερα κρύβονται σε ένα dropdown από κάτω — διαλέγεις ποιο θες.
     const mostRecentTicket = clientTickets[0];
     const olderTickets = clientTickets.slice(1);
     const ticketHistoryHtml = clientTickets.length === 0
-      ? '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν ακόμα αιτήματα/βλάβες για αυτόν τον πελάτη.</div>'
+      ? '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν ακόμα βλάβες/βλάβες για αυτόν τον πελάτη.</div>'
       : `
         <div class="vlog-row" data-ticket-id="${mostRecentTicket.id}" style="cursor:pointer;">
           <strong>${escapeHtml(mostRecentTicket.code)}</strong> — ${escapeHtml(mostRecentTicket.title)}
@@ -1861,7 +1889,7 @@
         </div>
         ${olderTickets.length ? `
         <select id="client-older-tickets" style="margin-top:8px;width:100%;">
-          <option value="">Παλαιότερα αιτήματα (${olderTickets.length})…</option>
+          <option value="">Παλαιότερες βλάβες (${olderTickets.length})…</option>
           ${olderTickets.map(t => `<option value="${t.id}">${escapeHtml(t.code)} — ${escapeHtml(t.title)} (${new Date(t.created_at).toLocaleDateString("el-GR")})</option>`).join("")}
         </select>` : ""}
       `;
@@ -1872,7 +1900,7 @@
         ${clientId && client.status === "pending" ? `
           <div class="vlog-open stale" style="margin-bottom:14px;">
             <strong>Νέα εγγραφή — περιμένει έγκριση.</strong><br>
-            Ο πελάτης δεν βλέπει τίποτα και δεν μπορεί να καταχωρήσει αίτημα μέχρι να τον εγκρίνεις.
+            Ο πελάτης δεν βλέπει τίποτα και δεν μπορεί να καταχωρήσει βλάβη μέχρι να τον εγκρίνεις.
           </div>
           <div class="form-row" style="margin-bottom:6px;">
             <button type="button" class="btn-primary" id="cl-approve">✓ Έγκριση πελάτη</button>
@@ -2127,7 +2155,7 @@
 
 
   // ================= TICKETS (staff) =================
-  const TICKET_FILTERS = [["all","Όλα"],["new","Νέο"],["progress","Σε εξέλιξη"],["waiting","Αναμονή"],["done","Ολοκληρώθηκε"],["cancelled","Ακυρωμένο"]];
+  const TICKET_FILTERS = [["all","Όλα"],["new","Νέο"],["progress","Σε εξέλιξη"],["waiting","Αναμονή"],["to_invoice","Προς τιμολόγηση"],["done","Τιμολογημένο"]];
   $("#ticket-filters").innerHTML = TICKET_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("");
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
@@ -2146,7 +2174,7 @@
     return Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
   }
   function isStaleTicket(t){
-    return t.status !== "done" && t.status !== "cancelled" && ticketAgeDays(t.created_at) >= STALE_DAYS;
+    return !CLOSED_STATUSES.has(t.status) && ticketAgeDays(t.created_at) >= STALE_DAYS;
   }
   function staleBadge(t){
     if (!isStaleTicket(t)) return "";
@@ -2155,7 +2183,7 @@
   }
 
   async function loadTickets(){
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, clients(name)").order("created_at", { ascending:false });
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name)").order("created_at", { ascending:false });
     if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (PROFILE && FIELD_ROLES.has(PROFILE.role)) q = q.eq("assigned_to", USER.id);
     const { data, error } = await q;
@@ -2163,7 +2191,7 @@
     if (error) { showMsg($("#tickets-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     clearMsg($("#tickets-msg"));
     if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${PROFILE && FIELD_ROLES.has(PROFILE.role) ? "Δεν έχεις ανατεθειμένες εργασίες σε αυτή την κατηγορία." : "Δεν υπάρχουν αιτήματα σε αυτή την κατηγορία."}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${PROFILE && FIELD_ROLES.has(PROFILE.role) ? "Δεν έχεις ανατεθειμένες εργασίες σε αυτή την κατηγορία." : "Δεν υπάρχουν βλάβες σε αυτή την κατηγορία."}</div></td></tr>`;
       return;
     }
     const staleCount = data.filter(isStaleTicket).length;
@@ -2171,15 +2199,15 @@
     staleBanner.classList.toggle("hidden", staleCount === 0);
     if (staleCount) {
       staleBanner.textContent = staleCount === 1
-        ? "⚠ 1 αίτημα είναι ανοιχτό πάνω από μία εβδομάδα."
-        : `⚠ ${staleCount} αιτήματα είναι ανοιχτά πάνω από μία εβδομάδα.`;
+        ? "⚠ 1 βλάβη είναι ανοιχτή πάνω από μία εβδομάδα."
+        : `⚠ ${staleCount} βλάβες είναι ανοιχτές πάνω από μία εβδομάδα.`;
     }
     tbody.innerHTML = data.map(t => `
       <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td><strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}</div></td>
+        <td><strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div></td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
-        <td><span class="status-pill st-${t.status}">${STATUS_LABEL[t.status] || t.status}</span></td>
+        <td>${statusPillHtml(t.status)}</td>
       </tr>`).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
       tr.addEventListener("click", () => openTicketDrawer(tr.dataset.id, false));
@@ -2188,6 +2216,7 @@
 
   $("#new-ticket-btn").addEventListener("click", async () => {
     if (CLIENTS_CACHE.length === 0) await loadClients();
+    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
     openNewTicketDrawer(false);
   });
 
@@ -2217,7 +2246,7 @@
         </div>
         <div id="tk-client-search-results"></div>
       </div>`;
-    openDrawer("Νέο αίτημα", `
+    openDrawer("Νέα βλάβη", `
       <form id="new-ticket-form">
         <div id="ntk-msg"></div>
         ${clientOptions}
@@ -2234,6 +2263,14 @@
           </div>
           <div class="field"><label>Προτιμώμενη ημ/νία</label><input type="date" id="tk-pref-date"></div>
         </div>
+        ${portalMode ? "" : `
+        <div class="field"><label>Ανάθεση σε τεχνικό</label>
+          <select id="tk-new-assigned">
+            <option value="">— Χωρίς ανάθεση, θα το κάνω μετά —</option>
+            ${STAFF_USERS_CACHE.filter(u => FIELD_ROLES.has(u.role))
+              .map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("")}
+          </select>
+        </div>`}
         <div class="drawer-foot" style="margin:22px -22px -20px;">
           <span></span>
           <button type="submit" class="btn-primary" id="ntk-save">Δημιουργία</button>
@@ -2306,8 +2343,17 @@
         // a Τεχνικός/Εξωτερικός συνεργάτης who creates a ticket gets it auto-assigned to
         // themselves, so it shows up right away in their own filtered ticket list —
         // otherwise it would be invisible to them until someone assigns it.
-        assigned_to: (!portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role)) ? USER.id : null
+        // Ο τεχνικός/εξωτερικός που καταχωρεί βλάβη την παίρνει αυτόματα, αλλιώς
+        // δεν θα φαινόταν καν στη δική του λίστα. Ο owner/reception διαλέγει —
+        // ή αφήνει κενό και την αναθέτει αργότερα.
+        assigned_to: (!portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role))
+          ? USER.id
+          : (portalMode ? null : ($("#tk-new-assigned").value || null))
       };
+      if (payload.assigned_to) {
+        const u = STAFF_USERS_CACHE.find(x => x.id === payload.assigned_to);
+        if (u) { payload.tech = u.full_name || u.email; payload.scheduled_tech = payload.tech; }
+      }
       const { error } = await sb.from("tickets").insert(payload);
       btn.disabled = false; btn.textContent = "Δημιουργία";
       if (error) { showMsg($("#ntk-msg"), "Σφάλμα: " + error.message, "error"); return; }
@@ -2390,6 +2436,10 @@
           </select>
         </div>
       </div>
+      <div class="field ${t.status === "waiting" ? "" : "hidden"}" id="tk-waiting-wrap">
+        <label for="tk-waiting-reason">Γιατί είναι σε αναμονή;</label>
+        <input id="tk-waiting-reason" value="${escapeHtml(t.waiting_reason || "")}" placeholder="π.χ. περιμένουμε ανταλλακτικό, απάντηση πελάτη, κλειστά τα γραφεία">
+      </div>
       ${t.preferred_date ? `<p class="cell-sub" style="margin:0 0 10px;">Προτιμώμενη ημ/νία πελάτη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""}</p>` : ""}
       <div class="${isFieldRole ? "hidden" : ""}">
         <div class="section-title">Προγραμματισμός επίσκεψης</div>
@@ -2403,7 +2453,7 @@
         </div>
       </div>
 
-      ${t.status !== "cancelled" ? '<button type="button" class="add-link" id="tk-cancel-link" style="color:var(--red);">Ακύρωση αιτήματος</button><div id="tk-cancel-confirm"></div>' : ""}
+      ${PROFILE && PROFILE.role === "owner" ? '<button type="button" class="add-link" id="tk-delete-link" style="color:var(--red);">Διαγραφή βλάβης</button><div id="tk-delete-confirm"></div>' : ""}
     `;
 
     openDrawer(t.code, `
@@ -2411,9 +2461,8 @@
       <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients ? t.clients.name : "")}</strong> ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
-      ${t.status === "cancelled" ? `<div class="banner-cancel">🚫 Το αίτημα ακυρώθηκε ${!portalMode ? '<button type="button" class="btn-sm btn-ghost" id="tk-restore">Επαναφορά αιτήματος</button>' : ''}</div>` : ""}
       ${portalMode ? `
-        <p style="font-size:13px;"><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span> <span class="status-pill st-${t.status}">${STATUS_LABEL[t.status]}</span></p>
+        <p style="font-size:13px;"><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span> ${statusPillHtml(t.status)}</p>
         ${t.scheduled_date ? `<p class="cell-sub">✅ Προγραμματίστηκε επίσκεψη: ${t.scheduled_date}${t.scheduled_time ? " · " + t.scheduled_time : ""}</p>` : (t.preferred_date ? `<p class="cell-sub">📅 Ζήτησες επίσκεψη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""} — θα επιβεβαιωθεί από το κατάστημα</p>` : "")}
       ` : staffControls}
 
@@ -2581,12 +2630,19 @@
       }
       wireVlogButtons();
 
+      // ο λόγος αναμονής εμφανίζεται μόλις διαλέξεις «Αναμονή»
+      $("#tk-status-sel").addEventListener("change", () => {
+        $("#tk-waiting-wrap").classList.toggle("hidden", $("#tk-status-sel").value !== "waiting");
+      });
       $("#tk-save").addEventListener("click", async () => {
         const assignedId = $("#tk-assigned").value || null;
         const assignedUser = assignedId ? STAFF_USERS_CACHE.find(u => u.id === assignedId) : null;
         const assignedName = assignedUser ? (assignedUser.full_name || assignedUser.email) : null;
+        const newStatus = $("#tk-status-sel").value;
         const payload = {
-          status: $("#tk-status-sel").value,
+          status: newStatus,
+          // ο λόγος έχει νόημα μόνο όσο είναι σε αναμονή — αλλιώς καθαρίζει
+          waiting_reason: newStatus === "waiting" ? ($("#tk-waiting-reason").value.trim() || null) : null,
           priority: $("#tk-prio-sel").value,
           assigned_to: assignedId,
           tech: assignedName,
@@ -2597,7 +2653,7 @@
         };
         // Η βάση κλείνει μόνη της τυχόν ανοιχτή επίσκεψη (schema_v21), αλλά καλό
         // είναι να το ξέρει αυτός που πατάει το κουμπί.
-        if ((payload.status === "done" || payload.status === "cancelled") && VLOGS.some(v => !v.checkout_at)) {
+        if (CLOSED_STATUSES.has(payload.status) && VLOGS.some(v => !v.checkout_at)) {
           const who = (VLOGS.find(v => !v.checkout_at).profiles || {}).full_name || "ο τεχνικός";
           if (!confirm(`${who} δεν έχει κάνει ακόμα αναχώρηση σε αυτή τη βλάβη. Αν συνεχίσεις, η επίσκεψη θα κλείσει τώρα. Να συνεχίσω;`)) return;
         }
@@ -2606,24 +2662,29 @@
         closeDrawer();
         await loadTickets();
       });
-      const cancelLink = $("#tk-cancel-link");
-      if (cancelLink) {
-        cancelLink.addEventListener("click", () => {
-          $("#tk-cancel-confirm").innerHTML = `<span style="font-size:13px;">Σίγουρα να ακυρωθεί; <button type="button" class="btn-sm btn-ghost" id="tk-cancel-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="tk-cancel-yes">Ναι, ακύρωση</button></span>`;
-          $("#tk-cancel-no").addEventListener("click", () => { $("#tk-cancel-confirm").innerHTML = ""; });
-          $("#tk-cancel-yes").addEventListener("click", async () => {
-            const { error } = await sb.from("tickets").update({ status: "cancelled", scheduled_date: null, scheduled_time: null, scheduled_end: null }).eq("id", ticketId);
-            if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
-            await openTicketDrawer(ticketId, false);
+      const delLink = $("#tk-delete-link");
+      if (delLink) {
+        delLink.addEventListener("click", () => {
+          // Δεν υπάρχει πια «Ακυρωμένο» ως κατάσταση: ό,τι ακυρώνεται, διαγράφεται.
+          $("#tk-delete-confirm").innerHTML = `<div class="msg msg-error" style="margin-top:8px;">
+            Οριστική διαγραφή της βλάβης <strong>${escapeHtml(t.code)}</strong> μαζί με τη συνομιλία, τις επισκέψεις και το ιστορικό της. Δεν αναιρείται.<br>
+            <span style="display:inline-block;margin-top:8px;">
+              <button type="button" class="btn-sm btn-ghost" id="tk-del-no">Άκυρο</button>
+              <button type="button" class="btn-sm btn-danger" id="tk-del-yes">Ναι, διαγραφή</button>
+            </span></div>`;
+          $("#tk-del-no").addEventListener("click", () => { $("#tk-delete-confirm").innerHTML = ""; });
+          $("#tk-del-yes").addEventListener("click", async () => {
+            const b = $("#tk-del-yes");
+            b.disabled = true; b.innerHTML = '<span class="spinner"></span>Διαγραφή...';
+            const { error } = await sb.from("tickets").delete().eq("id", ticketId);
+            if (error) {
+              b.disabled = false; b.textContent = "Ναι, διαγραφή";
+              showMsg($("#tk-msg"), "Σφάλμα διαγραφής: " + error.message, "error");
+              return;
+            }
+            closeDrawer();
+            await loadTickets();
           });
-        });
-      }
-      const restoreBtn = $("#tk-restore");
-      if (restoreBtn) {
-        restoreBtn.addEventListener("click", async () => {
-          const { error } = await sb.from("tickets").update({ status: "new" }).eq("id", ticketId);
-          if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
-          await openTicketDrawer(ticketId, false);
         });
       }
     }
@@ -2656,6 +2717,8 @@
   let SCHEDULE_SHOW_TICKETS = true;
   let SCHEDULE_SHOW_LEAVES = true;
   let SCHEDULE_TECH_FILTER = "";
+  // Άδειο σύνολο = καμία επιλογή = δείξε τα πάντα (πιο απλό από το να τα τσεκάρεις όλα)
+  let SCHEDULE_STATUS_FILTER = new Set();
 
   function isoDay(d){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -2688,17 +2751,21 @@
     const isFieldRole = PROFILE && FIELD_ROLES.has(PROFILE.role);
 
     if (SCHEDULE_SHOW_TICKETS) {
+      // calendar_date (schema_v22): όσο η βλάβη είναι ανοιχτή κάθεται στη μέρα της
+      // προγραμματισμένης επίσκεψης· μόλις πάει «Προς τιμολόγηση»/«Τιμολογημένο»
+      // μετακινείται στη μέρα που άλλαξε η κατάσταση.
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, clients(name)")
-        .not("scheduled_date", "is", null).neq("status", "cancelled")
-        .order("scheduled_date").order("scheduled_time");
-      if (fromISO) q = q.gte("scheduled_date", fromISO);
-      if (toISO)   q = q.lte("scheduled_date", toISO);
+        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, clients(name)")
+        .not("calendar_date", "is", null)
+        .order("calendar_date").order("scheduled_time");
+      if (fromISO) q = q.gte("calendar_date", fromISO);
+      if (toISO)   q = q.lte("calendar_date", toISO);
       if (isFieldRole) q = q.eq("assigned_to", USER.id);
       else if (SCHEDULE_TECH_FILTER) q = q.eq("assigned_to", SCHEDULE_TECH_FILTER);
+      if (SCHEDULE_STATUS_FILTER.size) q = q.in("status", [...SCHEDULE_STATUS_FILTER]);
       const { data, error } = await q;
       if (error) return { error };
-      (data || []).forEach(r => { (byDay[r.scheduled_date] = byDay[r.scheduled_date] || []).push(r); });
+      (data || []).forEach(r => { (byDay[r.calendar_date] = byDay[r.calendar_date] || []).push(r); });
     }
 
     if (SCHEDULE_SHOW_LEAVES) {
@@ -2741,7 +2808,8 @@
       <div class="sched-visit" data-id="${r.id}">
         <div class="sched-time">${r.scheduled_time ? r.scheduled_time.slice(0,5) : "—"}${r.scheduled_end ? "–" + r.scheduled_end.slice(0,5) : ""}</div>
         <div class="sched-info"><strong>${escapeHtml(r.clients ? r.clients.name : "")}</strong> — ${escapeHtml(r.title)}
-          <span class="status-pill st-${r.status}" style="margin-left:6px;">${STATUS_LABEL[r.status] || r.status}</span>
+          ${statusPillHtml(r.status, "margin-left:6px;")}
+          ${r.status === "waiting" && r.waiting_reason ? `<div class="sched-tech">${escapeHtml(r.waiting_reason)}</div>` : ""}
         </div>
         <div class="sched-tech">${escapeHtml(r.tech || "—")}</div>
       </div>`;
@@ -2761,6 +2829,24 @@
         techs.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("");
       techSelect.dataset.populated = "1";
     }
+    // φίλτρο κατάστασης βλάβης: κανένα επιλεγμένο = δείξε τα πάντα
+    const statusBox = $("#sched-filter-status");
+    if (statusBox.dataset.built !== "1") {
+      statusBox.innerHTML = Object.entries(STATUS_LABEL).map(([k, l]) =>
+        `<button type="button" class="sf-chip st-${k}" data-status="${k}">${(STATUS_ICON[k] || "") + l}</button>`).join("");
+      statusBox.addEventListener("click", (e) => {
+        const chip = e.target.closest("[data-status]");
+        if (!chip) return;
+        const st = chip.dataset.status;
+        if (SCHEDULE_STATUS_FILTER.has(st)) SCHEDULE_STATUS_FILTER.delete(st);
+        else SCHEDULE_STATUS_FILTER.add(st);
+        chip.classList.toggle("on", SCHEDULE_STATUS_FILTER.has(st));
+        loadSchedule();
+      });
+      statusBox.dataset.built = "1";
+    }
+    statusBox.classList.toggle("hidden", !SCHEDULE_SHOW_TICKETS);
+
     const mode = SCHEDULE_MODE;
     $("#schedule-calendar").classList.toggle("hidden", mode !== "month");
     $("#schedule-week").classList.toggle("hidden", mode !== "week");
@@ -2798,7 +2884,7 @@
       const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
       const shown = items.slice(0, 3).map(i => i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
-        : `<div class="cal-ev st-${i.status}">${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
+        : `<div class="cal-ev st-${i.status}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
       const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot st-${v.status}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
@@ -2855,7 +2941,7 @@
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
       const shown = items.slice(0, 8).map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
-        : `<div class="cal-ev st-${x.status}">${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
+        : `<div class="cal-ev st-${x.status}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
       const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot st-${v.status}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
@@ -3178,7 +3264,7 @@
     const year = new Date().getFullYear();
     const [leaveRes, ticketsRes] = await Promise.all([
       sb.from("leave_requests").select("*"),
-      sb.from("tickets_view").select("assigned_to").neq("status","done").neq("status","cancelled")
+      sb.from("tickets_view").select("assigned_to").neq("status","done")
     ]);
     if (leaveRes.error) { showMsg($("#technicians-msg"), "Σφάλμα φόρτωσης: " + leaveRes.error.message, "error"); return; }
     const leaves = leaveRes.data || [];
@@ -3229,7 +3315,7 @@
     const [leaveRes, ticketsRes] = await Promise.all([
       sb.from("leave_requests").select("*").eq("tech_id", techId).order("start_date", { ascending:false }),
       sb.from("tickets_view").select("id, code, title, status, scheduled_date, clients(name)")
-        .eq("assigned_to", techId).neq("status","done").neq("status","cancelled").order("created_at", { ascending:false })
+        .eq("assigned_to", techId).neq("status","done").order("created_at", { ascending:false })
     ]);
     const leaves = leaveRes.data || [];
     const jobs = ticketsRes.data || [];
@@ -3569,7 +3655,7 @@
         <td class="mono">${escapeHtml(t.code)}</td>
         <td>${escapeHtml(t.title)}</td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span></td>
-        <td><span class="status-pill st-${t.status}">${STATUS_LABEL[t.status]}</span></td>
+        <td>${statusPillHtml(t.status)}</td>
       </tr>`).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
       tr.addEventListener("click", () => openTicketDrawer(tr.dataset.id, true));
