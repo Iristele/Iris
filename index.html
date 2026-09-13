@@ -2566,6 +2566,15 @@
       return;
     }
     const { data: notes } = await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at");
+    // Σημειωματάριο διαχειριστή (schema_v28): ιδιωτικές σημειώσεις πάνω στη βλάβη
+    // (π.χ. «πλήρωσε 50») που τις βλέπει/γράφει ΜΟΝΟ ο owner — ξεχωριστό από τη
+    // Συνομιλία, που τη βλέπει και ο πελάτης. Η RLS του πίνακα δεν αφήνει καν να
+    // διαβαστεί από κανέναν άλλον ρόλο, οπότε το ζητάμε μόνο όταν έχει νόημα.
+    const isOwner = !portalMode && PROFILE && PROFILE.role === "owner";
+    const { data: adminNoteRow } = isOwner
+      ? await sb.from("ticket_admin_notes").select("note").eq("ticket_id", ticketId).maybeSingle()
+      : { data: null };
+    const adminNote = adminNoteRow ? (adminNoteRow.note || "") : "";
     // ιστορικό κατάστασης (schema_v21): ποιος την άλλαξε και πότε — εσωτερικό,
     // ο πελάτης δεν το βλέπει καθόλου (πέρα από τη δική του συνομιλία, τίποτα
     // άλλο σε μορφή «ιστορικού/log»), οπότε ούτε καν το ζητάμε στο portal.
@@ -2671,6 +2680,12 @@
       ` : staffControls}
 
       ${!portalMode ? historyHtml : ""}
+
+      ${isOwner ? `
+        <div class="section-title">Σημειωματάριο διαχειριστή</div>
+        <p class="cell-sub" style="margin:0 0 8px;">Ιδιωτικές σημειώσεις πάνω στη βλάβη — τις βλέπεις μόνο εσύ, ποτέ ο πελάτης ή το προσωπικό.</p>
+        <textarea id="tk-admin-note" placeholder="π.χ. πλήρωσε 50€ μετρητά, οφείλει ακόμα..." style="min-height:80px;margin-bottom:14px;">${escapeHtml(adminNote)}</textarea>
+      ` : ""}
 
       <div class="section-title">Συνομιλία</div>
       <div id="notes-list">
@@ -2863,6 +2878,15 @@
         }
         const { error } = await sb.from("tickets").update(payload).eq("id", ticketId);
         if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
+        // Σημειωματάριο διαχειριστή (schema_v28) — δικός του πίνακας, δική του
+        // αποθήκευση, ώστε ένα σφάλμα εδώ να μην κρύβει ότι η ίδια η βλάβη
+        // αποθηκεύτηκε κανονικά.
+        if (isOwner) {
+          const noteVal = $("#tk-admin-note").value.trim();
+          const { error: noteErr } = await sb.from("ticket_admin_notes")
+            .upsert({ ticket_id: ticketId, note: noteVal || null, updated_by: USER.id, updated_at: new Date().toISOString() });
+          if (noteErr) { showMsg($("#tk-msg"), "Η βλάβη αποθηκεύτηκε, αλλά το σημειωματάριο διαχειριστή όχι: " + noteErr.message, "error"); return; }
+        }
         closeDrawer();
         await loadTickets();
       });
