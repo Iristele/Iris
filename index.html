@@ -193,6 +193,21 @@
   .tab.active{background:var(--surface);color:var(--ink);font-weight:600;
     box-shadow:0 1px 2px rgba(16,24,40,.08);}
 
+  /* ---- άδεια χρήσης: κλείδωμα + προειδοποίηση ---- */
+  #license-lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .lock-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:30px 28px;max-width:420px;width:100%;}
+  #license-banner{padding:10px 20px;font-size:13px;font-weight:500;text-align:center;
+    background:var(--red-bg);color:var(--red);border-bottom:1px solid var(--line);}
+  #license-banner.soft{background:var(--yellow-bg);color:var(--yellow);}
+  .lic-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
+    border-bottom:1px solid var(--line-soft);font-size:13.5px;}
+  .lic-row:last-child{border-bottom:none;}
+  .lic-row span:first-child{color:var(--ink-soft);}
+  .lic-bar{height:6px;border-radius:var(--r-full);background:var(--surface-3);overflow:hidden;margin-top:6px;}
+  .lic-bar-fill{height:100%;background:var(--brand);}
+  .lic-bar-fill.full{background:var(--red-dot);}
+
   /* ---- πάνω μπάρα ---- */
   .topbar{position:sticky;top:0;z-index:40;background:var(--surface);
     border-bottom:1px solid var(--line);padding:0 20px;height:var(--topbar-h);
@@ -601,7 +616,31 @@
 </div>
 
 <!-- ================= APP SHELL ================= -->
+<!-- Οθόνη κλειδώματος: εμφανίζεται αντί για την εφαρμογή όταν λήξει η συνδρομή
+     (μετά και τις 15 μέρες χάριτος). Τα δεδομένα δεν χάνονται — με έγκυρο κλειδί
+     ξεκλειδώνει αμέσως. -->
+<div id="license-lock" class="hidden">
+  <div class="lock-card">
+    <img class="brand-logo-auth" id="lock-logo" alt="Iris" style="margin:0 auto 20px;">
+    <h1 style="text-align:center;">Η συνδρομή έληξε</h1>
+    <p class="sub" style="text-align:center;" id="lock-text"></p>
+    <div id="lock-owner" class="hidden">
+      <div class="field">
+        <label for="lock-key">Κλειδί ανανέωσης</label>
+        <input id="lock-key" placeholder="Επικόλλησε εδώ το κλειδί που έλαβες" autocomplete="off">
+      </div>
+      <div id="lock-msg"></div>
+      <button class="btn-primary btn-full" id="lock-activate">Ενεργοποίηση</button>
+    </div>
+    <p class="sub" style="text-align:center;margin:18px 0 0;" id="lock-foot"></p>
+    <div style="text-align:center;margin-top:14px;">
+      <button type="button" class="btn-ghost btn-sm" id="lock-signout">Αποσύνδεση</button>
+    </div>
+  </div>
+</div>
+
 <div id="app-view" class="hidden">
+  <div id="license-banner" class="hidden"></div>
   <div class="topbar">
     <div class="topbar-left">
       <button class="nav-toggle hidden" id="nav-toggle" title="Εμφάνιση/απόκρυψη μενού" aria-label="Μενού">☰</button>
@@ -819,6 +858,20 @@
           <div style="margin-top:12px;"><label for="co-email">Email</label><input id="co-email" type="email"></div>
           <div style="margin-top:12px;"><label for="co-notes">Σημειώσεις</label><textarea id="co-notes" rows="2"></textarea></div>
           <div style="margin-top:14px;"><button class="btn-primary" id="co-save">Αποθήκευση στοιχείων</button></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h2>Άδεια χρήσης</h2><span id="lic-badge"></span></div>
+        <div class="panel-body" style="padding:0 20px 20px;">
+          <div id="lic-details"></div>
+          <div class="field" style="margin-top:16px;">
+            <label for="lic-key">Κλειδί ανανέωσης</label>
+            <input id="lic-key" placeholder="Επικόλλησε εδώ το κλειδί που έλαβες" autocomplete="off">
+            <div class="hint" style="font-size:12px;color:var(--ink-faint);margin-top:5px;">Το κλειδί αντικαθιστά την τρέχουσα άδεια. Δεν χάνεται κανένα δεδομένο.</div>
+          </div>
+          <div id="lic-msg"></div>
+          <button type="button" class="btn-primary btn-sm" id="lic-activate">Ενεργοποίηση</button>
         </div>
       </div>
 
@@ -1456,6 +1509,11 @@
       initNavState();
       $("#nav-users").classList.toggle("hidden", !isOwnerRole);
       $("#nav-company").classList.toggle("hidden", !isOwnerRole);
+      // Η άδεια πρώτα: αν έχει λήξει οριστικά, δεν έχει νόημα να φορτώσει τίποτα άλλο.
+      await loadLicense();
+      if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
+      renderLicenseBanner();
+
       // Χρειάζονται σε ΟΛΟ το προσωπικό: οι κλειστές μέρες για το ημερολόγιο και το
       // μέτρημα αδειών, τα στοιχεία εταιρίας για την κεφαλίδα του εκτυπωμένου λογαριασμού.
       await loadCompanyContext();
@@ -1483,6 +1541,8 @@
       $(`.nav-item[data-view="${defaultView}"]`).classList.add("active");
       showStaffView(defaultView);
     } else if (profile.role === "client") {
+      await loadLicense();
+      if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
       if (!profile.client_id) { $("#no-role-msg").classList.remove("hidden"); return; }
       // ο πελάτης μπαίνει μόνο αφού τον εγκρίνει ο διαχειριστής
       const { data: myClient } = await sb.from("clients").select("id, name, status").eq("id", profile.client_id).single();
@@ -3065,6 +3125,114 @@
   let CLOSED_DAYS = new Map();   // "YYYY-MM-DD" -> όνομα αργίας
   let CONTRACT_TYPES = [];       // τους διαλέγεις μέσα στην καρτέλα πελάτη
 
+  // ================= ΑΔΕΙΑ ΧΡΗΣΗΣ / ΣΥΝΔΡΟΜΗ =================
+  // Ό,τι έχει σημασία επιβάλλεται στη ΒΑΣΗ (schema_v23): μετά τη λήξη και τις 15
+  // μέρες χάριτος καμία εγγραφή δεν περνάει, ακόμα κι αν κάποιος παρακάμψει την
+  // οθόνη. Εδώ κάνουμε μόνο το ανθρώπινο κομμάτι: να το λέμε καθαρά.
+  let LICENSE = null;
+
+  async function loadLicense(){
+    const { data, error } = await sb.rpc("license_info");
+    LICENSE = error ? null : data;
+    return LICENSE;
+  }
+
+  function licenseDateGr(d){
+    return d ? new Date(d + "T00:00:00").toLocaleDateString("el-GR") : "—";
+  }
+
+  // Το μπάνερ δεν κλείνει με κουμπί: αν λήγει η συνδρομή πρέπει να το βλέπεις.
+  function renderLicenseBanner(){
+    const el = $("#license-banner");
+    if (!LICENSE) { el.classList.add("hidden"); return; }
+    const left = Number(LICENSE.days_left);
+    if (LICENSE.state === "grace") {
+      const graceLeft = Number(LICENSE.grace_days) + left;
+      el.className = "";
+      el.textContent = `Η συνδρομή έληξε στις ${licenseDateGr(LICENSE.expires_on)}. `
+        + (graceLeft > 0
+            ? `Η εφαρμογή κλειδώνει σε ${graceLeft} ${graceLeft === 1 ? "μέρα" : "μέρες"}.`
+            : "Η εφαρμογή κλειδώνει σήμερα.");
+    } else if (LICENSE.state === "ok" && left <= 30) {
+      el.className = "soft";
+      el.textContent = LICENSE.plan === "trial"
+        ? `Δοκιμαστική περίοδος — απομένουν ${left} ${left === 1 ? "μέρα" : "μέρες"}.`
+        : `Η συνδρομή λήγει σε ${left} ${left === 1 ? "μέρα" : "μέρες"} (${licenseDateGr(LICENSE.expires_on)}).`;
+    } else {
+      el.classList.add("hidden");
+      return;
+    }
+    el.classList.remove("hidden");
+  }
+
+  function showLicenseLock(){
+    $("#app-view").classList.add("hidden");
+    $("#auth-view").classList.add("hidden");
+    $("#license-lock").classList.remove("hidden");
+    const logo = document.querySelector("#auth-view img.brand-logo-auth");
+    if (logo) $("#lock-logo").src = logo.src;
+    $("#lock-text").textContent = LICENSE
+      ? `Η άδεια χρήσης έληξε στις ${licenseDateGr(LICENSE.expires_on)} και πέρασε και η περίοδος χάριτος.`
+      : "Η άδεια χρήσης δεν είναι έγκυρη.";
+    const isOwner = PROFILE && PROFILE.role === "owner";
+    $("#lock-owner").classList.toggle("hidden", !isOwner);
+    $("#lock-foot").textContent = isOwner
+      ? "Τα δεδομένα σου είναι ασφαλή. Μόλις καταχωρήσεις έγκυρο κλειδί, όλα επανέρχονται."
+      : "Επικοινώνησε με τον διαχειριστή για την ανανέωση.";
+  }
+
+  async function activateLicenseKey(inputSel, msgSel){
+    const key = $(inputSel).value.trim();
+    if (!key) { showMsg($(msgSel), "Επικόλλησε πρώτα το κλειδί.", "error"); return false; }
+    const { data, error } = await sb.rpc("activate_license", { p_key: key });
+    if (error) { showMsg($(msgSel), "Σφάλμα: " + error.message, "error"); return false; }
+    if (!data || !data.ok) {
+      showMsg($(msgSel), (data && data.error) || "Το κλειδί δεν έγινε δεκτό.", "error");
+      return false;
+    }
+    await loadLicense();
+    showMsg($(msgSel), `Ενεργοποιήθηκε — ισχύει έως ${licenseDateGr(data.expires_on)}.`, "ok");
+    return true;
+  }
+
+  $("#lock-activate").addEventListener("click", async () => {
+    if (await activateLicenseKey("#lock-key", "#lock-msg")) setTimeout(() => location.reload(), 900);
+  });
+  $("#lock-signout").addEventListener("click", async () => { await sb.auth.signOut(); location.reload(); });
+
+  $("#lic-activate").addEventListener("click", async () => {
+    if (await activateLicenseKey("#lic-key", "#lic-msg")) {
+      $("#lic-key").value = "";
+      renderLicense();
+      renderLicenseBanner();
+    }
+  });
+
+  function renderLicense(){
+    const box = $("#lic-details"), badge = $("#lic-badge");
+    if (!LICENSE) {
+      box.innerHTML = '<div class="cell-sub">Δεν διαβάστηκε η άδεια χρήσης.</div>';
+      badge.innerHTML = "";
+      return;
+    }
+    const left = Number(LICENSE.days_left);
+    const used = Number(LICENSE.staff_used), max = Number(LICENSE.max_staff);
+    const pct = max > 0 ? Math.min(100, Math.round(used / max * 100)) : 0;
+    const state = { ok:["st-done","Ενεργή"], grace:["st-waiting","Σε περίοδο χάριτος"], locked:["st-to_invoice","Έληξε"] }[LICENSE.state] || ["st-cancelled","—"];
+    badge.innerHTML = `<span class="status-pill ${state[0]}">${state[1]}</span>`;
+    box.innerHTML = `
+      <div class="lic-row"><span>Έκδοση</span><strong>${LICENSE.plan === "trial" ? "Δοκιμαστική" : "Κανονική"}</strong></div>
+      <div class="lic-row"><span>Καταχωρημένη σε</span><strong>${escapeHtml(LICENSE.company_name || "—")}</strong></div>
+      <div class="lic-row"><span>Ισχύει έως</span><strong>${licenseDateGr(LICENSE.expires_on)}${
+        left >= 0 ? ` <span class="cell-sub" style="display:inline;">(${left} ${left === 1 ? "μέρα" : "μέρες"})</span>` : ""
+      }</strong></div>
+      ${LICENSE.state === "grace" ? `<div class="lic-row"><span>Περίοδος χάριτος</span><strong style="color:var(--red);">κλειδώνει σε ${Number(LICENSE.grace_days) + left} μέρες</strong></div>` : ""}
+      <div class="lic-row"><span>Χρήστες προσωπικού</span><strong>${used} από ${max}</strong></div>
+      <div class="lic-bar"><div class="lic-bar-fill ${used >= max ? "full" : ""}" style="width:${pct}%;"></div></div>
+      ${used >= max ? '<div class="cell-sub" style="color:var(--red);margin-top:6px;">Έχεις φτάσει το όριο — δεν μπορείς να προσθέσεις άλλον χρήστη προσωπικού.</div>' : ""}
+      ${LICENSE.activated_at ? `<div class="cell-sub" style="margin-top:10px;">Τελευταία ενεργοποίηση: ${new Date(LICENSE.activated_at).toLocaleString("el-GR")}</div>` : ""}`;
+  }
+
   async function loadContractTypes(){
     const { data, error } = await sb.from("contract_types").select("*").order("sort_order").order("name");
     if (!error) CONTRACT_TYPES = data || [];
@@ -3146,6 +3314,8 @@
     await loadCompanyContext();
     const c = COMPANY_INFO || {};
     Object.entries(COMPANY_FIELDS).forEach(([sel, key]) => { $(sel).value = c[key] || ""; });
+    await loadLicense();
+    renderLicense();
     renderContractTypes();
     renderClosures();
     updateClosurePreview();
