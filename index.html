@@ -283,6 +283,13 @@
   .st-waiting{background:var(--red-bg);color:var(--red);}
   .st-done{background:var(--green-bg);color:var(--green);}
   .st-cancelled{background:var(--muted-bg);color:var(--muted-fg);}
+  /* ξεχασμένη βλάβη: ανοιχτή πάνω από μία εβδομάδα */
+  .stale-flag{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:1px 7px;
+    border-radius:var(--r-xs);font-size:11px;font-weight:600;background:var(--red-bg);color:var(--red);
+    white-space:nowrap;}
+  .stale-banner{margin:0 18px 10px;padding:9px 12px;border-radius:var(--r-sm);font-size:12.5px;
+    font-weight:500;background:var(--red-bg);color:var(--red);}
+  tbody tr.row-stale td:first-child{box-shadow:inset 3px 0 0 var(--red-dot);}
   .prio-urgent{background:var(--red-bg);color:var(--red);}
   .prio-normal{background:var(--surface-2);color:var(--ink-soft);}
   .prio-low{background:var(--muted-bg);color:var(--muted-fg);}
@@ -333,6 +340,15 @@
     border-radius:var(--r-sm);width:32px;height:34px;font-size:14px;padding:0;}
   .remove-x:hover{background:var(--red-bg);color:var(--red);border-color:transparent;}
 
+  /* ιστορικό κατάστασης βλάβης */
+  .hist{border-left:2px solid var(--line);margin-left:5px;padding-left:14px;}
+  .hist-row{position:relative;padding:7px 0;font-size:12.5px;}
+  .hist-dot{position:absolute;left:-20px;top:11px;width:8px;height:8px;border-radius:50%;
+    background:currentColor;box-shadow:0 0 0 3px var(--surface);}
+  .hist-dot.st-new{color:var(--blue-dot);} .hist-dot.st-progress{color:var(--orange-dot);}
+  .hist-dot.st-waiting{color:var(--red-dot);} .hist-dot.st-done{color:var(--green-dot);}
+  .hist-dot.st-cancelled{color:var(--muted-fg);}
+  .hist-meta{color:var(--ink-soft);font-size:11.5px;margin-top:1px;}
   .note-item{padding:11px 0;border-bottom:1px solid var(--line-soft);}
   .note-item:last-child{border-bottom:none;}
   .note-meta{font-size:11.5px;color:var(--ink-faint);margin-bottom:3px;}
@@ -595,8 +611,6 @@
     </div>
   </div>
 
-  <div id="license-banner" class="hidden" style="padding:10px 16px;font-size:14px;text-align:center;font-weight:600;"></div>
-
   <div class="shell">
   <div class="nav hidden" id="staff-nav">
     <div class="nav-item active" data-view="dashboard" id="nav-dashboard"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Αρχική</div>
@@ -672,6 +686,7 @@
         <div class="filterbar" id="ticket-filters"></div>
         <div class="panel-body">
           <div id="tickets-msg" style="padding:0 20px;"></div>
+          <div id="tickets-stale" class="stale-banner hidden"></div>
           <table>
             <thead><tr><th>Κωδικός</th><th>Πελάτης / Τίτλος</th><th>Προτεραιότητα</th><th>Κατάσταση</th></tr></thead>
             <tbody id="tickets-tbody"></tbody>
@@ -787,14 +802,14 @@
       </div>
 
       <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head"><h2>Άδεια χρήσης</h2></div>
+        <div class="panel-head"><h2>Τύποι σύμβασης</h2></div>
         <div class="panel-body" style="padding:0 20px 20px;">
-          <div id="license-status-box" class="cell-sub" style="margin-top:-4px;">—</div>
-          <div class="form-row" style="margin-top:12px;">
-            <div style="flex:1;"><label for="license-key-input">Κλειδί ανανέωσης</label><input id="license-key-input" placeholder="ILK-20270913-0010-XXXXXXXXXXXX" autocapitalize="off" autocorrect="off"></div>
+          <p class="sub" style="margin-top:-4px;">Οι τύποι συμβάσεων που δίνεις στους πελάτες. Τους ορίζεις εδώ μία φορά και μέσα στην καρτέλα του πελάτη απλώς διαλέγεις — έτσι η ίδια σύμβαση γράφεται πάντα με τον ίδιο τρόπο και το φίλτρο στους «Πελάτες με σύμβαση» βγάζει σωστά αποτελέσματα.</p>
+          <div class="ra-row">
+            <input id="ctype-name" placeholder="π.χ. Ετήσια συντήρηση, Τεχνική υποστήριξη, SLA 24ώρου">
+            <button type="button" class="btn-primary btn-sm" id="ctype-add">+ Προσθήκη</button>
           </div>
-          <div style="margin-top:12px;"><button class="btn-primary btn-sm" id="license-key-apply">Ενεργοποίηση κλειδιού</button></div>
-          <div id="license-key-msg" style="margin-top:10px;"></div>
+          <div id="ctypes-list" style="margin-top:14px;"></div>
         </div>
       </div>
 
@@ -863,7 +878,6 @@
 
   let PROFILE = null;   // {role, client_id, full_name, email}
   let USER = null;
-  let LICENSE = null;   // {active, expires_at, days_left, user_count, max_users, reason} από public.license_status()
   let CLIENTS_CACHE = [];        // for the ticket-creation client picker
   let TICKET_STATUS_FILTER = "all";
   let STAFF_USERS_CACHE = [];    // owner/staff/external profiles, for the ticket "Ανάθεση σε" picker
@@ -1397,7 +1411,6 @@
       return;
     }
     PROFILE = profile;
-    await checkLicense();
 
     const roleLabel = { owner:"Διαχειριστής", staff:"Τεχνικός", external:"Εξωτερικός συνεργάτης", client:"Πελάτης", reception:"Reception" }[profile.role] || profile.role;
     const pillClass = { owner:"pill-owner", staff:"pill-staff", external:"pill-external", client:"pill-client", reception:"pill-reception" }[profile.role] || "";
@@ -1522,7 +1535,12 @@
   }
 
   // Το περιεχόμενο του πλαισίου «Άφιξη / Αναχώρηση» μέσα σε ένα αίτημα.
-  function vlogBoxHtml(vlogs, ticket){
+  function vlogBoxHtml(vlogs, ticket, loadError){
+    // Αν δεν διαβάστηκαν οι επισκέψεις, ΔΕΝ δείχνουμε κουμπί άφιξης: θα οδηγούσε σε
+    // δεύτερο check-in πάνω σε μια ανοιχτή επίσκεψη που απλώς δεν φορτώθηκε.
+    if (loadError) {
+      return `<div class="msg msg-error">Δεν φορτώθηκαν οι επισκέψεις: ${escapeHtml(loadError)}<br>Ανανέωσε τη σελίδα πριν κάνεις check-in.</div>`;
+    }
     const open = vlogs.find(v => !v.checkout_at);
     const done = vlogs.filter(v => v.checkout_at);
     let html = "";
@@ -1629,10 +1647,9 @@
     const today = isoDay(new Date());
     const in7 = isoDay(new Date(Date.now() + 7*86400000));
 
-    const [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes, upcomingCountRes] = await Promise.all([
+    const [clientsRes, openTicketsRes, upcomingRes, urgentRes, upcomingCountRes] = await Promise.all([
       sb.from("clients").select("id", { count: "exact", head: true }),
-      sb.from("tickets_view").select("id, priority").neq("status","done").neq("status","cancelled"),
-      sb.from("ledger_entries").select("charge, payment"),
+      sb.from("tickets_view").select("id, priority, created_at").neq("status","done").neq("status","cancelled"),
       sb.from("tickets_view").select("id, code, title, scheduled_date, scheduled_time, clients(name)")
         .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
         .neq("status","cancelled").order("scheduled_date").order("scheduled_time").limit(8),
@@ -1646,12 +1663,12 @@
         .neq("status","cancelled")
     ]);
 
-    const firstError = [clientsRes, openTicketsRes, ledgerRes, upcomingRes, urgentRes].find(r => r.error);
+    const firstError = [clientsRes, openTicketsRes, upcomingRes, urgentRes].find(r => r.error);
     if (firstError) { showMsg(msgEl, "Σφάλμα φόρτωσης: " + firstError.error.message, "error"); return; }
 
     const openTickets = openTicketsRes.data || [];
     const urgentOpenCount = openTickets.filter(t => t.priority === "urgent").length;
-    const balance = (ledgerRes.data || []).reduce((s,l) => s + Number(l.charge||0) - Number(l.payment||0), 0);
+    const staleOpenCount = openTickets.filter(t => ticketAgeDays(t.created_at) >= STALE_DAYS).length;
     const upcoming = upcomingRes.data || [];
 
     // κάθε πλακίδιο οδηγεί στην αντίστοιχη κατηγορία
@@ -1660,8 +1677,8 @@
       <div class="stat-tile" data-goto="clients"><div class="num">${clientsRes.count ?? 0}</div><div class="lbl">Πελάτες</div></div>
       <div class="stat-tile" data-goto="tickets"><div class="num">${openTickets.length}</div><div class="lbl">Ανοιχτά αιτήματα</div></div>
       <div class="stat-tile ${urgentOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${urgentOpenCount}</div><div class="lbl">Επείγοντα</div></div>
+      <div class="stat-tile ${staleOpenCount>0?'balance-due':''}" data-goto="tickets"><div class="num">${staleOpenCount}</div><div class="lbl">Ξεχασμένα (&gt;1 εβδ.)</div></div>
       <div class="stat-tile" data-goto="schedule"><div class="num">${upcomingCountRes.count ?? upcoming.length}</div><div class="lbl">Επισκέψεις (7 ημ.)</div></div>
-      <div class="stat-tile ${balance>0?'balance-due':''}" data-goto="clients"><div class="num">${balance.toFixed(2)}€</div><div class="lbl">Οφειλές πελατών</div></div>
     `;
     $$("#dashboard-stats [data-goto]").forEach(tile => {
       tile.addEventListener("click", () => goToView(tile.dataset.goto));
@@ -1790,7 +1807,6 @@
   async function openClientDrawer(clientId){
     let client = { name:"", type:"Άλλο", city:"", contact:"", phone:"", email:"" };
     let remoteAccess = [];
-    let ledger = [];
     let ticketCount = 0;
     let clientTickets = [];
     let contracts = [];
@@ -1799,17 +1815,12 @@
       if (data) client = data;
       const { data: ra } = await sb.from("remote_access").select("*").eq("client_id", clientId);
       remoteAccess = ra || [];
-      const { data: led } = await sb.from("ledger_entries").select("*").eq("client_id", clientId).order("entry_date", { ascending:false }).order("created_at", { ascending:false });
-      ledger = led || [];
       const { data: tks, count: tc } = await sb.from("tickets_view").select("id, code, title, status, created_at", { count:"exact" }).eq("client_id", clientId).order("created_at", { ascending:false });
       clientTickets = tks || [];
       ticketCount = tc || 0;
       const { data: cts } = await sb.from("client_contracts").select("*").eq("client_id", clientId).order("until_date", { ascending:true, nullsFirst:false });
       contracts = cts || [];
     }
-    const totalCharge = ledger.reduce((s,l) => s + Number(l.charge||0), 0);
-    const totalPayment = ledger.reduce((s,l) => s + Number(l.payment||0), 0);
-    const balance = totalCharge - totalPayment;
 
     const raRowsHtml = (list) => list.map((r, i) => `
       <div class="ra-row" data-ra-row>
@@ -1818,9 +1829,20 @@
         <button type="button" class="remove-x" data-ra-remove>✕</button>
       </div>`).join("");
 
+    // Ο τύπος της σύμβασης ορίζεται μία φορά στην οθόνη «Εταιρία» και εδώ απλώς
+    // επιλέγεται — αλλιώς η ίδια σύμβαση γραφόταν με πέντε διαφορετικούς τρόπους
+    // και το φίλτρο στους «Πελάτες με σύμβαση» τις έδειχνε σαν διαφορετικές.
+    const typeOptions = (selectedId, fallbackName) => {
+      const opts = CONTRACT_TYPES.map(t =>
+        `<option value="${t.id}" ${t.id === selectedId ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("");
+      // παλιά σύμβαση που δεν δένει σε κανέναν υπαρκτό τύπο: μη χαθεί το όνομά της
+      const orphan = !selectedId && fallbackName
+        ? `<option value="" selected>${escapeHtml(fallbackName)} (παλιός τύπος)</option>` : "";
+      return `<option value="">— Διάλεξε τύπο —</option>${orphan}${opts}`;
+    };
     const contractRowsHtml = (list) => list.map((c) => `
       <div class="ra-row" data-contract-row style="flex-wrap:wrap;">
-        <input placeholder="Όνομα σύμβασης (π.χ. Συντήρηση καμερών)" value="${escapeHtml(c.name || "")}" data-contract-name style="flex:1 1 100%;">
+        <select data-contract-type style="flex:1 1 100%;">${typeOptions(c.type_id || "", c.name || "")}</select>
         <input type="date" value="${c.until_date || ""}" data-contract-until title="Λήξη">
         <input type="email" placeholder="Έξτρα email ειδοποίησης γι' αυτή τη σύμβαση (προαιρετικό)" value="${escapeHtml(c.notify_email || "")}" data-contract-notify>
         <button type="button" class="remove-x" data-contract-remove>✕</button>
@@ -1915,30 +1937,12 @@
         <button type="button" class="add-link" id="cl-delete" style="color:var(--red);">Διαγραφή αυτού του πελάτη</button>
         <div id="cl-delete-confirm"></div>` : ""}
 
+        <div class="section-title">Σχόλια</div>
+        <textarea id="cl-notes" rows="4" placeholder="Ό,τι θες να θυμάσαι για αυτόν τον πελάτη — ωράριο, πρόσβαση στον χώρο, ποιον να ζητήσεις, ιδιαιτερότητες…">${escapeHtml(client.notes || "")}</textarea>
+
         <div class="section-title">Απομακρυσμένη πρόσβαση</div>
         <div id="ra-list">${raRowsHtml(remoteAccess)}</div>
         <button type="button" class="add-link" id="ra-add">+ Προσθήκη στοιχείου</button>
-
-        ${clientId ? `
-        <div class="section-title">Λογαριασμός</div>
-        <div class="stat-row" style="padding:0 0 10px;grid-template-columns:1fr 1fr 1fr;">
-          <div class="stat-tile"><div class="num">${totalCharge.toFixed(2)}€</div><div class="lbl">Χρεώσεις</div></div>
-          <div class="stat-tile"><div class="num">${totalPayment.toFixed(2)}€</div><div class="lbl">Πληρωμές</div></div>
-          <div class="stat-tile ${balance > 0 ? 'balance-due' : ''}"><div class="num">${balance.toFixed(2)}€</div><div class="lbl">Υπόλοιπο</div></div>
-        </div>
-        ${ledger.length === 0 ? '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν ακόμα κινήσεις.</div>' : ledger.map(l => `
-          <div class="note-item" style="display:flex;justify-content:space-between;gap:10px;">
-            <div>
-              <div style="font-size:13px;">${escapeHtml(l.description)}</div>
-              <div class="note-meta">${l.entry_date} ${l.doc_number ? '· ' + escapeHtml(l.doc_number) : ''} ${l.settles_doc ? '· εξοφλεί ' + escapeHtml(l.settles_doc) : ''} ${l.method ? '· ' + ({cash:'Μετρητά',card:'Κάρτα',bank:'Τραπεζική κατάθεση'}[l.method]||l.method) + (l.bank ? ' · ' + escapeHtml(l.bank) : '') : ''}</div>
-            </div>
-            <div class="ledger-amt ${Number(l.charge)>0 ? 'ledger-row-charge' : 'ledger-row-payment'}">${Number(l.charge)>0 ? '+' + Number(l.charge).toFixed(2) : '−' + Number(l.payment).toFixed(2)}€</div>
-          </div>`).join("")}
-        <div style="display:flex;gap:16px;">
-          <button type="button" class="add-link" id="cl-new-txn">+ Κίνηση</button>
-          <button type="button" class="add-link" id="cl-print">Λήψη για εκτύπωση</button>
-        </div>
-        ` : ""}
 
         <div class="drawer-foot" style="margin:22px -22px -20px;">
           <span></span>
@@ -1947,18 +1951,6 @@
       </form>
     `);
 
-    if (clientId) {
-      $("#cl-new-txn").addEventListener("click", () => openLedgerEntryDrawer(clientId, client.name));
-      $("#cl-print").addEventListener("click", () => {
-        const w = window.open("", "_blank");
-        if (!w) {
-          showMsg($("#client-form-msg"), "Ο browser μπλόκαρε το άνοιγμα νέας καρτέλας. Επίτρεψε pop-ups για αυτή τη σελίδα και δοκίμασε ξανά.", "error");
-          return;
-        }
-        w.document.write(buildStatementHtml(client, ledger, totalCharge, totalPayment, balance));
-        w.document.close();
-      });
-    }
 
     async function setClientStatus(newStatus){
       const { error } = await sb.from("clients")
@@ -1977,7 +1969,6 @@
     if (clDelBtn) clDelBtn.addEventListener("click", () => {
       const parts = [];
       if (ticketCount) parts.push(ticketCount + (ticketCount === 1 ? " αίτημα" : " αιτήματα"));
-      if (ledger.length) parts.push(ledger.length + (ledger.length === 1 ? " κίνηση λογαριασμού" : " κινήσεις λογαριασμού"));
       const what = parts.length
         ? `Θα διαγραφούν ΚΑΙ: ${parts.join(", ")}.`
         : "Δεν έχει αιτήματα ή κινήσεις.";
@@ -2022,7 +2013,7 @@
 
     const contractAddBtn = $("#contract-add");
     if (contractAddBtn) contractAddBtn.addEventListener("click", () => {
-      $("#contract-list").insertAdjacentHTML("beforeend", contractRowsHtml([{ name:"", until_date:"", notify_email:"" }]));
+      $("#contract-list").insertAdjacentHTML("beforeend", contractRowsHtml([{ type_id:"", name:"", until_date:"", notify_email:"" }]));
       wireContractRemove();
     });
     function wireContractRemove(){
@@ -2069,7 +2060,8 @@
         city: $("#cl-city").value.trim() || null,
         contact: $("#cl-contact").value.trim() || null,
         phone: $("#cl-phone").value.trim() || null,
-        email: $("#cl-email").value.trim() || null
+        email: $("#cl-email").value.trim() || null,
+        notes: $("#cl-notes").value.trim() || null
       };
       let savedId = clientId;
       let err;
@@ -2103,12 +2095,19 @@
       }
       if (savedId) {
         await sb.from("client_contracts").delete().eq("client_id", savedId);
-        const crows = $$("[data-contract-row]").map(row => ({
-          client_id: savedId,
-          name: row.querySelector("[data-contract-name]").value.trim(),
-          until_date: row.querySelector("[data-contract-until]").value || null,
-          notify_email: row.querySelector("[data-contract-notify]").value.trim() || null
-        })).filter(c => c.name);
+        const crows = $$("[data-contract-row]").map(row => {
+          const typeId = row.querySelector("[data-contract-type]").value || null;
+          const typeName = CONTRACT_TYPES.find(t => t.id === typeId);
+          return {
+            client_id: savedId,
+            type_id: typeId,
+            // το όνομα γράφεται κι αυτό, ώστε η σύμβαση να μη μείνει ανώνυμη αν
+            // κάποτε διαγραφεί ο τύπος από την «Εταιρία»
+            name: typeName ? typeName.name : (row.querySelector("[data-contract-type]").selectedOptions[0] || {}).text || "",
+            until_date: row.querySelector("[data-contract-until]").value || null,
+            notify_email: row.querySelector("[data-contract-notify]").value.trim() || null
+          };
+        }).filter(c => c.type_id);
         if (crows.length) {
           const { error: cErr } = await sb.from("client_contracts").insert(crows);
           if (cErr) sideError = (sideError ? sideError + " " : "") + "Οι συμβάσεις δεν αποθηκεύτηκαν: " + cErr.message;
@@ -2125,183 +2124,7 @@
     });
   }
 
-  // ================= CLIENT STATEMENT (print/export) =================
-  // Κεφαλίδα εκτύπωσης με τα στοιχεία της ΔΙΚΗΣ ΜΑΣ εταιρίας (οθόνη «Εταιρία»).
-  // Αν δεν έχουν συμπληρωθεί, δεν τυπώνεται τίποτα — ο λογαριασμός μένει όπως ήταν.
-  function companyHeaderHtml(){
-    const c = COMPANY_INFO;
-    if (!c) return "";
-    const title = c.legal_name || c.name;
-    const place = [c.address, [c.postal_code, c.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-    const tax = [c.vat_number ? "ΑΦΜ " + c.vat_number : "", c.tax_office ? "ΔΟΥ " + c.tax_office : "", c.gemi ? "ΓΕΜΗ " + c.gemi : ""].filter(Boolean).join(" · ");
-    const contact = [c.phone, c.phone_alt, c.email, c.website].filter(Boolean).join(" · ");
-    const lines = [place, tax, contact].filter(Boolean);
-    if (!title && lines.length === 0) return "";
-    return `
-  <div style="border-bottom:2px solid #1A2426;padding-bottom:10px;margin-bottom:14px;">
-    ${title ? `<div style="font-size:15px;font-weight:700;">${escapeHtml(title)}</div>` : ""}
-    ${lines.map(l => `<div style="color:#555;font-size:11.5px;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
-  </div>`;
-  }
 
-  function buildStatementHtml(client, ledger, totalCharge, totalPayment, balance){
-    const methodLabel = { cash:"Μετρητά", card:"Κάρτα", bank:"Τραπεζική κατάθεση" };
-    const rows = ledger.slice().sort((a,b) => (a.entry_date < b.entry_date ? -1 : 1));
-    const rowsHtml = rows.map(l => `
-      <tr>
-        <td>${l.entry_date}</td>
-        <td>${escapeHtml(l.description)}${l.doc_number ? " — " + escapeHtml(l.doc_number) : ""}${l.settles_doc ? " (εξοφλεί " + escapeHtml(l.settles_doc) + ")" : ""}${l.method ? " · " + (methodLabel[l.method] || l.method) + (l.bank ? " · " + escapeHtml(l.bank) : "") : ""}</td>
-        <td style="text-align:right;">${Number(l.charge) > 0 ? Number(l.charge).toFixed(2) + "€" : ""}</td>
-        <td style="text-align:right;">${Number(l.payment) > 0 ? Number(l.payment).toFixed(2) + "€" : ""}</td>
-      </tr>`).join("");
-    return `<!doctype html>
-<html lang="el"><head><meta charset="UTF-8">
-<title>Λογαριασμός — ${escapeHtml(client.name)}</title>
-<style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#1A2426;padding:40px;max-width:760px;margin:0 auto;}
-  h1{font-size:20px;margin:0 0 2px;letter-spacing:-0.01em;}
-  h2{font-size:16px;margin:22px 0 2px;}
-  .meta{color:#555;font-size:12.5px;margin-bottom:6px;}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:16px;}
-  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#555;border-bottom:2px solid #1A2426;padding:7px 8px;}
-  td{padding:8px;border-bottom:1px solid #ddd;}
-  .totals{margin-top:20px;width:280px;margin-left:auto;font-size:13px;}
-  .totals div{display:flex;justify-content:space-between;padding:4px 0;}
-  .totals .grand{font-weight:700;border-top:2px solid #1A2426;padding-top:8px;margin-top:4px;font-size:15px;}
-  .print-btn{margin-top:28px;padding:9px 16px;font-size:13px;font-weight:600;border-radius:8px;border:none;background:#0E7C86;color:#fff;cursor:pointer;}
-  @media print{ .print-btn{display:none;} body{padding:0;} }
-</style></head>
-<body>
-  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPkAAABQCAYAAADbXNO2AABjV0lEQVR42u19eZgU1dX+e+6tql5mHxgYVtlRkFXZFBFwRdwVjMbEGNdoot+nWUyiDgRjYlY17iYmJjEquOO+gbiCIDso+z7ss/ZMd1fde35/3FvVPYAKJvm239zn6cdh7Kmuqq5zzznvec97CP8DFzPTjBkzxKRJkwiAJiJ9gLe5ANpMmjSppHfv3t26du1aQUSHtWvXLu66bmEmk+kaj8dJKQVmBhEhCAIQ0ae+79dv3bqVAexYtmzZTs/ztrzzzjtNFRUVeOedd+oB7Mw/FwBy9uzZmD17tp46dapG62pd/4uW8z/kPGj69OmioqKCxo4dq4iIAai8/1/2n//5n72POOKIoZ07d+5fXFzSK5lMdC8qLGybTCYLCwoKYoUFBZCue0gf6vs+Ghoa4Pt+0NDQELiuC6VUw65du1avX7/+1TfffPMpIloJIMgzejF79mzRavCtq3UdnGFLZnaIqMX/GD16dMU//vGPk+a8996ty5Yvf3vt2rV7amtq+AuWZmbFzMEhvpT92wOu6upqtWzZso9feeWVH69du/b0m2++uXf+eUopMWvWLKeqqkq0fp2t63+sof1Xf2BVVZUYO3asOOGEEwKtI0eY+MUvfjFq6NChYzp06Diuok3ZgHbt2pUJp4Vnjry7NudNWmlSzU1Q9TWE+gbo+gaohnropiYgk4EOfBuiC0BKkCQgFod7WFfEDzsMXmEbQHCek+boB8dx9L6RTnV1dVN1dfUH9fX1c994440Xbr/99nn5Hn7GjBk0efJk1fpYta7/L418+vTpctKkSZyXX3s33XTT2DFjxpzTvXv3k7t26dIjWVCQ/ycagNYAaWihd++moHongk2boNavRXrtKuitO0E79kLvrYFurAelU4DyAc2AAlgzAj8AC0BLc1AhHfiskbzqKnT55S8ApaCscUsp98UGGIAWQrC9V9Eb9u7Zg23bt89fuWLFzMcff/z5Z599dnF4jMcff1y2Gnvr+v/GyPc17pOPP7nXN678xuQj+x359V49e/YrLCraz6gBCH/LFsosXobs4gVIL1kE+nQdaM9uqMYUZKAAYkhHgkhCSBcAgwnQLoEgo0tjZoABZvMzCQLX1kGPGYMOLz8PIoLWAZgFpNw/6lZBABICQggopVg4jhYmqoi8/MZNG/Vnq1c/987bcx65/fZpL9v9gWbMmCFajb11/Z818kmTJsnp06drC6JhWlXV6DHjx3+vW7duZ3bt2jWeb9hZQMhMVqSXLENmzmw0v/cu/JWr4FTvgPTTIEdCeB5IOoCQICnAeaceRv0EQEPtd4WkAQKDGSBmCAZSiQTav/oSvMP7AjoASdfsBPusIAgghACBAekgs2kdmhYvRsEJJyGeLNQa0MIafCrViBUrVn60ZMmSOy6//PLnwjB+ypQpaAXpWtf/GSOvqqoSU6ZMQei5//TgnyaMGDXimk5dOp1eWloaWnbAgGAokV2+EqnXXkbmlTegFy+DbKiDQxJZz4UTS8CV0uwExNZYzWkTMUAEMIOZQCBoaDDxAS+SrCcXIBABfl0j9HevQeWvbgeyPoSUgNj/dhARWCkwEcA+tn/tm/CfehY8agTcyeejzekTIXv1CjMCAiCCIMCqz1Z98M6st++45nvfewEAZs2a5YwbN05ZbKF1ta7/nUbOzJKIFADceOONY849+9yfHjV86MkxLw4oxYGU2gGEX1tLqVdfR/1TTwHvfQRnTw1EwoWMx6EdCYJAVmUhAQghrTGbsw0tRFoDNJ9rDJj3sR8mimrkwv6XQaBAA6zRLCSSd/0Wbb82GdCMQAeQoGjzCDcW4brQOsDW798EfvAhxIqKETQ0gLWPTIfO8M6agLJLL0Vy4GAA0EJrQAiRakph4SeLn/zDH+6/bfr0vy8TQuCWW24RrV69df2vM/Kqqioxbdo0rbXGhAkT+lx//fW3DR06dFJFRQW0CrSWDktAZjatQ+NfH0fjszMhVq5AgABeYTE8GQNrwDh/HRkm8oyUiKCsGRsEjMzJ2/fwPqE2A9CR3wdE/gZgjBAcNKMpYCR+9COUXfsdeEXFNuQH8rPzxlXLUHPz7XBeeBVUngBpYcMDANksVEMDmktL4Zx0IkqvvRzFo8ZAAYo0SAqI9evWpee8++5vv/Wtb90GIG29etD6+LWu/xVGnvfAOo8//viPRo4c+eNu3boVANBKgZWE1Js2YO8jj6BxxrNw12yEG49BJT1I8hBQAMkaMS1gk2YDooEgrDeOwua8E963th6CbDljJyjrkQkMCj05EbTNswEBrdJIN6aAo4cjed65iA8ZDLeiDYJUI3j7LjS9/z6yTz0Hd8tWeCVFYGJoARAL83lCQIAgsxmkGxqRLSmDd84ZKLv2CiQGDgUDSlhUfsGCBfP//ve/X3XnnXd+wszC4hWt4Xvr+p9p5Pm59w03fG/IN7/5rXsGDRp6DAD4ga8cx5V+bS1qHvkTGh94BNi8GW5RHOwkwZogWBsPDQUhBVwwoDXY/j46NRLIh9UOaODaGB40t8ildS6Wz20URPafDM0MwQKKgCDdAGQCcCwGKiwE+wHc5iwoSMOJx0BeEooVQNZio3MwqD6zhC80tJ+FqE8jaNsW8W9+DWU3/idibSoYfqDgOs7OnTub33///RvPPffc+1vD99b1P9bIp0+fHtWBH3vssZvGjj1+aseOnTylVKCllA5rqv3H42i4+x7w4iWgeAIoLIAWCuwTSBsjJmEMVxLgEEBaQ1jvm5dYAxAmTaaWRh4aK4GQhYZkynlsMMzHEKAZwl4sE0V18QiU0wbYAwBHM6AUSDhgENgx58japgo2daAWewzbHN78rDTg6AB+Qwq6X3+U/WIKiiZMBFSgpJQSIMyZM+cfxx9//NUAGvLvZ+tqXf/tRh6G50cddVSHP/zhD38eNWrUKQDgQysXQjatXoUdVT+DfP4FJFwXQbIQHAgo8qFiDGgH5GvjCIUJ0QXZEpfWcISEJERRLHHOq+cbuQbAWtsQXSAghgTBsUVsk8ubS4xyfGOuJhkgg8hDc7SxaDaGLBgQJKGVRrg7aG0ia2GPI0IsIPosijYcrQEmgRgEsukG+F4M7nVXo+IHPwDFkyy0VhDC+fjjj5fcdtttk1944YXPWvP01vU/wsgtzzy48sorR1x//fVP9OvXrxuAQCklKdNEex58BHt/8WvEd21DorAMgfRAShsDgoZ2hMmxtQJrAUHCQmkMIQgCGiBDZUEIuGlT2cpLtY2xkkbWN14TQoCkgCSCSwytja0IWIDMeuEAGopgKK4AHCIIzpXYtOboZwIBAtA6MMbuSgg3BhYECAaxwQjAOQ8fnqDZPLQJ5R0JhwnNjY1InzgGHX/3GyS694LK+oHjuc7KlSt3/uY3vznhkUceWdZq6K3rv9XI58+f7x599NH+b3/720mTJ0/+W+fOnWNaqYCEcIKaGmye+gs0vvgi4skEpBeDUBos2Xjc0KsKAQ0NwQxoYcyBLMxmGKRQWgPa/FsICeFKsw1YxosQAiCCgoJiAliAdA6/Mp9ocHVXOGHaDDAj0ApaEMgeQ1hPr5UCMeBYWiszQwizAWlBQLIQtGs3ElurQTEJsKmIMwG+UmACXCEh8qIOQgggGlxBOADvTaGhS0dUPPAHFI8dhyCbVY7nyTVr1tTed999Z//+979/p9XQW9d/i5GHHvzZZ5/94ZgxY+4oLy/nIAhYWh5o0JyCbqiDU1wEaAKz8WJgRKWwqNBtfx9iyixCzqn5XZg3hyE1hACFqDkbAkyItBvkPErOjUmRQHQwpv3Qd4owMwJTBOZDQ5tGluhUzXkTCBxPIr15I3acOQlFGzdCJ+IAETQxsjqAsKG58e4UXZdWGpKM55dM0NIB1TejoSiJorvvQMV5FyDI+srxXLlhw4b6Bx544Iw77rhjTmuO3rr+lcs5CAOXRBQ89NBDP5kwYcLPY7GYDoKAZB7R20kWgpKFLUpcX3hM/PO1Oz6EXepg3iu/4G81gGSnSlBJia3nm3wcBLiOa5phOOe/w/xcwNJoFSEQAkpp6MIkvEwzdl5xDVRdPSq/fYUM0hnVrVu34ksvvfT51atXD7/gggtWV1VVtaLurevf78lDD37vvfd+/9JLL/11IpEIlFJSCHGgIvX/zTukA5Djom7JIuw+8QzESUFYj8/SMugUQEqbrtW8SIPJRCCaCIoYAQFaaBBJONk0mhozKLvrN2h/+VUI0lnlxj25fPnyT48//vjhu3fvbrQgY2sdvXX9ezz5rFmzHCIKHn744csvuugiY+BZXwpBBKW+xFMewFfbUPtAvpLzMtkWf8sWBcvfk+zvOHqvBcn2j85B2OcwAoCQh7QHsgXhMh8vgGyogSxrA60VIIAADK21yeeFMOg8mwqByUrIGDg0fAvCkWIoYpCTRGHcRer7t2JPaRnanj9ZBr4f9O/f//CZM198hIgmMbMD00Pfauit619r5NOnT5fjxo0Lqqqqhp5xxun3JpNJlc1kpRfz6J9C7/5Z9O9L/oYO4r2a+RA+z2xMDCCzYAEkzEZCUiJgDa1MUK41m8YYNiU9pXMfKoRpsAlRAyVtqcBX0K6DuEpj2/euh+zQCcXHHutoFfijRo08/6GHHvoPIrqzFYhrXf9yI6+qqhKTJk3ikSNHll/89a8/2759pZfxAy08TTv++Ceo6mrAdaPHViBXLzYdW6Znm6SEDmEoW8YiIjiui1ARhsgi2xogKYzLkgJCEMAaUBqsLQgmhPHE1kgFrOckgNh4UwPU2c40C74RMxBoZDMpcJdeqPzm1w0YdnCII7TjAo11UPMWwfO8KCIxIJ6hxhLZ6rsQYAJUVKMHAG0YcRT1z5lzYwbDR6bEQ1lDM3Ze9T3EX38BTvsOjgDU6aef/ovrrrvu7fHjxy+xFNjW/Lx1/WucaJiHz579zvTjjx8zSflBQK7j7L7nD6i74UdwXBPCsk3LpWbjySwRBAxTBrPRdNhEErLEhBBQWoO1BgkBtuUyKYxiSyAAkDQNKMqAV4ptiGt7OaE1PHKgNUOxBkHAMb2rhsxCApoYWhKENnlxk0ohdv0N6HXnb6EDBZJfLsvGWoGkg8Z5H2LnKWcjKRlwPTARfK3BJCLardaBZcOZazLnrcBSgB2bSnB0YIi0aXSXUgCuA2zfA5p8Abr+7WGoQGnHdcUHH3209NhRo0Ywc9YaeWvY3rr+OU8eIukPP/LId0ePPnaS9oNAuI7T+OFc1Nz6CxSUFIOSnqF4Ui6Fdrgl8KbD+jCLllm29YCujrTU8qipAh4kHJAxHDKNJVprOMxwiUILB0PDky40MwIVQMAQYSQJ4/HB8H2j7casQUwQQRJtzjpzHxThyz05AcgsXgKkGxGUl8PRLTJ2QLCJWMjITbEl1BiGnCknkrYEGRZg0papSxBaQjOgtQ+vfRvoZ59B7V/HoPSSS4QfBMExI0cO+POjj36XiH7dGra3rq+6RH6YDkBfeOGFvU8+8YTfSim1T0KqVB123fBDxLPNQCwB0uaBFkwQmiCYoq7LkI1KHLZ3UstwIQy1BUW0UgJBkMw1lITItDVnCAY5ApD2b6wUU5Z9+BSAPQHtCvjESEMhwz7SHEBLs/uQSyDVBKdjBQqPPMKcjzg4cVUi06CaXrQAwgECRyIghrCbjisIkhlSM2Ik4TJBKB3V2QUJCC0AX4B8AL4GAp3bJO2GI1hAKwU3Saj/+S+R2boBLEgC0CeMH/+DU089tWLs2LHKasC3rtb11Ty57SjjN954466uXbp6ga+UdCF23/QLiI/mIBZvC727Bhwj23WVp+DAOSZLpHhKxpOHJJZ8wwpZcCZUB0ACZI2HQWAWdv/RgNCRYotm6+GJDWs0j2hDsJ6Uc1pQTMJIRtXVgsaNh1vRzmAAB2PkzICUCBoa0LhoKRJeEahZg4WyhzckeUmAJAEdKHCgIZigIy4uIFiY8FxoCGm2Pm2vU1tikCIGKQ0tC6E2bMLu3/4enX93FwVKqy6dO1fccMMN1xHRLRZtb/XmrevQjXz69OlSCKGm3nbbKcccc8wEDa2EI2Xzzmpkdu9C/KxzELALIg0hFILQvi0TTUBEBBFCHlkEhqLKIVPNevDwQYdSJpQg0z3m2jBdKQZIwrSDKou7iSjwYOaw6TQKm0N5J3s4EwkQw3FiyDQ0IXHOOVGEcJA0PxCA9Lo14I2bASkBHUASme42iIgtZzYegnQMaODYnF0zg4Q5jhTSbkSmnu7rANrEMSAFBJDgtIZXWIimvz+L1CWXIjFosADA/fr1+yaAnwPI5JKk1tW6DgF4C9Hbjz766M0RI0acoJRSzJBQAShGEJARXZMiJD181PY1G0vqjiyA9ymktzSx8HgHiJXzogTsX2PnCNXLK6fbc9n3rQQwJIRiQzs/CBNhpSEcid1/+iPq//MGyKIiOEFemyuQ1xZL9n6YzYcEIVAKWmtIxzFWGXaq2W43X2uzkdlNgwgQvoZwCWpXHZyrL0XXe/5g6PzQ8qmnnrrsggsueKQ1N29dh+zJq6qqHCIKfve73x3X/8j+4zW0JpCUjgAcuT8MTy1//vytg74Aw29pgHRI+P/+v6cv+QwCEOgALASIxUE4wlwJLPvBXMQ1m445UnZfs7KROgQ2TOku3HcMZ12Yhhe2UQZyWAOHKHwUBZgIRXgGdPRKCpF97TU0b9qERNeuEBDcq1ev/wTw17Fjx6p/54b/FRb/i4/3z37uf/U9+CrnQVVVVQQA/fv3jz6zoqKixefv2rWLAWD58uU8ZcoUtg7mkD+PwpLZxwsW/PnooUO/pZQOQNqpe+1l6G07QFJAaw1WOhc2hx5Mm9/pkPxBVr1Fmwq5FsKgyETGiwKRnHJYbspD9nPoXdiJBoClEW8wrae53J6tuIOxDop6y8OGFWIAngudboI4cgjKR41q0Vf+xUsBJKEaGrDlpAmIrVoFEYshAEdacWHHmVbWdG2NPHdj86SqomYco1OX0QoECQemoS1gEykJqa3gJKBr65D81R2ouPY7IA2uqauhn/zkJ0MfeOCBhf9qXjszS8dxFH8FarJSqoW+vFUMIinlv7XBRikl8sJIAkCzZ8/GfffdxzNmzDikcuM/ef024/x8HoMFtcWUKVMAQEspdd70oINHyY32vwAgZsyYwZMmTdIHQ3smIsL5559fftddd63vUNmhOCBw5tMVtHXsKaDa3VCeAw6M4ZrWUENW0ZEUk/FsDJiaNRnxBxF6TW3ycW1voCcdAwSwQc+VVXBxHBekjc65UY1gQDNcaZF3rSNVlnDLJTZeM8jTfwuJMYIEXAGkUs0oeuwvqLzoIuggAMkvp7WG9fHU3A+x49TzEPcifYuo3k9WCjoStAgzlRB/YEsUAkcbGAsDRGZZQ5ADR8JQXlkaNFIypDRlxUR9A3jEMWj74rNwvVgAwHnyyRnTvva1ybeGG/O/yMAp70GJf4VDpPOOk+9pYv9Gb64BZL/goYbWWs6YMQOTJ0/+QoPP4Uf/kutvwcGeNWuWHDt27IGm8jojRozofNJJJxVIKQ/r0KGDLIgXOORQeVNTk+u6rs+KOVGQ2LN69Wq/vr5+y6xZs3YtWLBg177AKzOH1/m5m6rDzDjjjDMu7tChQ7FWgXKkI3c//RQSTQ0Q5ZXQnDUsLc7lygw2cmo2MWe2CqesI3JI6Ngp30trI9EkycitSG08FzvCGB8DjlIWTWeQtj3lQoC0NnJRRBGBRljkMGE/KLAGRAw4cOBkM4h1PQzl48dFX+hBPvgQAFILFoJT9XDi5dAIPufvrcYbhSRzNrX+EAtgk6NznqKMsMVFZkaGAzvwwQhqBAR4CnDjxahfuhjppYshjxpOgoHu3Q87GUAVgH+Jl6yqqhJEpB966KHvDR065CpHOsV+EBBj/1IdWTQz6jRgZikFK6W3zp07989E9BAz0znnnHPENdd8Z1r79pVHKaUcsBX3ASCFgNaAUn6EaZDI3YuQ+mueHRFJbGudp7tr+AhBYXHhliAbiNq9dVkIbNu9e1d1U1PTZ/PmzVt61113LSaiptD7PfHEEwds3bURER5++MHvDxo05GIpZZm9NNI2MhRhJSZqmzZqRUIQS0eqpqb0qjfeeP02IprDpizEs2fPluPGjQtC7GTQoEHdrr766lHdunYd1bZduyMKC4u6x+PxLoVFBV4yWQDPcyGFaBHZmudQI53JoLGhEdddd11jU3PTjob6+jV79uxd/Mknn7z/k5/8ZB4Rbf+y63QAoHv37hcAYJYCfmMj9EuvIwZCkM3AIYaG6ekOsTbNRsc8VF5hbQghBuDSUTQfoulshyEwGyKotGFvqMWmlIZmwwMXnKPGRsAWs+XHiFzfuYJB3oWAYwkpEkDcRhaaNPxUCuqI0XDbdzDh/UHWx0HCuIr5ixALw3CmaNe3UJu9TuO5FSv4ZB5RyQwJgYAZPjSklFBgQ4rRGiyMkKVggkMSEiYFClgD2ijjaEeC62rQMOcDFB01XICAdhXtBh511FGVRFR9AM9xSGvWrFnO+PHjg3/84x9XT548+W4p5Vc9VJfBgweP7Ny5cx0RPT137tzXhg8f3uW/AE867EC/PPXUU3H11Vdvqa6u/nDevHnP3HTTTc9Nnjw5zcw0ZcoUCtOc8Pofe+yxn1x00UU//2fOo6Ki7eg1a9YMBbDGRlgBgLYPPvjg5IEDB57Tvn37Y7p165b8HCejPi+/JxKUiCeQiCckgEL76gnglLFjx+K8886rXb9+/Zvz5s3786233vry5MmT1YFUgJ2JEyf26Nq162CzTQqR+mQBGj9dBSfmIICGZm1ycuSkkaCN8UnK6akZ4zcem0hYgcQwFAp55AYLz5CCJCP/RCThszJe0DLnmAApheXFm/yeJIFVWCYzpSdDjQWaPWF3XKtEo4zum+8rFI0aaXLcQIEceTBuHCQlVO0e6PmfwI1LWAJ95NEisl8oUWXTA8/CcEyMrNYIAATCtJmyNAKWgk1DiyQT/7t2+ouh3Zsb6miCL4zgRHrpQtj4SFd2qEycffbZAxYsWFA9Y8YM8c94dEuuwYgRI6+RUmo/SCvXiTuHkssq+MQBfNd1nQEDBpx71VVXbbEGnlU660rh/TtLfXygn8vLy2V5eXnnww8/fNLo0aMnTZgwYcXChQt/QUR/B8AhnjF27FjNzHLw4CFfA6B839eu6x7SThcEPjnCzfbo0SNx5plnnktEt19yySWVF1544bU9e/a8rFevXh32MeY8DEFRfWMzNTY0yZr6FLLZACpQdgovQZJEQTKOwsI4iooLUFgYZ0e6kTHFYjHq06dPaZ8+fc4fM2bM+eedd96Hs2bNuoOInt9XBdg56aSTjunYsWMSgIbWwut7OCpfeQZETk7lRGvrmXMZEdlckyMDsEorFlQL9c5baKErnQvdw85TklHDRvjLnCKqKb9FIIVloIWfEW0gjojCKh2+gwSgNRJ9+xljlAfpxTVDCKBx+adQWzcjEY+ZY4aKM/kcoLwwTlhjhyAEmpFlBgnHAHWaQTL/urSJXgSMwqw9msM5AFEzQXgx+KvXQDelIJIFOh6Pi549ew4H8Pq+SOyhrOnTp0siUr/85S9P6dChsj8AdpyY+/u7n8WylWsoFnOhOTyPUJXHpGzCYjKpVAO+c9U5OHbEAAmAUqmUe/rpp18QVhc3btxLv/rN34kcB1rrHM3Xpnc5NJJBLCJ2JAvznSqlIvENwxDME9tkQizmwZUOigvjaN++DN27d8BhXdqhV89OKCoq0ADYdV0MHDiw38CBA/82cGD/i2+66adXTJ06dXNVVZVHRNlf3/7rEV26dDpSawXXdeUf/zITH3+8Cq7n2M/Pge6ac8pCzEB5SRw/uembKCpypdaat23bRn/9618vHT9+/C87derULtwHrHGI2vp6uWTpRixcuBqfrt6EDRt3YseOGjQ0NCHV1IwgMN2LRuPTPE+uIxFPeCgpKkSbNsXUuUsF9evbGUMG9cLQIb3RpryEAehEIoF+/fqN6t69+3ODBgz423HHH3/11KlTm8INzenQocNRjhNCYQLJ9u2B9u3/z9QItTUyHGw+bre29MKFcDMZULw4L10I2X4cGXlk6EwISCPQAQQLOGR46SGeEe5zrAhkp6YprSGJQaxACD08QYDhM0OQA7FjD/zdu+B0NWOdKysrO1lP/JXvyaRJkxgAhg8ffl0ikRAA1IZNO/Cr3z2Fmvq0Bf+0VeWivOqSnWQTKBQlFabcfEX0P1auXJkaMWLEBPtv+dQzc/Dgw++guG0CKtAWnKU86S37GUpHxEYCoCQDwmzSYY4aDqoMuRdk83S2xgfWcB2BWNxBt67tcfzo/uKM00ZgzHEDIYXUgVJ6yJCjT7n77ntm33HHL8697bbbFjMzzZs37/yiomICEOzaU+P88lfTsWlrPVzPNk5R7nzJ4kgkCA21dTj99KEoKEiCGc7evXtx2GGH3XD66WeU28csACCbm9PO2+8uwsyXPsJHH36GzZt3I5U2bEgpGI4j4UgBhxwAEkIA0okeKARMaEgx6hrqsG7zXnz48RooJsQ9icM6lWL0Mf3pgsnHyzHHDgIAFYslMHrMmG8sXrz4iB/96EfnTJs2bUtVVZVw2rRte2QIVyqVRurDBeCmFMh1zE6q7WPPuXzbeM08MA46KlZHX2LYTmoBhZDGCuvdyTZpRIh1VDe2/JmoXTOUUM6x3YxjFS00JvKV0FkzlJ+F6NQJRb0ON91oB1tTFCZayMybC0cHCIcr5hrIdJQy5NDZ3OYgSIBgIgutFDh/MyACs4mwLf8tCvmzYKSlhqcJHhkpSkc6CBrrENTsArp2IwBwHKdLHsL8lcA2IYQ+5ZRTuvXp02d86Hmffe591Dam0a59OVSg7OEpP1MxyYiUqK2tx9cmjUGvHh0AsKitravfu3dvfefOnXsB0M1pX8x87SNUdG6LWFyCAwZragl+hpEY+2Crn0VG3xMgB2CJMLU0AZuwLGadG6JBdl4dC7BW0CywfuNerFz1Bv786NsYOawXfvqTC8XoUQNE4Gf9vn1797j++utfXrJkySAi2r1hw4YzLaQiXn5lHnbsTKF9h7YIAhVVjiivRdhcv+FLXPLNCRBCIAgUysrKcMYZZ5RrrTWRoKamJudvj7+Fvz42G8tWbIEfaMTjcXjJJMoKNdhGbKS0abOOGJpm8wsZFaZ1GpDSgee5oGS41Wpsr27Eo3//CE/MeBcnjh+AKbdcIo/oexiCIOsPHDjw6ClTprz54auvjpwyZUqDU1hQ0D38/nj3Duz89hXwtmxFkIhDCLKGGT3hRreMTEdVRGuVLQvEoaeTlGtECfs2YMG5EJjTLYr2FBmN1qrFlBITtuXmngnhwHFEHtkELdRYs3X1SNz5KxQdfgQoyALSPbh8XAhk6+uQXr4CxbEEFHRU8+Y89h3nE2fCx4Bz89k0dJ7nkaCAAKEN9qfZcAgJUJrhssnnlU15mgE4IASOAKcDBPUN0aeVlpYm/pnIZuzYsWLq1Kn661//+sWdOnWKAwiyvu88O3MOHCcG3/ct70GHVEEwc6SBp1iDpMKkyeMjQsGKFSveHzFiZNcwInz/w5VYvmIXkoUFCLIazNkccTFyBNKUKolAQgLCjpaOUjdtYXn7HSM3WYeJbQoQsiKDMPeDF/MQT8bAWuC9eetx9nlTcMfPL8Nll57mBkHgDxo0qOOUKVNunTlz5uMdO3bsQwStmcXTz71nKjRZ36QWZIwJRJERCiKkMxl07VSOcaOHwEiJG0p31vfZc13x1qyFuHXao1i8ZBOcWAEKCgvss2tSFraGIIggyAWLwLRM28m5msyAEWkrTgIEpZXZxMIhAASQJ1EcF9A6hpmvLMWHc3+Cu+++BmdPONZVgcqOGDGi76MvPPczIrrOcRynq4GLQJltO6Gqt0FnGdBpAwBIEXkiYb5laNu+acImBeE4tqpiBgtqpW1XWS6HMZ1nAGxurLQRhfBsqYTtQAOCefDDcg1HKLaCIwQEAYFSCDSghIDnGJVUXymzCRHBYQcqXop2x462G8tB4in2SUyv+gy0qRo6FsuBbvxF+E+uVs42fLQQXIRTKKVs/i7gkoRgRsDaTHMRxqY8JmSsTpUOla4yGrrZz5VDHIf+SSNXALwhQ4Z8M9zc35+7DEuXbUFhsgSslb1ekeNBwICtQjhINaUwoF9njBzWDwDID3x88sknyy76+tevsO+UTzz9FrK+j2TYv4A8Bd3IMwcgcpDOppHNNltdEc4Ly0P+hTF6YcwcmgVICCQ8iVg8Ac2BVTLI5e+KCYBCYVEc6ayL637wALp0bYeTTzja0Vpzv379LlRKHeO6LgPAis82YO78tUgWJKGVNvk/IdrkoqhNSKRSAU696Ci0KS+CChSEJNMq7Hr0+7ufwNTbH4OmQpSWl0JrsxlFPRWaQJAQBDQ3Z5FON8B1BAoLClBY7EE6JjpVSiGVyqCxoRlaaxQUFsBxXCgOzP205CmlzP0tLS1AKqVx+eV3os2TBThu9GAX0Gr4sBFXX3bZZX90fN93YG+wU9kB5Q/8AQ5JsMpCK/uF54k+hJ40wpjZgErg0LhFXm08d7PCMNiEIXbyidIIq+psa30khM1hw7wtJNhp+wDYWjmZ7i5i85lxq5OulAJrIFFSArdPn+i4h2LkmY8+hteUAsqKDVgYeZ99IN0WCjB55ApLlnGs4KOGMp6dTUWApUVAzMnBzoeAwwRfMxRMmQ1E8JnN4MZ/gZGHgNttt902rlfvXr1DC5zx7PvIZAUKCzV8dWCuJ5PBJbLNzThr4gjEPZeZWWzcsHGd53lty8vKSgGo9Zu2yzdnLUGywIPSmbyOwlwDcVjXbUylcNL4vvjmRScj6yuDbdp5eKGHjARJWCDVlMXOXXVYs34r5n28EqvX7EI8GT+A0g9bzEMh7glk0gX43V3P4MRxQ0kIgU6dOretrKxsq5SGlIKefvZ91NQ3o21ZEdi3/Qc6x23Io3kgmfAw+byxdg8iKO3DkTHcdf9T+OGtf0FZWQUcAQSBD7It1BH3gggq0GhobMCAIzthwqnDMOzoI9CtWyWKSwrhedIog/k+du+uw7p1W/D2rMV44ZV52FubQkFhwm7CHKXMYZRQmIyhNsW4deqjeGVmf4rHJTpUVrpnnnnmlU5hYWHE8kp26ozkRd/4PwO6KW3aVw+6HmM3qOb5CyyYTlCCIDXnsAPOPfg61FmPmHC51IEsmcH0yxOEdKLOPWE3R2kFpJBHgXUhQKyg2ITMHHcgEzki1p49e75y2WzSpEkAgJEjR349HosDgN69u1bMmrUMycK4iaD2IalFjXYCyGgfbcrjOO+s4+0zTjRnzpw1w0cMHxPeoJdenosd2xtQ3qbQ5vYcteWaPxKWQCQAncH3vnMWxh43JPyog7k2CYAaG5vxjydexS23PQmmOIStq+Tt1YYvERgDWPbpJqzfuAM9u3eA40iOxTxm1qIh1YwXXvoIiYTV6hM5glM4DYetjklzSmHksO44ekgfk1MzQzoePpy3Arfd/hTatK0EIQOtcx2T4cbvQEBrhXiC8cvbrsbkyeNQkIx97kV26lCBQQN68TlnjaXrrq/GD296AG/P+QzxhAM/G0AFAZQ2jlUpBdKNkA7hndlLMfvdT3DqSSMEAO7eo/vxjucZcUZBEum6WvibNhrpJdZ2conNK6WMEAISud2JonA45K2rCMAKgSWDKufKZ6G3z4W4FmTQyA1VYB0hnBE1lPM8qN3pzWeFWbGAlg60CuB07Ix427LcoIQvA9w0g6VAum43gkXL4MVi1iDz+Od2blvuSaKWLLlwEGIYnoXGbgvdRDnGIIPtfc7bNGAYvSQcQCtQEIA8D25hUfQ5tbW1X9WTkxBCjRw5srxHjx4T7T2XL7/2MTZt2o2SspK8shX2m/dOQqKxvh4nTxiEXj07AYCora3Nbt68ueGiiy7qASIOAiVmvvwhPC9uMxaKmFv524YgQqophcEDumDk8CPhBwEc6RhbOKj6tEJBYQJXXn4OPlu1BQ/8ZTZKikuhVJCLPPL6ioWQaG5OY8eOPejZvQMYTIEfkOM6eHv2J1j52XoUF5dFfQgURaDIG64r4WcbcNbpIyGlQOAHlltFuP/Bmcj4AiUJAV/JAzYDSyHR1FiDW356MS791qnQSlv1IooAPqUU9u6tQSweyybiCS8W88j3FXp374D7/vAfGH/y99HUxGhXnkAi4aJteQHKy4tRXJJEuzYl6FBZhuLiBPr06QSlfRAkFxcVlziRqKIgZFYsxe4Lvwlm4wV9ViZP0ohyy7B3vMXsLxEKJQBxDQhtASwd2DwLcANTqybXAQsBH4xAqVy/Oec48LByZmHdWSMiu9uSFCNPfcoAf3auGWtCygG6Pf0UEhXDoNVB8tWhICCQXbQcau0ayMICsM2VDQ89v800rNviS+iynOuIteUoEgZI0WQRdt4/YyBmeBBgpYDSAsiykijYiMfja8Jc+lAQ9lmzZslx48YF3/3ud8/s3r17OQCltJKPPzUbwnEiQ8w37vyfiQUkaUyeNC5E9sWiRYuW9e/fvyIejxMAPX/BZ/TxwvVIJBO2Q0/kbYQEEmwqNFIi3dyMs84YhXjMZWam7dura+fNm1eVSCQyrmtAUill4Pu+ymQyurm5WSil2lZUVFw5duzY3tlMhqV0qH//PmA9qwUSngNILTKiGbGYi9LS4rxfm/c+9cy7YI7Z9FO3jPjz+iTSWY22FUmcdtqIyKEIKbB9dy3mLViDeFwiCPwWX0t+QxRDQbFEYaLQovRkBVJMakoE+H4Wn322UqfT6Q2ZTLa+Xbt27Y866uhOSgXUoV0JvfTsNICA0tIixOMOknGPAZnPbts3bHXWrl37mdPc3JwGEGcATlERHJ2Bl9FQbgy+5aRHc8NDz2NLXjkBJ4A5AISCxzIaVhgjgjYjR+CE7Wq+Dy0IXij4qC3ZhSzhQFtkFbZmLGULJDvy/KGPZcOjZ2lvWDqDwv59UNK/X15EcRDhujaBYHrBYshMFlRcAtKBhSTDL1u3yCzDCSmmXiAMiEYcPUTKfnmS7AglYjtFVbR4pATvy2c0dWNWAWR5CZyy8uh/1dTUfAYAs2fPPlTATQOgI488MgTI8MmizzBv/qcoSBRbsgr2ezhN/kxozmbRt3dnjB87JPr9kkVLlp5/wfln2PeLp194B81NCom4hB/oFgzBsOGIBOD7Cu3aJHH2mccZSI9ILlmyZP7vf//7fxxzzDG0dOlS3rFjB/fr169i7NixbQoKCnp069atb7t27Y6vqKjorDSzIJDjSLw/bzlIupYZmeuvyJ9J35T10bdLGXp06xBByFIKrN+wDXPeW4aiwiJ7/UahKKyJh3RmRwDp+gzOPHEwDutcaUBUu0k01DWiMZ2BkDlNA837Zh+EAIxYsgBTf/l3+CqLM88Yg7ZtSlp8R4l4EmPGHC8A9MlkMpxKpXyASQhJWgM9unc8EFxyQA/T1NSElStXfPinP/3pKieTyawF0J8BdtpWUFBSDnfH3siQhe2EFlYqNSxjCMphymRbRYikJVFQzjBCYYQ84QhN5m8cKQGpDTiTR7xgFob3rvMuxaLVQJ4AJBlpZgXT5ebBQV2mHs7IkXAKCsCBitD8L49lzWbiL/wEnhN+Y7mhDX5YKbBadGRpvSbKMV1yvtZRyynDGLPUDC1NvE+cG2/ccqjE/sCdAEH7Pryu3eAUlQCACHwfGzduXHmoRh42ovzqV78a2KNHj5FaaxZCyOlPvYdUitGmDSNQ+zSj5P1XCIlsuglnnjYCRYUFzAyxbt3avW7MLenYoWM5oPTeuibx6htLkYwnbS5OB46WBKG+rhEnnT4EPXt0ggqUJEEYMWLE2GeeeWZXxFzUGolEAonE51QMZQxPPPUmXnjhQxQkC6C0ivJgYoa0JVvhSjTX1+P0CSciHndtDdzc4edf+hC7djWhrE1pRCcNHzi2U28cBoQWkCKDc84aHfIw2KaI1La8GKWFSeza1Qw4OgIwCC0n8TIA1xWoSQHX//BR3H3vmzj6qK4YOaIPhg7uhZ49OqOkJErLOBaLUSwW85RSUMo0ZxnFJNN5uXHTRi2INmV9P9WUSqV2796dAmj9tm1bM8z82apVq1b+8pe/fAMAO01NTesA9AegqbyN5LZtEWyoNrmjNAQEKfJEGfNg5uiWUN6AwxybpcVDk6dbGOW5obJpyAoTuWoNQoEnREh+NCM0xyBjipRSHQAua7gMFB1zXDRT9GClniAFgt07wZ8sgBszfHW2slQaDF8beeXIW7OCB4JDBvJRFmtgNnLQIcNLESHQASQILokv1G4KxSwzpOE4LnwOkBg0ILznYufOnXrWrFkbD5UMM2XKFDF16lQ9ePDgy4uKigSAoLa20Xn19UVIFMRCGOVzzglQSqO0xMN5Zx9jPS/kokWLPhw5amTPEAt76fW5WLt+F8qLi+HbtuT8mx818oDAaMbkc8dFUQIJgdLSUudz8ND8VlEBQKzfWI2H//gKHvrLywAlIRCA2cmrgJj2ZSk8NKbS6NurBFdffkYUoQghkMn6ePaFD+DGvGjUdeSUbMQq7UPelA7Qs0cFxo4daDAFKYlsqausrBhHD+6GGc98jPKKIgRZlbdJ5p6vsLfDlQKJ4jJs3VmLdc/swpNPfYhk0kWHjsXo0b0SA/v1xLBhfanf4V3QtXN7IykWAsm2cgSA9+7dE7z/3vuv3HDDDb8BsO5A313IYXd27dq1BgCEUnC9OOK9ekK9uwCyIGk1yghShFx0EeXE3GLX5/3bEvf5qvYVVGBWuTJcvgmHGgwhw81OPRWcD+QwNAkzWzxv5wyyzaCKChQNHdICkPty7qsp2aSWL4Havg2eF7fouamRKxg8wUhHhW2kEr6yD244PCEwF2rhCRPpg+EIaWWqddRjDrSUoSKE/fVh5OADrofE0YOiHHjHzp0bXnjhhTVCCByCaAQJIYLKysqKw7p2vTgE3F57/WOs37ATJSUlUDqIyqQ53NAAp1Iw6hsCHD+6F/od3g0ARHO62d+9e8/2CRMmnGK/XfHsMx/Cka7ZGCGjTd8widhu7h6a0yn06toVw4YejlRT2sx+t1GToDDXiaoZ5PtK1tQ2YsfOWixdthbvfbgU776/Aju3N6GgqMBWcQmUV1snLeC4EplsAOYUfnPH99C+ohyBCiJNhHkLVmDh0rVIJoqhdcvoxbDzhEXPCXWZNE6fOA4lRUUAGGvWrG5cv359wymnnFKplcL3b/wazf5oBepqsihOegh821UpTBXBypBCW0UhxT4cB/BKYgDFoJTG5q0prF2/Eq+8sQSOFCgvL0D3w9pgyMCeGDm8P0YO74fDukZ0cxo+bLg3fNjw75x99llfmzt33r0XXnjh7VLK5pkzZ8YSiYTatWsXT548WU+dOlU7a9eunZ9JZxCLx4gBFB41EqlHn4aUBA4UhBCQwoo/5A/0y288aYEa0YE95Rci3Ptm3XkdXlF+xTlgDgbcAwkDjpERflRpHzyiH5yuXfZDv7+sfEYAmhYshtOcgSgtNCwji4YHAOCISK0GYeeYYAQweICEMOOK2YZ4RPDtnHQJiUAr+I4J5UmZPFxbaWYtyLbqkm1DJQQZH35lR7QdMsRCjqBt27a9ByCrlJJEdFCltBBwu/nmmyf27tOnjIiUZpZPPDUHJBIGJ6B8umm4K5uhFSAXrBox+bxjIQRpAGLjho0re/Xq2TmZTDoA1IpVG+W8j9ehsDBpsJtw5jztExJAw5MeGpsYZ11QZZAXra13JEgpiaKuR5P2ZnyFmpo0Ght9NDVnQEKgIJFEUUkJtM5Gwh1sHQEJCZIadbVNKC+N4c/3/winnjQCQeBDShdK+QAknp/5AbIZjcICIAgQCYpGmuIMECSCQKG0WOKC88ZbTjo5O3fufOn5559/cNz4cW970vOPPKKbO/3RH+Oyb9+B9Zv2oqSkFK7jwmfVQouQ9hm7HVYDAMDzCPFYAqAEtGY0pRQWLtqGuR9vwQOPzEFl+yRGDeuNs047BieeOBhtyssAQHXv3qOse/ceN/ft23f097///YtPO+20rfsqB4n33ntv/s6dO/0Q/3FHj4LfthhKZwFXRJ1ZxC354S0R9gNDe58fHfMB8IN8tdUDH5vzhpgboQaGzwF8DgwlkQDvuFFm/pgKDropJSTq+AsWwhHGM4fPulGEDoUqyPCwFSLdtjC0UwDgEEgAUpgmE4/ICEgECsyMgBiB1mY8BJlQFcL0kfvECBxC4AoIktBNWdCxw+C17wIJTX42S4sXL34WAGbMmHGogBsGDRpweXhPly1fh/fnrUGy0INif5+khiOla0EazZk0unYuwWknj4jesXTp8vkDBgzob78vMeOZD1FT12gaW0I6L+ko0g6/bg0NQQKNmTTWbKzDho012Li5Dhu31GPDxjqsWbsHq9bXYM2GWqzdUIu16+qxZWsDmtIMNxZDeXkJykqKIByBQCujP0Am0nSk6RlI1Tejsa4R44/vhRefuxWnTxzJ2SDLjq0gOI5EXW0jXn99IQrihdhPhomjgB9CSjQ1Z3HU4O7of3iXiOG3ZMmSZ++///5Zr77y8l8h4AIqO/yoI/jVl3+Nb108FsRZ7NlTh0yzcT7SEZAyB1aDeb9siy0QHQQKSikIBygo8FBWmkBZSQKNjQrPv7QEl33nHhx/4k2YdsdfsXNXjTTVaeUPGTJk7L333jv7qqsu6TZlyhS2klPGyF955ZV1mzdv/sTwYbSOH94X1O8I6IYmMAtISAOo2ekkRLSvZE7YTdeCAHCgFs7olWfsEYOOYJHNcDKDFUe0UJWGsKISAlkGsqRsOYYQSA2CQjbhonDkyJzc3EHm4yQE/D17kF25HPCSponEUiw1zCw1ChisrF9mYVjbzIiRgKcFpO3poHCjsu2CZEccSyJIBhwRhpaG1UZE8IREEg6kYghfQTkMHXPQ5vwLLI1EyHXr12+/88473ySiUNLoYMgvkoj0VVddNahPn8NH2UdYPvH0HNQ3pi333831EFPumzQMZBfNqSacdMJQtG1TDIDFjh07ahob67miXbvORKQbGprohZkfIB6LWcDN1sU5h50YkzHfl4aCIEI85sDzHHgxFzHPvOIxFwnPQzwWQ8zzEIvH4HlxOFZKTAWAb2W8XXLBIKSzGg31aezdtRcI0jjlhCPx2KM34vmnp2HAkT00GOQ5Hvm+b6MGgTdnL8Da9dsRjzlQKke9zqWhtilJAIEKcMbEYyGE0MyQmzdt3nzttdc+z8zyrLPOueq11157HpAeAHTqVKHu+cMNePmlafjRjWfiiF5l8LMp7N1bi4aGNIJAgYjhOqb5SJB5sk2zho3XdA7zUhpW9ZfhOAKlpUkUl5WielcTfn7HMxh3yo14+ZWPSArp+n7WP/zww3tdddX3ZhCRY/XkTB0NQLBq9aq/HHPsMSMEmKXjInb2aUi/8yFcaAgtQhrzF3jiPGSYc2W7/bzxPn+3f7R/IKFFW8oIpYDyIkoi04/tkAeVzQAdOiM28Ej7TuegjRwAsp+uhLupGuR5hsqa33kV+iQRDlg0BmvSBuOdHBJQbEortC9RBkb6yDDdtEU2cuAl2eYHTwMBCYiGRvDwkSg0slUKgLN58+Znd+3a1Xgo+m7Tp08nIsKECRMua9eunQHc6hudV175GMlYwqC2tiEoPCGKTFxDMZDwCOefOzpsNRSLFi1a3K9fv6Hh1b05awE+/WwHSsoKLQ16/2Qo9F7CMVJeUV92/sBq5ihMD78XZcu2kc4ABIhdBEqjubkeTtxBxw6l6N2tDUYN641TTx6BIUP62HumAEhZU1uDd9+ds3bc+BN6FhUWMgB6+pmPQOxCk24J6ubVxgUJZDMZdOlYhLPOODYEHMX69etfZObs7NmzPWYOiOjc55577pYxY8ZMKSsrkwAw8MjeGHhkb/zg+5OxZNlazHl3CRYsWodPV23Blq21aG7SIGg4rkTMdeFKE5Fo1tBkAN8wchV5pDKlTGOX6xLatCnH1p3AN759F+76bR0uvugUV6msP2TIUUe//PLLFxHRo6F8t0NEePPNN58/9dRTf1VZWVkYAFx63pm0+e774e3ZCxWL5XlGamHALYkTeh9jFTiUdaB9gzmnNhY+h5oAJyqVmLBdsoBKpSEHDkSsor0hkRAdRE7O0QPX/OFc6KZ6oLhti9KWYJh542Q6sAwQLyNDFTYMJRguQBSdUH5jQ149/EDXSWaKimCBJBPqs4yiqy+B9DxAa1HX0MBz5sz5k0XKDwlwA5Do27fPOWFL5VuzFuKz1dtRVlKKgPM3Y8rxV5kgBJBqbsTAIzph+FGHAwBlMhlevnzpjssvv/KY8M3TZ3wAlgCTzhsETy1BV20ah5pSaaSzQYQ2hyQoCULcjSFZYJo3tM7rYyeOOheJJHQQYOjgLrj2qtPQ74jOKC8rQpvy0v0KbCpgrFq9ct7Tzz/9g359+n2zqLCwJwC9et1W+d6Hy5EsTNjps3RghIaAxoYUzjnjOFS2KwUAUV9fH7z++uv3nnjiiRpWwBEAzj777KnnnnvukzfddNOPu3fvflZJSXExQSCRiNOIYf31iGH9GYDYs7eWVq2pxqLFa7Fw8RqsWL4BmzbuQm1dCkEASMdBIuHCizlQCKL23BaJMGkwS/hBgGTCQVYlccNNf8Thfbrh6KP7CgDco3uPa2Dku40yjNbaIaLq71533T8qKyuvglJBvEN3p+C8s6Huvg9eImbuuhBRd1Wk4UYtT8IYvcgj5uvP8fSWMyQ46s02x5M53CfUdgsphvZ/CLa5sT0RyUAgGT5pxMccl5NlOggSDJtIGBoKqY8/Rlw40KTMqCNruMp+6Q5blhNrsG0LlHaCKWwDTTQuGTmwMK+Jy5T7Wnh5nSsrsoCWEn5NDWjMGJROnIhAK+UIKdevX//KtGnTFhzKCOMQcLv33gdO7NmzZ2cirQAhp894x3oKncNDWUQePGQcEklk0lmcc/YxMDxvprVr125q27Ztu+LiYg+AXrVmi3j3oxUoTHqGk8Bh81CuddhQgRmZVBpjRvfF4CG9kMn4UQMKEZBOZ7Bi+UZ8PG81SDhIJD0LSkkQ2+oFCIwAjgesWLEZj/9jFm7+6UVoU16KIMiCTWLDe/fWpDZt2jBvwYIF93/nO995CkDh+vXrX8qlpx9j155mlLYtgAoUmHSLKgezArGAhoAkiXPPPCaqbixdunRDbW2tqKqqGtm+ffuSjh07xjZv3ty9T58+sU6dOgWrV69uam5u3jFs2LCSRMLjTCaDWCwWPYhtykt51PBSNWr4EQBA6UxGbN68k1Z+uglLlm/AJ4tWY+nSTdhWXYN4PAEvHoNGBmQ7mkL7CjnSSikkXBc1DYQ/PPAcHv3jjwQAKigqHDpx4sTuRLSuqqpKOJNnTGZmpmnTpt3Vu3evK8pKSiUALr3qctr1+NOQqRQCV9gyFuW1AdB+YXgU+n2pj6FcDzblgBlmU28WRHawYn5NnvJAnHwWn4ATBMiUtEXBMcO/hGa6z2lYCDdTXQ0sWQ7PTcBXgBZs54gDGWg4DLh2KozMBZB2IOP+E1ki/n1+ZBN+P3nXJPJ6rBURvMBHo3BR+oPvwXGT0DpAY2MjXn/99V8QEWbMmHHQvPWxY8da9Zchl7uuB0Dzp6s34533P0VhQSECVlH2HbZz5sqhGkGg0b6iCGeZh5yJiD788MNlo44ZNSBUnX7xxbnYs6sebdoUQQcBGNL4AZH7rohN1UBzM35WdTGGDO57oGYUwRyI199ciB/f/DA2rKtDQUEMgVZ2488r07IZKfXi64vxxjvz8fCD38e5px8DP8gq1/XkW2+98crXv/71yWGd+J577vl2t27dCgEEfhA4M1+aB9dzAaVbMA3D50rA9Cc0N/k4ok8FxoweAGYtAEK/fv263X777Us8z0M8noDrtkwJ+/fvH9WzASCTyeCvf/3rm/369aOKioqj2rdvX1pSUhL9UTwWQ+9eXdC7Vxc+8/RjCQC2Ve/Ci6/Mw4MPzMSGrQ3wCgQ4aPnQElSk7quUD89zsWpNNdLpLMXjni4vK3MGDx7c46WXXloHQIgZk2coAOLWW29duXTpsheFEBQoXyW79YJ39WVoqquF7xAyWsO33wvx/oaUm1CKSNElUk1pwaw1VVRC/m6f10K8X+7eQltlv8hKC4Egkwb37o5Enz5hkf0gUwRT4sosWQ65eQu0F7Plsdw2Jm2/uwpP2hLZRdRYkLvefKJO7pXXrML7XFJeM4VDAunaBuCyb6B03EnwA18J4ciPP/742R/96Efvaq3lF2lrH4Dhpr7+9Ss7dOna9STrAeRTz76HPXWNcFyjl9uSqK0sUV9DSIHGVBOOP+4I9DisEwAWtXU1Tdu3b9/bs0fPzkTgTDZLL8x8H0nPAxSDOUc/jqIVZghBaGrKYMjQnujfrwd83w8v28l7Cc2sTzlpGJ57+mfo3bsU9c0Zw+8+UKlWBygpS4KcQlx77V34eP5ncB1XKqX0xIkTz7n7d7+byMxSa+0MHDjwovC0PvhoOeYtXIFEwrVin7zfo0XagKTp5jTOPnMUCpJxKGWqBGVlZaJNmzYoKipi13W03aiCfV4spYRSShcXF6Nnj57p0aNHn9i3b9+Kn//858Oefvrpq2bNmvW3zz777KPt26t3NzY2gAHS2nSTdexQgSu/PREzpt+KjpVGdIOE3s8ezHgx2/QlCOkgG95bdl2XY7FYYT7whhkzZoCI8MpLL90xZNCgM0tKSkgrjYqrr8TGZ5+Ht3oVZEEhfJWxPGwDAkRdaS2KazrSIQ8le6LuIwgoS2sVtg+FYGZ2a7spOC2rasbL5KdneX3tmgzLLZ3xkTh6KJx4HKwCQMhDwgGa584FBT6YyIoT5NB5j0wzTQYGSZfRc9FSTCKSZwbtgzFYiInyBMjtlWkI0/0mBERjI9SRR6Dy5p9AK82u46K6ujrz2GOP/dDKCR+08umUKVPEz372M/2Nb5z79fbtKhMAguZ02nnxlY+RTCSsgAXtw8axhq9DAofGuWceGwFu8z9esG7QoEHdY7EYAdDvfbCEFi/bgHhhsWk0ErYlM48aKuwmmclmcPbZx8HzXNZa0/r162tqa2tfjLmuzvi+SCQSxxx++OE9fT9QXTtXykcevgmnnn0L0hltatuso6gnvNlBoBFzHaQaM7jxB/fipRfuQCIhUVJS4px82qn3E1GPG2+8sU+fPocPM9C1kNOffgfNzYxkggxz0eaBgvMcEgi+r9GmLInzzxvTgvDFAPwgy03NAaWb05RqyqCuLoW62kbs2lOP2roUtm3dieNGHYFx44bJwA94+Mjhp7/44osPbdu27em//e1vS37961/PB/AQgOTgwf26TZx4znFdu3a5fty48Yf37NkTSinyfR89unXE0EF98MyL81BcmjB9Hvn7nIUXSZge9bblZShIxkPshFJ1qVobXbADAFavWRLRByeccMIzJ5988rlKB8opLZdtpv0Me8//Bjw/gJYSSgW2P9jmnnkDAPevlutIDonZ5KVZMJQVSBDEcCL91c/h0ICislS+jchQGlkztJAoGHt8iwb/g6HACOlAawX94cdwhZObjJpH3hF5PJ5QwSZHwbUPR56qZ34nFOeL1iGHBSpmKLKEEykggwANnoO2v/8VvDZtoYNAAcJ5++23f/2nP/1pzR//+Ec5derUQ+kjV8wsevXqFYoDiDnvLcWKldVIFiQNIYTysRCbi9rmjHRzgL7d22LsmMF2b2UsXLRwzyXfvOTo8HgznnkXmSxQWAhkTVH9gDx8XzHatyvCxInHAIASQjhz5879+4UXXnhd3lvjr7322t0nn3zyFb6fDfr37+7cPvUSfOe6e1BcXAalwyGblHMsRFBKo6AwiY8Xbcavfjcd06ouEdmsr/r2PaLLO++8M2XVqlVcUdFGwAo1vjFrCQoLkpEYSgSu5g0JEQKoachi4qn9cXifztA6FH8Q+OktD+Ott5eSBqOxIYNUphmp5gz8jCm1ERFS9VlMnDgUJ5wwHIIkJUQCEydOvEIpdcVpp01krdWeRCJR09jYWOJ5MRmPx0gKWRRPxEkrgEkhHo9ja/UezF+4CvFkPKo6sU1Pmcko9bCxA9Wcwehh/SCkZACirq4uvXj54jWAmaMm8nZ/ZmZ65JFHfrhu/fpm1/Uonclw6cknIXbDVcjUNEBKiZBnRfvk5S2ZTdSyxTC8kZRDLwNHwJeEIFQK+RzTtATDFtEC5dNnfQ20LYM7cCBaQNlfSmU1T3d2w3oEy5eB4nFL5Mhv7jETRyUDMR0RofYn6XBLL75v3r8vRmq+I4KWElow9jbUInbrTSgaPQZ+NqOE4zgffPDB4osvvniK3XwPmqdu1V942rRpYzt16jQwBI3+8eRsBLbRIadC2pJUrLUChEZTUx1OPXkYSooLmJlp65Yt2yralu9s165dAQC9c2ct3py1BAVFMbBSuT76/R4FgYbGRhwzqi96HdYhRKjx3nvvPcPM8uWXX44xsyOlTJ9yyilXz5kz+w3X9Rw/m1XfuOgknHfWCNTtqUVcOJaQxfulioHSKC4rx30PvYbZ7y6B57kyCBQPHjzop+PHj/uhzY+dN99ejI2bdxthyZwcRCTaEeE+RFCcwblnH2MozSonCb63thFzF27A+i17sbO2Ec1pDUfGkCyIo6SkGMUlxeh0WCU+mPcpfnrzH9GYSsMOrVBSStWpU0fq0qVL27Zt2/bu1q1bu44dO7QpLy8vLyktcWOxGBxXwHU8LPhkNb556S+xdUcdPJcNzmExsXBsAltPk1aMohIPX5s8JnTwvGfPnrmvvvrqFmYWU6dO1ZFFWBqcePLJJ9c+9+yz12ezWZFwXRUohcqbvg8x8QRgzx4gbvTJQmknzrWjWa8mLJdcWP6vGSoQCkI6yNVJicNdFFGo12LeGSGawBJKf1E++40IQSYL6tcPbpfOCFgfNF89PIfGRQuBvbtBnkHWWXIUecB2t4FN5JEf3WqYa430xSJNtPB6yL4np0kvldWuMzUzkEPI7tmD4uu/i/bfuw6ZrM+uF6NNmzc1Pfzww98QQmRsmH7QoXqo/jJ8+PDr4/E4APC6DVsxa85yFBbEc+KJaGnl4b+10igudnHe+WPDNlAsX77ig6OOGtYr/IyXXvsI1dX1iMViCEDQ+w1WYtvgAwA+zjtnTLititWrV6++99573wegTzvttAwRBTfffLOQUuqbbvrJxevWrdvmep7QWuvbp12FHj3bojmThSNsVKX3IfwTQQiNgAk/+vGjqK1rABGouLgIPXr09GClxp55/j24Mma6JUU4zELkzaszx0pnFHp0a4uTTxhmhl+4ruV7AmedNRpFRTHEYnEjtCjsBCCt4OsAvlLIBhm4XgJ33vcmTjz1RvzyjifwzrvL5Lbtu2U6kwnZYGHTDesg4Ib6RqxevRnTn56Nb131a5xx3q1YsGiLSa0CtgNALftShw4KYHLQUFeLn/54Mvr27QKtNTMzrVq16u58f+jsE14pS7Z4eMCAASNOOumkyygIAsSLnI733YVtEy9AbNWn4KIi40Gh8WVix7wPuw0kjCaXYohAQdr8WRNy4XJ+C5LOK0NpzokDWJXPQPtwjxkJKRyorA92nYMK18OH2l/wCYSyWt96f/KODmWBraz0/oAjchNYc6xIKDJpCbGZhGKmvLJR5oQZ8Jit3oPYty9Fl1/cDuVrxDxXNafTzswXZl7+l7/8Zen06dMPGmzLB9yGDBl1WN++fU+N5IZfX4A9e5vRpqwYmUC1RDnzrlUIgcbGZpw07ggMHtDdNKM0N2d37Nix+bjjxpwDaNYa4pnn34fruWB2wNKPWKz7pi3pdDN692qHk8cfFX7FYtWqVU8D8EMiVuhgqqqqnKlTp+58/vnnL73yyitfi8cTulPHNrjtZ9/Ehd/8DbxYmWEi2jJs/vegtUayII5Fy7fgt3c+j2lVF8P3MyAQO65Ly1Zuwpz3P0OB5da3ZLDmuOVCCDSlMjhjwli0KY+UcoTrSCitcMqJR2PS2cPw9yfmoF379sj66RYqtLl0zkdhSRwr19Vi0R0zkIg9g3YVpWjfvoTKypKIxyQxzFDexoYm7N7biB276rG3pglgoKAogXiBhA44imJNOcJgO46UaM5o1DfsQNWPzsd3rz4HfuAHruM68+fPXzhp0qTnbblVHZAWZg1dEtFVS5YsOWLAgAHHZLO+ilV2lRWPPYwdZ12I5I6tcL0iZDkwBBDovAeGDtD6kW80yqDJCnD3KY18WfmNqKUsMljDT8ZQMOIoY2BCHKS+umkt1UGA5kWLkJQeFIfjiFtegkCerHSeVVA+Yp5XhwljI5s2md0XhCxpKAEI08qCpp17ELvoQnS8+7dgTRAu+wDc115+9bbvfve7j3+VyaWh3PLVV3/r3K5du3pECPxAOc+/OA9e3DF9+shr0qd9qiNWmPC8c46DMCmCWLN27aIuXbp0TyYTEoBasmytnP/JWiQL4tCswmpZi+oCQJCOUSSdOOEYlBQXMAC5c8cO//nnn//zgUg9U6dODew1vz548OC/jRs37hvZrFJnnT5Gnn/uB3j6qQUoK0/arrX8Z8yOxwo0ysqSePCh13HKiYMx+tgjkc6myQFh5sz3UN+QQll5qfGMEZch/9SNem48IXDm6aMBaC2EEPPnz1/keW5i0KDBvZUK8Js7rhFbq3fhzVmfoqxNOVyHoe1YLg4xKAiw8hH3HCQTLpRW2FVTh527am1bq46600hIkJCGtlqUNI5HK2hlZbDDDk4yjWJ+oFFTU4/S0hjuu/M7uPLbpyOb9ZXnuc769eszjzzyyLeEEGrKlCki/w7tZwFTpkxhIYT64Q9/eMFnn3221/NcGWSzuvDwI9HuiYeh2neEn6lHwrMqMGG1lbV9ccQD5jxWGUwlFXHF8GDGEYV6Z+IATSm0X807F85rIUCZLES7TkgMGGjt/iD7x20NvnnzRvDKteBEPGpZzc/piciKLVLe4ATzbwHarz5OFp3PcQfY9JzbOrvHBBdAZnct3O9cii4P3gUh4hAEX0C6M2fOfOKc8865xT7shyzYaOWWadCggd+w943mL1yFpUs2oyhZahTghYQjXDjCgePYl3ThSA9+JkCPwyow4dThEVFn+bJla484ov+osBnluZkfoakZ8Ny4Yf6RNHp7Utqx1hJSOGAIFCXjOPvM0REbefOWLa88+eSTq5hZHqhVdsqUKZqZxZ133nnT2rVr6j1PklaKb592Bbp0KUI2UHBiMbiuAyklpBCmGUgISMGICxeAi1umPIaG5mZ4roeGVCNmvrwQhYUlIAhIciBJmr+jsMdAwHEkMukAQwb3wPBhvQEITUSoqan5+dNPP3Ot7/tCSkeXFMd4xj9+hhuuOwtSZFFT24SAGdIFXCnh2O9bMIGUhraceSkdxBIeEkUJJIqSKChMoqAoiUQyjpidahpoZbgBMAQicgTgelCC0JRNY/fuerjSwbcvGYc5b/0GV377dARBEHieKzdu3Jh97LHHzr7//vuXPPHEEy3u7wEd39SpU/UTTzwhX3311S333HnPpI0bN/qO55GfzuqiISPR5qm/QR3WC35NHaQUcJQpq1k+4ucKTkkGKDAjibllr8o+rLkDCAnmCd6ZoYgCfroZctAAeJWdoS11kg8yHweAzCdLIHZsB7nChNICtnU1z1DzzkPal8hrk6Z8oUi2vekwRu0ow8cOtIKEgBdopPemkLzhP9Htrt8DbgIa2ocQ7qy3337lzDPPvNhGUepQ8vC8ZhS+7rrrju7Tp8+QkDL/17+9gZ2765FqakZjKoXGVJP5b1OT/bkJjalGpJvS2LN9N04Y3Q9tSgoBkNiza1dDNpstrKxs156IeW9NPT317EdQGqivb0Bjoz2WfTU0NqKx0Rx7R3Ut+verxOCBPaN7uWLFir8CoNmzZ9PnPXcA6IUXXtj2wgszfxAESjBIde7QBlNuuRCphjo0pjJIpdLmvBub0djQhMb6RjQ2NKO2vg6MLN55bzlurforBAm8/uZCLFi0FipQSDWkkGpMoamxEQ0NKTQ0ptDYmEJdYxMaGzOo3b0XZ585HJ7jMDOc7du3N7zwwgsfTJs27a3HHnvsF+l02hHCRVGhF/zq55fjtZnT8K2LjkGbgjgaa+vRUF+LTNaHtgNHhAQcR8KVZjNqQd6MpqTY4Z5Smo2LBFgDzc0+6mobsXfvHvjpDPp0b4sf/+B0vPXqNNx39/Xcp1cXBYAdx3FWrFix5s4775xwyy23vMrM+6V4n9vFMXnyZGUJ7m936NLha5dccsmTnTp1cvxsVscHDBFtnnsMey67FvTe+4iXl0HbcNYJO7ci/x7WyO0oJq1Mo0IYcYMj6ad80owIpY7zmTJ5skmOYqS0QuHoERAAAq3tICk+iN5xc4zshx+A2Ag4KtYH7HvnsP6rc1z5loZPyG8ctJUxSAFoZcp72hEQdSmoRAKlv56GsmuvgQ40HAcBIN2XX3t15sRTJ0ziXMJ4yNNAr7nmGpoxYwbGjx9/cllZOQNQjalmJ9OcxknjB8CRApqVVS8NG0IYQhq+OClCpqkCX//aSWFtnBYvXbq6S5euXW0vAq9etYU6dyxAzx4VYK2igZe55hIjeeW4HhobU7jikpPhOoKZWW7cuHHHPffc8wYR8bhx49Tnp2RRuvjQkUcOuPikk048TgW++trkk+Ty5Zvx8SdrEUvEoVRglYU4qm6EPf7EEus+24BN26qxa1c9jh3eA0VFCSgVariboYnh9y0dx5y3YJw5cRQAKCLIDRvWz7n33nu3MbNLRD9JpdIbzzrr9Ds7d+4cV0rzoP699P133yC2bt1Fc+Ysxqx3F2LBknXYtrUG9Q3NyPoGEQ8JK4aRSnlZLEXadMQmsvBcQllJEv16d0avXh0w4MjuGDmiHwb074GCgnjYv+sAkDt37uT58+c/NHHixB8BqA119fe9p1/YqjVu3LjAGvozWusJl1122dMdOnQoVr6v4j36yLbPPYHdN/0YtY8+BrcoDuGaGyny5WD2aTARVjm1RXabG49lp5FyXrWNW0rphG9WAURhCRKjhkd184OyDWawlNDZNFILP0FhLGmQby0OWBFUzPBZww01laNIxdA1iXKVAxEOfrBSP46QUARkaushjuiD8t/cgcKxY+FnsxzzPA3Aeffddx+YeOqE70kpg1CmCV9hhQMQPc8rsDdJuR7Jhx+8kWULcpBGS6FXO9EGmqQ205A1EAjAmz9//msTJkw4hYiU7/s8dGhvevWF28K24lDmc5+xE/kFQwmtdFZIEVu3bt2MefPm1edFKl9E5mFmposuOu+yfv2OWNCpU6ek72eDaVO/LXLnb2yxJaMn//eMTFbzFZeeiqsvn5gHaJPNiA+EIQmT8wMarJ2FCxf9Oe98JBE9uHLlsg8uv/zy23r16nVmYWGhDFtML7zwRFx44YlU39gotm7djY0bq7F1aw127q5FbW0D6mqb4Ac6KseFJdfi4gIUFcfQvm0bVLQrRseOZejauT06dGzDcS+WT/cMg0ixc+fO7Nq1a1987bXXfj116tSPiAhPPvnkIYG0B2p2cADgjjvuOHrTpk27mJmVn/YDZg6Yede9D/P6yu68KdmGt3TozFsqO/COdh15R/vOvKNdZ97erjNvq+zI29t35B3tO/G2ys7Rq7pDl+i1vWNX89/Kzry9ffjqZP6ushPvqDQ/b+/QhbeVlfPqkcew39TIzMxaKdZaf/kr8Fkxc2r5cl7XoRvvbNuBt3fsbM61sgvvqOyS99mdeVv7Try5XUfeXtmZqzt24eqOXXhrZWfeVNmJN3boxFs7mGvY0b4z72zXmXe178J72nXlPZXduLpNBa8tKOeN372OM7t3MzOzn8kGzMyNqSb+xxNP/Nx+4WQlTr7ysuE6pk6dOqK6upr/2bVmzZpsr169Kl555ZUp/+yxtm7dyj/84Q/7MzPlixl8SUolAeCxxx67NOv7/F+95s59fx2AOIfSM5aDEJ7fgw8+OHru3Ln/2LJlS+0B/jxgZt++gryXOsAr2Of94d+0WLW1dfzpp5+ueeedd3578803H7HPffrCZ+egmq7zPPr8DRs2nHrllVc+Pnjw4N5QOgi0dtpeczniw47Enu9PQfDRB4gVxRDE45B2xBDCWjflildhtSp/wgmFKP0XPe/2GL6fRXzEUDiJAtNaerDSy3ZgQvOCRaCdO8Bt2+432lhTro4fDujTOS8AJUzxkBjIsoYnBERIpJEuOOsj3dAA9OqJsp/+CGUXfA0KgPb9wPFcZ9OmjU3Tn37umh/c8B+P5pFd+J8x8hkzZqiqqipRVVU113XdM8aNG3dTQUFB58DPShK5ur8gYiGlItsZZEo5ylVKu5qVG/Ni2aampuVvvvnmbWvXrt01YcKE259++ulYz549z1JKtdWsIUhoYlJmZBsJpZVrroFzk5yZyXVcnU6n17z22mu/+9WvfrX8jjvuOOhIhYiULSH+ua6ujo4+etgV8US8UquApHR8rbQbqCDmSCcrhFBBEITFGqFZSSIo4/yYCcRCCO24TlYpLf3AT2itpZHmEwy27AgCXNdp2LJl69z77rtvChGl8ymLkydPVlVVVWLKlCkgovcAvDdo0KBOV1xxxWm9e/c+oUOnDkeXl7bp2a5dhQy147/K8gOFHdu36/r6uk07d+5YsWXL1o+WLVs264477pgftrgyc3geX+q9D8l7hHXbdu3atX/iiSceHjdu3BkAtJ/JQsY8odJN2PunR5D5zV2QO6sRKyo1nTJgQ4ixnyjy7Tif22AK5eB9BB6BfJF68200p5qQfOQetD3vQnBwcAMUANPbDClR/b3/gLj/YTjt2ppJk3lyMhoqj3hjhhAqE4+b0xVkyDHa9JI7THBt2K7q65EtK0Xy0m+g5LrrEWtXgcDPaMeNAYBYvHjh8nvuue+SP/7xjwsOJnQ91MXMRJGqIRItwAzkNdC13FScPFxRAWjY5+/Cn4vzwsectjFC5cYWxwwHoDUc4Ly+6vWE86IC+5mu/dmq5kefKw5wjdq+VwDw8s4PaDkFIp3XK/65OeD06dPlpEmT9jUyb/I55xwxaMjRfbt279a5c8fKjoq5e9u2bROZTKZcKdU2Fo8TW+HQIAiCeDy5LfCzmert1fVCiC179uzZumfPnlUfffTO6scff2ZDft+6EAJKKWfKlCn6UNK6Qw4Rp0+fLi+44ALFzHjuueduHj362J+1adOWVOAHmlzpSlDTZyux5+e/hHrpFcTTWThFCQTCQ8DKgDMwfeBG1Z33Z6LR/ppj+cVyDnw0FRag/VuvI9G9p9HJORimG5tmEM42Y9sJE+AtWAxRWGhkh8EtRiUTjDCgJo2AHGgNZIU2raYhrx0CSgJxxcjWNiJNDHHKKWh/800oGDrYiDP6fuC4ntOYSuG9d9/904QJE/4TQEOo2oF/w7IPoJZS8iEaVEguETNmzCCb4xEzC8dxlNb6oNt4I16E1jRjxgzxz+SLX/V6DvW6wyqOUkpOmTKFD8aQmJlmz54tx44dy1JKtZ9m3D4Fpn2LuV8UwVmjFrNnzxah+upXifi+Uh5oQxYmIr777ruPnThx4t09evQYCgBBNqMcLyYZQP2st1Bz3/3A7HchG5ugCwuARAzwjTRujPOmlloKqNC2JYJyDOOcLI+GdhiqvhlNI4ehx8svAwdNgDHlLZISTZ8ux84TJyDR2AR4nq2/ixZ3hfOQfW03EMUMggMhTAeZ9gP4TQ1QJEHHHYvS67+H8lNOBgHwfV+5risA0Keffrru9bfeuuH67373eSEEzjvvPDljxgyFf//6qnk+/5uP9V99Pf9V50xVVVUEQIwdOzYEQ8NjacdxeN8NJQiCFrOkZs+ejV27dvHy5ct56tSp/K+4f//UTcvzRt7MmTN/OWzYsO+2b9/eBaCCICDpOAIA6ua8g4Y//gWp11+FW9uERDwGnfDgQYLZDFg3IpEir7xgKawQObVPoSElIbOzHvKnN6LDLbeCfR9wDlLPTSnAcbD3sUfReOX1SBQVQGk2008dGeEF0u6xZuaZNiozRJDkGMXR5gxS6UYEbdvAHTcOhd+4ECUnnAxpvjTtOA4DkDt27sCyxUvuO/Hkk6cA2PWvyr9b1//aRf/mTfDAEcE/88fjxo0Lpk+fLoUQ2TPOOOOG23/962M//PCDWc3NzdJxHEFaKxUEqnTM8ej01z+j8ysvInb5pWiqrISqq0WmYS8QZAFHQJBjAGYhoKGhie0klTyeiQJ0ViNbnETh+HEm1qGD36vCWSzphfMhtUYgpRmxZOeAZ1khY+WRfZcQOASWZmQSpZsR1O5GtrEBdd06w/2PG1H58svo8uhfUHbiKYBWCjrQjuOIdCYj582b98G999w75sSTT76WiHbl1TBbDfz/38UHeP2PDef2O04+If43v/nNBePHj7/pyAEDBruOA2hopQO2np2at21C8+tvIfPyG8jM+whO9XaQdCHicXA8BuVKEGloxSDW8GyrnSaCSPto6tkFnV57HW55eTSI8WDuLhGgsmlsPeU0xBcsARck4SsF7RgtMTPwngAXcKBBzc3Q6SwCISG7dEVs5NHwzjwNhceNhdemLQCw8gMtJQkISelMBosXLZoz+93Zd930g5ueCUscrd67df1PCx++8srP1QGIP//5z+eNGDHimm7duo2NBtcFKggcKaTtmsuu/gzpd+Yg9d570J8sAm/eCqSz8IQD4SWgYmSEFey0FN5TBz35XHT485/ASh3C1FKGkAJNK5Zix4QzkQwCSAayxAi0oeSKJh9BJoB2NXRJKUTf3ogNGYrE8aORGDUSXrv2IfyspVKGkAwglUph48aNb3z88ce//9a3vvUKAEgpce655/5X5d6tq3X91y4bwkf/fvDBB09cvHjxs9Xbt+cX+RUHvs/MSjOzZub07h1c9/orXD3157zp3It428CRvKlDV15dUMLrZYK3Jop5FcDbHrzfHMD3mZU+KBKMsoSKmgce4PUAby0o402xQl6XLOeV5ZX8Wc8jeM2YU3jjNf/Bu/7yKDcs/oT9THM+u0EFgf1Au6qrq5vmzp07/f777x+bj7bmkyZaV+v6P+XJ9z329OnTxaRJk3RY57zssssGnnHGGRf07NnjzO7dexxZUFBgETXNYFYm7o3k3xDU7YbatAXptRvgr12P7Lo1SFXvQIfbp6Lo8P4GSDso6WVtFG0cic133IHg3XcR69EdbvtKiC5dIXv0QqJrZ7gdKiDdeM75A1qogO1oSQKAmpoabNq4aemnn306ffr06U8+88wzq0Pj/mdLRa2rdf2v9uzMLeawOLfccsspL7/00gPLly9fV19f35LDp5RixX7A7AeG+qdDb69Ys1IBK31wHty8DOXV14qDPO+ct7RiDnxmn4PAZ8Uq/3/W1NTw8uXL177wwgsP3njjjWOQV+9kZtnquVvX/6+e/IA5+9ixY8UJJ5wQ5JEG4lVVVSOHDRs2vlOnTse3a9euf7t27do4+5XFGFqzBgtmChDpKtnr+DySRtS6aiQTWJOEYG12HLJyIPusdDqNXbt27dm5c+eSDRs2vPXBBx+887vf/S6iFAoh8NZbbzmzZ8/WX7WhpHW1rv+TRn6AUB5CCJVPEOjXr1/5tddeO+ioo47qnSxMDk/EE0cl4vHOiUSibXl5m3/pSSilUFdXr5qammq0Vp/tqdmzqHpr9cply5Ytuf3225fV1dXVhO+17CM5efJkzJgxoxUtb12tRv4VDN70rRxAmbR79yPbX3zxOT169+7dr6ysrFdpWWnPmBfrHIvFKoioHYDioqIidhynhUcnItTW1sL3/bQQorrZrJq6urqdzc3Ny+rr61fu2bPn04ceemjb+vXrdxwgChAAxIwZM74ypbB1ta7/7vX/AFAZ3G5RSwfYAAAAAElFTkSuQmCC" alt="Iris Electronics" style="height:36px;width:auto;display:block;margin-bottom:6px;">
-  ${companyHeaderHtml()}
-  <div class="meta">Λογαριασμός πελάτη — εκτυπώθηκε ${new Date().toLocaleDateString("el-GR")}</div>
-  <h2>${escapeHtml(client.name)}</h2>
-  <div class="meta">${[client.type, client.address, client.city].filter(Boolean).map(s => escapeHtml(s)).join(" · ")}${client.contact ? " · " + escapeHtml(client.contact) : ""}${client.phone ? " · " + escapeHtml(client.phone) : ""}</div>
-  ${client.vat_number ? `<div class="meta">ΑΦΜ ${escapeHtml(client.vat_number)}${client.tax_office ? " · ΔΟΥ " + escapeHtml(client.tax_office) : ""}</div>` : ""}
-  <table>
-    <thead><tr><th>Ημερομηνία</th><th>Περιγραφή</th><th style="text-align:right;">Χρέωση</th><th style="text-align:right;">Πληρωμή</th></tr></thead>
-    <tbody>${rowsHtml || '<tr><td colspan="4">Δεν υπάρχουν κινήσεις.</td></tr>'}</tbody>
-  </table>
-  <div class="totals">
-    <div><span>Σύνολο χρεώσεων</span><span>${totalCharge.toFixed(2)}€</span></div>
-    <div><span>Σύνολο πληρωμών</span><span>${totalPayment.toFixed(2)}€</span></div>
-    <div class="grand"><span>Υπόλοιπο</span><span>${balance.toFixed(2)}€</span></div>
-  </div>
-  <button class="print-btn" onclick="window.print()">Εκτύπωση / Αποθήκευση ως PDF</button>
-</body></html>`;
-  }
-
-  // ================= CLIENT LEDGER (+ Κίνηση) =================
-  const BANKS = ["Εθνική Τράπεζα","Alpha Bank","Τράπεζα Πειραιώς","Eurobank","Attica Bank"];
-
-  async function outstandingDocs(clientId){
-    const { data } = await sb.from("ledger_entries").select("doc_number, settles_doc, charge").eq("client_id", clientId);
-    const rows = data || [];
-    const settled = new Set(rows.map(r => r.settles_doc).filter(Boolean));
-    return rows.filter(r => Number(r.charge) > 0 && r.doc_number && !settled.has(r.doc_number)).map(r => r.doc_number);
-  }
-
-  async function openLedgerEntryDrawer(clientId, clientName){
-    const outstanding = await outstandingDocs(clientId);
-    openDrawer("Νέα κίνηση — " + clientName, `
-      <form id="txn-form">
-        <div id="txn-msg"></div>
-        <div class="field"><label>Τύπος</label>
-          <select id="txn-type">
-            <option value="charge">Χρέωση</option>
-            <option value="payment">Πληρωμή</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="field"><label>Ποσό *</label><input type="number" step="0.01" min="0.01" id="txn-amount" required></div>
-          <div class="field"><label>Ημερομηνία</label><input type="date" id="txn-date" value="${isoDay(new Date())}"></div>
-        </div>
-        <div class="field"><label>Περιγραφή</label><input id="txn-desc" placeholder="π.χ. Εργασία εγκατάστασης"></div>
-
-        <div id="txn-charge-fields">
-          <div class="field"><label>Παραστατικό</label>
-            <select id="txn-doc-series">
-              <option value="TDA">ΤΔΑ</option>
-              <option value="TPY">ΤΠΥ</option>
-              <option value="">Χωρίς παραστατικό</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="txn-payment-fields" class="hidden">
-          <div class="field"><label>Τρόπος πληρωμής</label>
-            <select id="txn-method">
-              <option value="cash">Μετρητά</option>
-              <option value="card">Κάρτα</option>
-              <option value="bank">Τραπεζική κατάθεση</option>
-            </select>
-          </div>
-          <div class="field hidden" id="txn-bank-field"><label>Τράπεζα</label>
-            <select id="txn-bank">${BANKS.map(b => `<option>${b}</option>`).join("")}</select>
-          </div>
-          <div class="field"><label>Εξόφληση παραστατικού</label>
-            <select id="txn-settles">
-              <option value="">— Χωρίς σύνδεση —</option>
-              ${outstanding.map(d => `<option value="${d}">${d}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="drawer-foot" style="margin:22px -22px -20px;">
-          <span></span>
-          <button type="submit" class="btn-primary" id="txn-save">Αποθήκευση</button>
-        </div>
-      </form>
-    `);
-
-    $("#txn-type").addEventListener("change", () => {
-      const isCharge = $("#txn-type").value === "charge";
-      $("#txn-charge-fields").classList.toggle("hidden", !isCharge);
-      $("#txn-payment-fields").classList.toggle("hidden", isCharge);
-    });
-    $("#txn-method").addEventListener("change", () => {
-      $("#txn-bank-field").classList.toggle("hidden", $("#txn-method").value !== "bank");
-    });
-
-    $("#txn-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = $("#txn-save");
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
-      const isCharge = $("#txn-type").value === "charge";
-      const amount = parseFloat($("#txn-amount").value || "0");
-      let docNumber = null;
-      try {
-        if (isCharge) {
-          const series = $("#txn-doc-series").value;
-          if (series) { const { data, error } = await sb.rpc("next_doc_number", { p_key: series }); if (error) throw error; docNumber = data; }
-        } else {
-          const { data, error } = await sb.rpc("next_doc_number", { p_key: "APY" }); if (error) throw error; docNumber = data;
-        }
-      } catch (err) {
-        btn.disabled = false; btn.textContent = "Αποθήκευση";
-        showMsg($("#txn-msg"), "Σφάλμα αρίθμησης παραστατικού: " + err.message, "error");
-        return;
-      }
-      const payload = {
-        client_id: clientId,
-        entry_date: $("#txn-date").value || isoDay(new Date()),
-        description: $("#txn-desc").value.trim() || (isCharge ? "Χρέωση" : "Πληρωμή"),
-        charge: isCharge ? amount : 0,
-        payment: isCharge ? 0 : amount,
-        doc_number: docNumber,
-        method: isCharge ? null : $("#txn-method").value,
-        bank: (!isCharge && $("#txn-method").value === "bank") ? $("#txn-bank").value : null,
-        settles_doc: isCharge ? null : ($("#txn-settles").value || null)
-      };
-      const { error } = await sb.from("ledger_entries").insert(payload);
-      if (error) {
-        btn.disabled = false; btn.textContent = "Αποθήκευση";
-        showMsg($("#txn-msg"), "Σφάλμα: " + error.message, "error");
-        return;
-      }
-      await openClientDrawer(clientId);
-    });
-  }
 
   // ================= TICKETS (staff) =================
   const TICKET_FILTERS = [["all","Όλα"],["new","Νέο"],["progress","Σε εξέλιξη"],["waiting","Αναμονή"],["done","Ολοκληρώθηκε"],["cancelled","Ακυρωμένο"]];
@@ -2315,8 +2138,24 @@
     loadTickets();
   });
 
+  // ΞΕΧΑΣΜΕΝΕΣ ΒΛΑΒΕΣ: ανοιχτό αίτημα πάνω από μία εβδομάδα. Δεν υπάρχει κουμπί
+  // «το είδα» ή «αναβολή» επίτηδες — η ένδειξη φεύγει μόνο όταν η βλάβη κλείσει
+  // ή ακυρωθεί, ώστε να μη γίνει κάτι που αγνοείται με ένα κλικ.
+  const STALE_DAYS = 7;
+  function ticketAgeDays(createdAt){
+    return Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
+  }
+  function isStaleTicket(t){
+    return t.status !== "done" && t.status !== "cancelled" && ticketAgeDays(t.created_at) >= STALE_DAYS;
+  }
+  function staleBadge(t){
+    if (!isStaleTicket(t)) return "";
+    const d = ticketAgeDays(t.created_at);
+    return ` <span class="stale-flag" title="Ανοιχτό ${d} μέρες — πάνω από μία εβδομάδα">⚠ ${d} μέρες ανοιχτό</span>`;
+  }
+
   async function loadTickets(){
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, clients(name)").order("created_at", { ascending:false });
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, clients(name)").order("created_at", { ascending:false });
     if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (PROFILE && FIELD_ROLES.has(PROFILE.role)) q = q.eq("assigned_to", USER.id);
     const { data, error } = await q;
@@ -2327,10 +2166,18 @@
       tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${PROFILE && FIELD_ROLES.has(PROFILE.role) ? "Δεν έχεις ανατεθειμένες εργασίες σε αυτή την κατηγορία." : "Δεν υπάρχουν αιτήματα σε αυτή την κατηγορία."}</div></td></tr>`;
       return;
     }
+    const staleCount = data.filter(isStaleTicket).length;
+    const staleBanner = $("#tickets-stale");
+    staleBanner.classList.toggle("hidden", staleCount === 0);
+    if (staleCount) {
+      staleBanner.textContent = staleCount === 1
+        ? "⚠ 1 αίτημα είναι ανοιχτό πάνω από μία εβδομάδα."
+        : `⚠ ${staleCount} αιτήματα είναι ανοιχτά πάνω από μία εβδομάδα.`;
+    }
     tbody.innerHTML = data.map(t => `
-      <tr data-id="${t.id}">
+      <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td><strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}</div></td>
+        <td><strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}</div></td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
         <td><span class="status-pill st-${t.status}">${STATUS_LABEL[t.status] || t.status}</span></td>
       </tr>`).join("");
@@ -2471,17 +2318,50 @@
 
   async function openTicketDrawer(ticketId, portalMode){
     const { data: t, error } = await sb.from("tickets_view").select("*, clients(name)").eq("id", ticketId).single();
-    if (error || !t) { return; }
+    if (error || !t) {
+      // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
+      alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
+      return;
+    }
     const { data: notes } = await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at");
+    // ιστορικό κατάστασης (schema_v21): ποιος την άλλαξε και πότε
+    const { data: history } = await sb.from("ticket_status_history")
+      .select("*, profiles(full_name, email)").eq("ticket_id", ticketId).order("changed_at");
     if (!portalMode && STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
 
+    // ΠΡΟΣΟΧΗ: αν αυτό αποτύχει σιωπηλά και γυρίσει [], η εφαρμογή νομίζει ότι δεν
+    // υπάρχει ανοιχτή επίσκεψη και ξαναδείχνει κουμπί «Άφιξη» — δεύτερο check-in.
+    // Γι' αυτό το σφάλμα εμφανίζεται αντί να αγνοηθεί.
+    let VLOG_LOAD_ERROR = null;
     async function fetchVlogs(){
       if (portalMode) return [];
-      const { data } = await sb.from("visit_logs").select("*, profiles(full_name, email)")
+      const { data, error: vErr } = await sb.from("visit_logs").select("*, profiles(full_name, email)")
         .eq("ticket_id", ticketId).order("checkin_at", { ascending:false });
+      VLOG_LOAD_ERROR = vErr ? vErr.message : null;
       return data || [];
     }
     let VLOGS = await fetchVlogs();
+
+    // Ιστορικό: πότε δημιουργήθηκε, πότε μπήκε σε εξέλιξη, ποιος την έκλεισε.
+    // Γεμίζει από trigger στη βάση (schema_v21) — κανείς δεν μπορεί να το πειράξει.
+    const historyHtml = (history && history.length)
+      ? `<div class="section-title">Ιστορικό</div>
+         <div class="hist">
+           ${history.map(h => {
+             const who = h.profiles ? (h.profiles.full_name || h.profiles.email) : "—";
+             const when = new Date(h.changed_at).toLocaleString("el-GR", {
+               day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+             const label = h.from_status
+               ? `${STATUS_LABEL[h.from_status] || h.from_status} → ${STATUS_LABEL[h.to_status] || h.to_status}`
+               : `Καταχωρήθηκε (${STATUS_LABEL[h.to_status] || h.to_status})`;
+             return `<div class="hist-row">
+               <span class="hist-dot st-${h.to_status}"></span>
+               <div class="hist-main"><strong>${escapeHtml(label)}</strong>
+                 <div class="hist-meta">${escapeHtml(when)} · ${escapeHtml(who)}</div></div>
+             </div>`;
+           }).join("")}
+         </div>`
+      : "";
 
     function assignedOptionsHtml(selectedId){
       return `<option value="" ${!selectedId?"selected":""}>— Χωρίς ανάθεση —</option>` +
@@ -2495,7 +2375,7 @@
 
     const staffControls = portalMode ? "" : `
       <div class="section-title">Άφιξη / Αναχώρηση</div>
-      <div id="vlog-box">${vlogBoxHtml(VLOGS, t)}</div>
+      <div id="vlog-box">${vlogBoxHtml(VLOGS, t, VLOG_LOAD_ERROR)}</div>
       <div id="vlog-msg"></div>
 
       <div class="form-row">
@@ -2537,6 +2417,8 @@
         ${t.scheduled_date ? `<p class="cell-sub">✅ Προγραμματίστηκε επίσκεψη: ${t.scheduled_date}${t.scheduled_time ? " · " + t.scheduled_time : ""}</p>` : (t.preferred_date ? `<p class="cell-sub">📅 Ζήτησες επίσκεψη: ${t.preferred_date}${t.preferred_time ? " · " + t.preferred_time : ""} — θα επιβεβαιωθεί από το κατάστημα</p>` : "")}
       ` : staffControls}
 
+      ${historyHtml}
+
       <div class="section-title">Συνομιλία</div>
       <div id="notes-list">
         ${(notes||[]).map(n => `
@@ -2556,7 +2438,7 @@
     if (!portalMode) {
       async function refreshVlogBox(){
         VLOGS = await fetchVlogs();
-        $("#vlog-box").innerHTML = vlogBoxHtml(VLOGS, t);
+        $("#vlog-box").innerHTML = vlogBoxHtml(VLOGS, t, VLOG_LOAD_ERROR);
         wireVlogButtons();
       }
       function wireVlogButtons(){
@@ -2581,8 +2463,10 @@
           // ένα αίτημα που ήταν «Νέο» περνάει αυτόματα «Σε εξέλιξη» μόλις φτάσει ο τεχνικός
           const statusSel = $("#tk-status-sel");
           if (statusSel && statusSel.value === "new") {
-            await sb.from("tickets").update({ status: "progress" }).eq("id", ticketId);
-            statusSel.value = "progress";
+            const { error: stErr } = await sb.from("tickets").update({ status: "progress" }).eq("id", ticketId);
+            // πριν, αν αποτύγχανε, η οθόνη έδειχνε «Σε εξέλιξη» ενώ η βάση έλεγε «Νέο»
+            if (stErr) showMsg($("#vlog-msg"), "Η άφιξη καταγράφηκε, αλλά η κατάσταση δεν άλλαξε σε «Σε εξέλιξη»: " + stErr.message, "error");
+            else statusSel.value = "progress";
           }
           await refreshVlogBox();
         });
@@ -2631,7 +2515,7 @@
           if (new Date(checkoutIso) <= new Date(checkinIso)) { showMsg($("#vlog-msg"), "Η αναχώρηση πρέπει να είναι μετά την άφιξη.", "error"); return; }
           manualSave.disabled = true; manualSave.innerHTML = '<span class="spinner"></span>Καταχώρηση...';
           const { error: mErr } = await sb.from("visit_logs").insert({
-            ticket_id: ticketId, tech_id: USER.id,
+            ticket_id: ticketId, tech_id: t.assigned_to || USER.id,
             checkin_at: checkinIso, checkout_at: checkoutIso
           });
           manualSave.disabled = false; manualSave.textContent = "Καταχώρηση";
@@ -2711,6 +2595,12 @@
           scheduled_end: $("#tk-sched-end").value || null,
           scheduled_tech: assignedName
         };
+        // Η βάση κλείνει μόνη της τυχόν ανοιχτή επίσκεψη (schema_v21), αλλά καλό
+        // είναι να το ξέρει αυτός που πατάει το κουμπί.
+        if ((payload.status === "done" || payload.status === "cancelled") && VLOGS.some(v => !v.checkout_at)) {
+          const who = (VLOGS.find(v => !v.checkout_at).profiles || {}).full_name || "ο τεχνικός";
+          if (!confirm(`${who} δεν έχει κάνει ακόμα αναχώρηση σε αυτή τη βλάβη. Αν συνεχίσεις, η επίσκεψη θα κλείσει τώρα. Να συνεχίσω;`)) return;
+        }
         const { error } = await sb.from("tickets").update(payload).eq("id", ticketId);
         if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
         closeDrawer();
@@ -3087,6 +2977,54 @@
   let COMPANY_INFO = null;
   let COMPANY_CLOSURES = [];
   let CLOSED_DAYS = new Map();   // "YYYY-MM-DD" -> όνομα αργίας
+  let CONTRACT_TYPES = [];       // τους διαλέγεις μέσα στην καρτέλα πελάτη
+
+  async function loadContractTypes(){
+    const { data, error } = await sb.from("contract_types").select("*").order("sort_order").order("name");
+    if (!error) CONTRACT_TYPES = data || [];
+  }
+
+  function renderContractTypes(){
+    const box = $("#ctypes-list");
+    if (CONTRACT_TYPES.length === 0) {
+      box.innerHTML = '<div class="cell-sub">Δεν έχουν οριστεί τύποι σύμβασης ακόμα.</div>';
+      return;
+    }
+    box.innerHTML = CONTRACT_TYPES.map(t => `
+      <div class="sched-visit" style="cursor:default;">
+        <div class="sched-info"><strong>${escapeHtml(t.name)}</strong></div>
+        <button type="button" class="remove-x" data-ctype-del="${t.id}" title="Διαγραφή">✕</button>
+      </div>`).join("");
+    box.querySelectorAll("[data-ctype-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        clearMsg($("#company-msg"));
+        const { error } = await sb.from("contract_types").delete().eq("id", btn.dataset.ctypeDel);
+        if (error) { showMsg($("#company-msg"), "Δεν διαγράφηκε: " + error.message, "error"); return; }
+        await loadContractTypes();
+        renderContractTypes();
+        // Οι συμβάσεις πελατών που τον χρησιμοποιούσαν ΔΕΝ χάνονται: το type_id
+        // μηδενίζεται αλλά το όνομα μένει γραμμένο πάνω στη σύμβαση.
+        showMsg($("#company-msg"), "Διαγράφηκε. Όσες συμβάσεις τον χρησιμοποιούσαν κρατάνε το όνομά του.", "ok");
+      });
+    });
+  }
+
+  $("#ctype-add").addEventListener("click", async () => {
+    clearMsg($("#company-msg"));
+    const name = $("#ctype-name").value.trim();
+    if (!name) { showMsg($("#company-msg"), "Γράψε όνομα τύπου σύμβασης.", "error"); return; }
+    const { error } = await sb.from("contract_types")
+      .insert({ name, sort_order: CONTRACT_TYPES.length + 1 });
+    if (error) {
+      const dup = /duplicate|unique/i.test(error.message);
+      showMsg($("#company-msg"), dup ? "Υπάρχει ήδη τύπος με αυτό το όνομα." : "Δεν αποθηκεύτηκε: " + error.message, "error");
+      return;
+    }
+    $("#ctype-name").value = "";
+    await loadContractTypes();
+    renderContractTypes();
+    showMsg($("#company-msg"), "Προστέθηκε.", "ok");
+  });
 
   async function loadClosures(){
     const { data, error } = await sb.from("company_closures").select("*").order("start_date");
@@ -3101,46 +3039,11 @@
   }
   function closedDayName(iso){ return CLOSED_DAYS.get(iso) || null; }
 
-  // Ελέγχει την κατάσταση της άδειας χρήσης (public.license_status()) και δείχνει
-  // το πάνω μπάνερ αν έχει λήξει ή ξεπεράστηκε το όριο χρηστών. Ποτέ δεν μπλοκάρει
-  // το boot αν κάτι πάει στραβά εδώ — best effort, ίδιο πνεύμα με refreshCurrent().
-  async function checkLicense(){
-    const banner = $("#license-banner");
-    try {
-      const { data, error } = await sb.rpc("license_status");
-      if (error) throw error;
-      LICENSE = Array.isArray(data) ? data[0] : data;
-      if (!banner) return;
-      if (!LICENSE || LICENSE.expires_at == null) {
-        banner.classList.add("hidden");
-        banner.textContent = "";
-        return;
-      }
-      if (!LICENSE.active) {
-        banner.textContent = LICENSE.reason === "user_limit"
-          ? `Ξεπεράστηκε το όριο χρηστών (${LICENSE.user_count}/${LICENSE.max_users}) — λειτουργία μόνο προβολής, χωρίς αποθήκευση.`
-          : "Η άδεια χρήσης της εφαρμογής έχει λήξει — λειτουργία μόνο προβολής, χωρίς αποθήκευση.";
-        banner.style.background = "var(--red-bg)";
-        banner.style.color = "var(--red)";
-        banner.classList.remove("hidden");
-      } else if (LICENSE.days_left != null && LICENSE.days_left <= 15) {
-        banner.textContent = `Η άδεια χρήσης λήγει σε ${LICENSE.days_left} ${LICENSE.days_left === 1 ? "μέρα" : "μέρες"}.`;
-        banner.style.background = "var(--amber-bg)";
-        banner.style.color = "var(--amber)";
-        banner.classList.remove("hidden");
-      } else {
-        banner.classList.add("hidden");
-        banner.textContent = "";
-      }
-    } catch (e) {
-      // δεν εμποδίζει τίποτα αν αποτύχει ο έλεγχος
-    }
-  }
-
   async function loadCompanyContext(){
     const [infoRes] = await Promise.all([
       sb.from("company_settings").select("*").eq("id", 1).maybeSingle(),
-      loadClosures()
+      loadClosures(),
+      loadContractTypes()
     ]);
     if (!infoRes.error) COMPANY_INFO = infoRes.data || null;
   }
@@ -3157,46 +3060,10 @@
     await loadCompanyContext();
     const c = COMPANY_INFO || {};
     Object.entries(COMPANY_FIELDS).forEach(([sel, key]) => { $(sel).value = c[key] || ""; });
+    renderContractTypes();
     renderClosures();
     updateClosurePreview();
-    renderLicensePanel();
   }
-
-  // Γεμίζει το πλαίσιο κατάστασης άδειας στην καρτέλα Εταιρία, με βάση το
-  // πιο πρόσφατο LICENSE από checkLicense() (καλείται ήδη στο boot()).
-  function renderLicensePanel(){
-    const box = $("#license-status-box");
-    if (!box) return;
-    if (!LICENSE || !LICENSE.expires_at) {
-      box.textContent = "Άγνωστη κατάσταση άδειας.";
-      return;
-    }
-    const until = new Date(LICENSE.expires_at + "T00:00:00").toLocaleDateString("el-GR");
-    const usersPart = LICENSE.max_users != null ? ` · Χρήστες: ${LICENSE.user_count}/${LICENSE.max_users}` : "";
-    if (!LICENSE.active) {
-      const why = LICENSE.reason === "user_limit" ? "ξεπεράστηκε το όριο χρηστών" : "έληξε στις " + until;
-      box.innerHTML = `<span style="color:var(--red);font-weight:600;">Ανενεργή — ${why}.</span> Μόνο προβολή δεδομένων, χωρίς αποθήκευση, μέχρι να μπει νέο κλειδί.${usersPart}`;
-    } else if (LICENSE.days_left != null && LICENSE.days_left <= 15) {
-      box.innerHTML = `<span style="color:var(--amber);font-weight:600;">Λήγει σε ${LICENSE.days_left} ${LICENSE.days_left === 1 ? "μέρα" : "μέρες"}</span> (${until}).${usersPart}`;
-    } else {
-      box.innerHTML = `Ενεργή, ισχύει έως ${until}.${usersPart}`;
-    }
-  }
-
-  $("#license-key-apply").addEventListener("click", async () => {
-    const key = $("#license-key-input").value.trim();
-    clearMsg($("#license-key-msg"));
-    if (!key) { showMsg($("#license-key-msg"), "Γράψε πρώτα το κλειδί.", "error"); return; }
-    const btn = $("#license-key-apply");
-    btn.disabled = true;
-    const { error } = await sb.rpc("apply_license_key", { p_key: key });
-    btn.disabled = false;
-    if (error) { showMsg($("#license-key-msg"), "Δεν έγινε αποδεκτό: " + error.message, "error"); return; }
-    $("#license-key-input").value = "";
-    showMsg($("#license-key-msg"), "Το κλειδί ενεργοποιήθηκε.", "ok");
-    await checkLicense();
-    renderLicensePanel();
-  });
 
   function renderClosures(){
     const box = $("#closures-list");
