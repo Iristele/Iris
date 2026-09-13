@@ -861,7 +861,7 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-bottom:16px;">
+      <div class="panel" id="license-panel" style="margin-bottom:16px;">
         <div class="panel-head"><h2>Άδεια χρήσης</h2><span id="lic-badge"></span></div>
         <div class="panel-body" style="padding:0 20px 20px;">
           <div id="lic-details"></div>
@@ -1510,9 +1510,12 @@
       $("#nav-users").classList.toggle("hidden", !isOwnerRole);
       $("#nav-company").classList.toggle("hidden", !isOwnerRole);
       // Η άδεια πρώτα: αν έχει λήξει οριστικά, δεν έχει νόημα να φορτώσει τίποτα άλλο.
-      await loadLicense();
-      if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
-      renderLicenseBanner();
+      // (προσωρινά απενεργοποιημένο — βλ. σημείωση πάνω από το LICENSE_ENFORCEMENT_ENABLED)
+      if (LICENSE_ENFORCEMENT_ENABLED) {
+        await loadLicense();
+        if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
+        renderLicenseBanner();
+      }
 
       // Χρειάζονται σε ΟΛΟ το προσωπικό: οι κλειστές μέρες για το ημερολόγιο και το
       // μέτρημα αδειών, τα στοιχεία εταιρίας για την κεφαλίδα του εκτυπωμένου λογαριασμού.
@@ -1541,8 +1544,10 @@
       $(`.nav-item[data-view="${defaultView}"]`).classList.add("active");
       showStaffView(defaultView);
     } else if (profile.role === "client") {
-      await loadLicense();
-      if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
+      if (LICENSE_ENFORCEMENT_ENABLED) {
+        await loadLicense();
+        if (LICENSE && LICENSE.state === "locked") { showLicenseLock(); return; }
+      }
       if (!profile.client_id) { $("#no-role-msg").classList.remove("hidden"); return; }
       // ο πελάτης μπαίνει μόνο αφού τον εγκρίνει ο διαχειριστής
       const { data: myClient } = await sb.from("clients").select("id, name, status").eq("id", profile.client_id).single();
@@ -1928,13 +1933,20 @@
         ? `<option value="" selected>${escapeHtml(fallbackName)} (παλιός τύπος)</option>` : "";
       return `<option value="">— Διάλεξε τύπο —</option>${orphan}${opts}`;
     };
-    const contractRowsHtml = (list) => list.map((c) => `
-      <div class="ra-row" data-contract-row style="flex-wrap:wrap;">
+    // Μια σύμβαση της οποίας ο τύπος διαγράφηκε έχει type_id null αλλά κρατάει
+    // το παλιό της name (on delete set null, schema_v20). Το data-orphan-name
+    // εδώ κρατάει αυτό το όνομα ξεχωριστά, ώστε στο save να ξέρουμε να τη
+    // διατηρήσουμε αντί να τη διαγράψουμε επειδή δεν έχει επιλεγμένο τύπο.
+    const contractRowsHtml = (list) => list.map((c) => {
+      const orphanName = (!c.type_id && c.name) ? c.name : "";
+      return `
+      <div class="ra-row" data-contract-row ${orphanName ? `data-orphan-name="${escapeHtml(orphanName)}"` : ""} style="flex-wrap:wrap;">
         <select data-contract-type style="flex:1 1 100%;">${typeOptions(c.type_id || "", c.name || "")}</select>
         <input type="date" value="${c.until_date || ""}" data-contract-until title="Λήξη">
         <input type="email" placeholder="Έξτρα email ειδοποίησης γι' αυτή τη σύμβαση (προαιρετικό)" value="${escapeHtml(c.notify_email || "")}" data-contract-notify>
         <button type="button" class="remove-x" data-contract-remove>✕</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
 
     // Δείχνουμε πάντα την πιο πρόσφατη βλάβη ως κάρτα (πάτημα το ανοίγει)·
     // τα παλαιότερα κρύβονται σε ένα dropdown από κάτω — διαλέγεις ποιο θες.
@@ -2164,42 +2176,34 @@
         showMsg($("#client-form-msg"), "Σφάλμα αποθήκευσης: " + err.message, "error");
         return;
       }
-      // Απομακρυσμένη πρόσβαση + συμβάσεις: σβήνουμε και ξαναγράφουμε όλες τις γραμμές.
-      // ΠΡΟΣΟΧΗ: αν αποτύχει η εισαγωγή μετά τη διαγραφή, ο πελάτης μένει ΧΩΡΙΣ
-      // συμβάσεις/κωδικούς — γι' αυτό ελέγχουμε το σφάλμα και το λέμε καθαρά, αντί να
-      // κλείσει το παράθυρο σαν να αποθηκεύτηκε (που έκανε πριν).
+      // Απομακρυσμένη πρόσβαση + συμβάσεις: ΜΙΑ κλήση στη βάση (schema_v26,
+      // save_client_side_data) που σβήνει και ξαναγράφει και τα δύο μέσα σε μία
+      // συναλλαγή — είτε αποθηκεύονται όλα είτε τίποτα, δεν υπάρχει πια σενάριο
+      // «η διαγραφή πέτυχε αλλά η επανεισαγωγή απέτυχε». Κρατάει επίσης τις
+      // συμβάσεις χωρίς ενεργό τύπο (type_id null) με το παλιό τους όνομα.
       let sideError = null;
       if (savedId) {
-        await sb.from("remote_access").delete().eq("client_id", savedId);
-        const rows = $$("[data-ra-row]").map(row => ({
-          client_id: savedId,
+        const raRows = $$("[data-ra-row]").map(row => ({
           label: row.querySelector("[data-ra-label]").value.trim(),
           value: row.querySelector("[data-ra-value]").value.trim()
         })).filter(r => r.label && r.value);
-        if (rows.length) {
-          const { error: raErr } = await sb.from("remote_access").insert(rows);
-          if (raErr) sideError = "Η απομακρυσμένη πρόσβαση δεν αποθηκεύτηκε: " + raErr.message;
-        }
-      }
-      if (savedId) {
-        await sb.from("client_contracts").delete().eq("client_id", savedId);
-        const crows = $$("[data-contract-row]").map(row => {
+        const contractRows = $$("[data-contract-row]").map(row => {
           const typeId = row.querySelector("[data-contract-type]").value || null;
-          const typeName = CONTRACT_TYPES.find(t => t.id === typeId);
+          const typeObj = CONTRACT_TYPES.find(t => t.id === typeId);
+          const orphanName = row.dataset.orphanName || "";
           return {
-            client_id: savedId,
             type_id: typeId,
-            // το όνομα γράφεται κι αυτό, ώστε η σύμβαση να μη μείνει ανώνυμη αν
-            // κάποτε διαγραφεί ο τύπος από την «Εταιρία»
-            name: typeName ? typeName.name : (row.querySelector("[data-contract-type]").selectedOptions[0] || {}).text || "",
+            name: typeObj ? typeObj.name : orphanName,
             until_date: row.querySelector("[data-contract-until]").value || null,
             notify_email: row.querySelector("[data-contract-notify]").value.trim() || null
           };
-        }).filter(c => c.type_id);
-        if (crows.length) {
-          const { error: cErr } = await sb.from("client_contracts").insert(crows);
-          if (cErr) sideError = (sideError ? sideError + " " : "") + "Οι συμβάσεις δεν αποθηκεύτηκαν: " + cErr.message;
-        }
+        }).filter(c => c.type_id || c.name);
+        const { error: sideErr } = await sb.rpc("save_client_side_data", {
+          p_client_id: savedId,
+          p_remote_access: raRows,
+          p_contracts: contractRows
+        });
+        if (sideErr) sideError = "Η απομακρυσμένη πρόσβαση/συμβάσεις δεν αποθηκεύτηκαν: " + sideErr.message;
       }
       if (sideError) {
         // τα βασικά στοιχεία ΑΠΟΘΗΚΕΥΤΗΚΑΝ — μένουμε ανοιχτοί για να ξαναδοκιμάσει
@@ -3135,6 +3139,13 @@
   // Ό,τι έχει σημασία επιβάλλεται στη ΒΑΣΗ (schema_v23): μετά τη λήξη και τις 15
   // μέρες χάριτος καμία εγγραφή δεν περνάει, ακόμα κι αν κάποιος παρακάμψει την
   // οθόνη. Εδώ κάνουμε μόνο το ανθρώπινο κομμάτι: να το λέμε καθαρά.
+  //
+  // ΠΡΟΣΩΡΙΝΑ ΑΠΕΝΕΡΓΟΠΟΙΗΜΕΝΟ (13/09): η ενεργοποίηση κλειδιού είχε πρόβλημα και
+  // δεν θέλουμε να μπλοκάρει τη δουλειά όσο διορθώνονται άλλα, πιο σοβαρά σημεία.
+  // Η επιβολή στη ΒΑΣΗ αφαιρέθηκε ξεχωριστά με το schema_v25.sql. Για να
+  // ξαναενεργοποιηθεί το κλείδωμα: 1) ξανατρέξε τα triggers του schema_v23.sql
+  // (κομμάτια 6+7) στη βάση, 2) γύρνα αυτό το flag σε true.
+  const LICENSE_ENFORCEMENT_ENABLED = false;
   let LICENSE = null;
 
   async function loadLicense(){
@@ -3320,8 +3331,11 @@
     await loadCompanyContext();
     const c = COMPANY_INFO || {};
     Object.entries(COMPANY_FIELDS).forEach(([sel, key]) => { $(sel).value = c[key] || ""; });
-    await loadLicense();
-    renderLicense();
+    $("#license-panel").classList.toggle("hidden", !LICENSE_ENFORCEMENT_ENABLED);
+    if (LICENSE_ENFORCEMENT_ENABLED) {
+      await loadLicense();
+      renderLicense();
+    }
     renderContractTypes();
     renderClosures();
     updateClosurePreview();
