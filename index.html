@@ -830,6 +830,7 @@
         <div class="panel-head">
           <h2>Χρήστες</h2>
         </div>
+        <div class="filterbar" id="user-filters"></div>
         <div class="panel-body">
           <p class="sub" style="padding:0 20px;margin-top:-4px;">Οι νέοι λογαριασμοί εγγράφονται μόνοι τους (χωρίς ρόλο). Πάτα σε έναν χρήστη για να ορίσεις τον ρόλο του (και τον πελάτη, αν είναι τύπου «Πελάτης»).</p>
           <div id="users-msg" style="padding:0 20px;"></div>
@@ -956,10 +957,16 @@
   // ==== Έκδοση εφαρμογής ====
   // Προς το παρόν "beta" (ρητή επιλογή του χρήστη) — θα γίνει κανονικός αριθμός
   // έκδοσης (π.χ. "1.0.0") όταν μας το πει. Αλλάζει μόνο εδώ· φαίνεται δίπλα στο
-  // λογότυπο (auth + topbar) και είναι αυτό που συγκρίνει το checkForUpdate()
-  // παρακάτω με το version.json για να ξέρει αν υπάρχει νεότερη έκδοση.
+  // λογότυπο (auth + topbar).
   const APP_VERSION = "beta";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
+  // Το APP_VERSION μένει πάντα "beta" (ρητή επιλογή του χρήστη), οπότε ΔΕΝ είναι
+  // αυτό που ελέγχει αν υπάρχει νεότερη έκδοση — αλλιώς το μπάνερ ενημέρωσης δεν
+  // θα εμφανιζόταν ΠΟΤΕ (θα συνέκρινε πάντα "beta" με "beta"). Το checkForUpdate()
+  // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
+  // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
+  // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
+  const APP_BUILD = "20260914";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1509,7 +1516,7 @@
       const res = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      if (data && data.version && data.version !== APP_VERSION) {
+      if (data && data.build && data.build !== APP_BUILD) {
         UPDATE_AVAILABLE = true;
         $("#update-banner").classList.remove("hidden");
       }
@@ -1883,8 +1890,10 @@
   const CLIENT_FILTERS = [["all","Όλοι"],["pending","Σε αναμονή έγκρισης"],["active","Ενεργοί"],["rejected","Απορρίφθηκαν"],["contracts","Πελάτες με σύμβαση"]];
   let CLIENT_STATUS_FILTER = "all";
   let CONTRACT_NAME_FILTER = "all";
+  let CLIENT_SEARCH = "";
   $("#client-filters").innerHTML = CLIENT_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("")
-    + `<select id="contract-name-filter" class="hidden" style="width:auto;min-width:200px;"><option value="all">Όλες οι συμβάσεις</option></select>`;
+    + `<select id="contract-name-filter" class="hidden" style="width:auto;min-width:200px;"><option value="all">Όλες οι συμβάσεις</option></select>`
+    + `<input id="client-search" type="search" placeholder="🔍 Αναζήτηση (επωνυμία, διακριτικός τίτλος, ΑΦΜ, τηλέφωνο, email, πόλη)" style="flex:1 1 240px;min-width:200px;">`;
   $("#client-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
     if (!chip) return;
@@ -1893,6 +1902,15 @@
     CLIENT_STATUS_FILTER = chip.dataset.f;
     $("#contract-name-filter").classList.toggle("hidden", CLIENT_STATUS_FILTER !== "contracts");
     loadClients();
+  });
+  // Live αναζήτηση (client-side, πάνω στο ήδη φορτωμένο CLIENTS_CACHE) — μικρό
+  // debounce ώστε να μην ξαναφορτώνει τη λίστα σε κάθε πάτημα πλήκτρου.
+  let clientSearchTimer = null;
+  $("#client-filters").addEventListener("input", (e) => {
+    if (e.target.id !== "client-search") return;
+    CLIENT_SEARCH = e.target.value.trim().toLowerCase();
+    clearTimeout(clientSearchTimer);
+    clientSearchTimer = setTimeout(loadClients, 200);
   });
   $("#contract-name-filter").addEventListener("change", () => {
     CONTRACT_NAME_FILTER = $("#contract-name-filter").value;
@@ -1942,15 +1960,23 @@
     const rows = CLIENT_STATUS_FILTER === "all"
       ? CLIENTS_CACHE
       : CLIENTS_CACHE.filter(c => (c.status || "active") === CLIENT_STATUS_FILTER);
-    if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state">${CLIENT_STATUS_FILTER === "all"
-        ? 'Δεν υπάρχουν ακόμα πελάτες. Πάτα "+ Νέος πελάτης" για να προσθέσεις τον πρώτο.'
-        : "Κανένας πελάτης σε αυτή την κατηγορία."}</div></td></tr>`;
+    // Αναζήτηση (πάνω στην ήδη φιλτραρισμένη-κατά-κατηγορία λίστα): επωνυμία,
+    // διακριτικός τίτλος, ΑΦΜ, τηλέφωνο, email, πόλη — ό,τι ταιριάζει σε ένα.
+    const searchedRows = CLIENT_SEARCH ? rows.filter(c => {
+      const hay = [c.name, c.trade_name, c.vat_number, c.phone, c.email, c.city, c.contact].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(CLIENT_SEARCH);
+    }) : rows;
+    if (searchedRows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state">${CLIENT_SEARCH
+        ? "Κανένας πελάτης δεν ταιριάζει με την αναζήτηση."
+        : (CLIENT_STATUS_FILTER === "all"
+          ? 'Δεν υπάρχουν ακόμα πελάτες. Πάτα "+ Νέος πελάτης" για να προσθέσεις τον πρώτο.'
+          : "Κανένας πελάτης σε αυτή την κατηγορία.")}</div></td></tr>`;
       return;
     }
-    tbody.innerHTML = rows.map(c => `
+    tbody.innerHTML = searchedRows.map(c => `
       <tr data-id="${c.id}">
-        <td><strong>${escapeHtml(c.name)}</strong>${clientStatusPill(c.status)}${c.email ? `<div class="cell-sub">${escapeHtml(c.email)}</div>` : ""}</td>
+        <td><strong>${escapeHtml(c.name)}</strong>${c.trade_name ? `<br><strong style="color:var(--ink-soft);">${escapeHtml(c.trade_name)}</strong>` : ""}${clientStatusPill(c.status)}${c.email ? `<div class="cell-sub">${escapeHtml(c.email)}</div>` : ""}</td>
         <td>${escapeHtml(c.type || "—")}${c.city ? ` · ${escapeHtml(c.city)}` : ""}${c.vat_number ? `<div class="cell-sub">ΑΦΜ ${escapeHtml(c.vat_number)}</div>` : ""}</td>
         <td>${escapeHtml(c.contact || "—")}${c.phone ? `<div class="cell-sub">${escapeHtml(c.phone)}</div>` : ""}</td>
       </tr>`).join("");
@@ -1974,7 +2000,7 @@
     let unlinkedClientUsers = [];
     if (!clientId) {
       if (USERS_CACHE.length === 0) await loadUsers();
-      unlinkedClientUsers = USERS_CACHE.filter(u => u.role === "client" && !u.client_id);
+      unlinkedClientUsers = USERS_CACHE.filter(u => u.role === "client" && !u.client_id && !u.deleted_at);
     }
     if (clientId) {
       const { data } = await sb.from("clients").select("*").eq("id", clientId).single();
@@ -2406,13 +2432,61 @@
 
   // ================= TICKETS (staff) =================
   const TICKET_FILTERS = [["all","Όλα"],["new","Νέο"],["progress","Σε εξέλιξη"],["waiting","Αναμονή"],["to_invoice","Προς τιμολόγηση"],["done","Τιμολογημένο"]];
-  $("#ticket-filters").innerHTML = TICKET_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("");
+  $("#ticket-filters").innerHTML = TICKET_FILTERS.map(([k,l]) => `<div class="chip ${k==='all'?'active':''}" data-f="${k}">${l}</div>`).join("")
+    + `<div id="tkf-client-wrap" style="flex:1 1 260px;min-width:220px;">
+         <input id="tkf-client-input" type="search" placeholder="🔍 Φίλτρο πελάτη — γράψε για αναζήτηση" style="width:100%;">
+         <div id="tkf-client-results" class="hidden" style="margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--tile-bg);max-height:220px;overflow:auto;"></div>
+       </div>
+       <div id="tkf-client-active" class="chip active hidden" style="cursor:default;">Πελάτης: <strong id="tkf-client-active-name"></strong> <span id="tkf-client-clear" style="cursor:pointer;margin-left:6px;" title="Καθαρισμός φίλτρου">✕</span></div>`;
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
     if (!chip) return;
-    $$("#ticket-filters .chip").forEach(c => c.classList.remove("active"));
+    $$("#ticket-filters .chip[data-f]").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
     TICKET_STATUS_FILTER = chip.dataset.f;
+    loadTickets();
+  });
+
+  // Φίλτρο πελάτη (owner/reception μόνο — βλ. toggle μέσα στο loadTickets): σου
+  // δείχνει ΟΛΕΣ τις βλάβες ενός συγκεκριμένου πελάτη, με αναζήτηση αντί για
+  // σκρολάρισμα σε μεγάλη λίστα. Ίδιο μοτίβο αναζήτησης με το «Νέο αίτημα».
+  let TICKET_CLIENT_FILTER = null; // { id, name }
+  function renderTicketClientResults(){
+    const q = $("#tkf-client-input").value.trim().toLowerCase();
+    const box = $("#tkf-client-results");
+    if (!q) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+    const matches = CLIENTS_CACHE.filter(c =>
+      [c.name, c.trade_name, c.vat_number, c.phone].filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+    box.classList.remove("hidden");
+    if (matches.length === 0) {
+      box.innerHTML = '<div class="cell-sub" style="padding:4px 0;">Δεν βρέθηκε πελάτης.</div>';
+      return;
+    }
+    const shown = matches.slice(0, 25);
+    box.innerHTML = shown.map(c => `
+      <div class="vlog-row" data-client-id="${c.id}" data-client-name="${escapeHtml(c.name)}" style="cursor:pointer;">
+        <strong>${escapeHtml(c.name)}</strong>
+        <div class="vlog-who">${[c.trade_name, c.vat_number, c.phone].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+      </div>`).join("") + (matches.length > shown.length ? `<div class="cell-sub" style="padding:4px 0;">…και ${matches.length - shown.length} ακόμα — γράψε κάτι πιο συγκεκριμένο.</div>` : "");
+    box.querySelectorAll("[data-client-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        TICKET_CLIENT_FILTER = { id: el.dataset.clientId, name: el.dataset.clientName };
+        $("#tkf-client-input").value = "";
+        box.classList.add("hidden"); box.innerHTML = "";
+        $("#tkf-client-wrap").classList.add("hidden");
+        $("#tkf-client-active-name").textContent = TICKET_CLIENT_FILTER.name;
+        $("#tkf-client-active").classList.remove("hidden");
+        loadTickets();
+      });
+    });
+  }
+  $("#tkf-client-input").addEventListener("input", renderTicketClientResults);
+  $("#tkf-client-clear").addEventListener("click", () => {
+    TICKET_CLIENT_FILTER = null;
+    $("#tkf-client-active").classList.add("hidden");
+    $("#tkf-client-wrap").classList.remove("hidden");
+    $("#tkf-client-input").value = "";
     loadTickets();
   });
 
@@ -2432,10 +2506,28 @@
     return ` <span class="stale-flag" title="Ανοιχτό ${d} μέρες — πάνω από μία εβδομάδα">⚠ ${d} μέρες ανοιχτό</span>`;
   }
 
+  // «Δικές μου» βλάβες (schema_v29): πλέον σημαίνει είτε κύριος (assigned_to)
+  // είτε επιπλέον τεχνικός (ticket_technicians) — αλλιώς ένας επιπλέον τεχνικός
+  // δεν θα έβλεπε καν στη δική του λίστα κάτι στο οποίο έχει πρόσβαση μέσω RLS.
+  async function myExtraTicketIds(){
+    if (!PROFILE || !FIELD_ROLES.has(PROFILE.role)) return [];
+    const { data } = await sb.from("ticket_technicians").select("ticket_id").eq("technician_id", USER.id);
+    return (data || []).map(r => r.ticket_id);
+  }
+
   async function loadTickets(){
+    if (CLIENTS_CACHE.length === 0) await loadClients();
+    const clientFilterWrap = $("#tkf-client-wrap"), clientFilterActive = $("#tkf-client-active");
+    const showClientFilter = PROFILE && !FIELD_ROLES.has(PROFILE.role);
+    if (clientFilterWrap) clientFilterWrap.classList.toggle("hidden", !showClientFilter || !!TICKET_CLIENT_FILTER);
+    if (clientFilterActive) clientFilterActive.classList.toggle("hidden", !showClientFilter || !TICKET_CLIENT_FILTER);
     let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name)").order("created_at", { ascending:false });
     if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
-    if (PROFILE && FIELD_ROLES.has(PROFILE.role)) q = q.eq("assigned_to", USER.id);
+    if (showClientFilter && TICKET_CLIENT_FILTER) q = q.eq("client_id", TICKET_CLIENT_FILTER.id);
+    if (PROFILE && FIELD_ROLES.has(PROFILE.role)) {
+      const extraIds = await myExtraTicketIds();
+      q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
+    }
     const { data, error } = await q;
     const tbody = $("#tickets-tbody");
     if (error) { showMsg($("#tickets-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
@@ -2621,12 +2713,19 @@
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
       return;
     }
-    const { data: notes } = await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at");
+    const isOwner = !portalMode && PROFILE && PROFILE.role === "owner";
+    // Συνομιλία (ticket_notes, schema_v29): έγινε ΕΣΩΤΕΡΙΚΗ — ο πελάτης δεν τη
+    // βλέπει πια καθόλου, ούτε η reception· μόνο ο τεχνικός/συνεργάτης (πεδίο)
+    // πάνω στη βλάβη και ο owner. Η RLS το επιβάλλει ούτως ή άλλως, το ελέγχουμε
+    // και εδώ για να μη ζητάμε/δείχνουμε κάτι που έτσι κι αλλιώς θα έρθει άδειο.
+    const canSeeConversation = !portalMode && PROFILE && (PROFILE.role === "owner" || FIELD_ROLES.has(PROFILE.role));
+    const { data: notes } = canSeeConversation
+      ? await sb.from("ticket_notes").select("*").eq("ticket_id", ticketId).order("created_at")
+      : { data: [] };
     // Σημειωματάριο διαχειριστή (schema_v28): ιδιωτικές σημειώσεις πάνω στη βλάβη
     // (π.χ. «πλήρωσε 50») που τις βλέπει/γράφει ΜΟΝΟ ο owner — ξεχωριστό από τη
-    // Συνομιλία, που τη βλέπει και ο πελάτης. Η RLS του πίνακα δεν αφήνει καν να
-    // διαβαστεί από κανέναν άλλον ρόλο, οπότε το ζητάμε μόνο όταν έχει νόημα.
-    const isOwner = !portalMode && PROFILE && PROFILE.role === "owner";
+    // Συνομιλία. Η RLS του πίνακα δεν αφήνει καν να διαβαστεί από κανέναν άλλον
+    // ρόλο, οπότε το ζητάμε μόνο όταν έχει νόημα. ΔΕΝ αγγίχτηκε στο schema_v29.
     const { data: adminNoteRow } = isOwner
       ? await sb.from("ticket_admin_notes").select("note").eq("ticket_id", ticketId).maybeSingle()
       : { data: null };
@@ -2639,6 +2738,14 @@
       : await sb.from("ticket_status_history")
           .select("*, profiles(full_name, email)").eq("ticket_id", ticketId).order("changed_at");
     if (!portalMode && STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
+    // Επιπλέον τεχνικοί πάνω στη βλάβη (schema_v29, ticket_technicians) — πέρα
+    // από τον κύριο («Ανάθεση σε» = assigned_to, που μένει όπως ήταν). Το
+    // γραφείο (owner/reception) τους επιλέγει· ο τεχνικός/συνεργάτης απλώς
+    // βλέπει ποιοι άλλοι είναι πάνω στη δουλειά.
+    const { data: extraTechRows } = portalMode
+      ? { data: [] }
+      : await sb.from("ticket_technicians").select("technician_id").eq("ticket_id", ticketId);
+    const extraTechIds = (extraTechRows || []).map(r => r.technician_id);
 
     // ΠΡΟΣΟΧΗ: αν αυτό αποτύχει σιωπηλά και γυρίσει [], η εφαρμογή νομίζει ότι δεν
     // υπάρχει ανοιχτή επίσκεψη και ξαναδείχνει κουμπί «Άφιξη» — δεύτερο check-in.
@@ -2716,7 +2823,22 @@
           <div class="field"><label>Ώρα έναρξης</label><input type="time" id="tk-sched-time" value="${t.scheduled_time || ""}"></div>
           <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
         </div>
+        <div class="field">
+          <label>Επιπλέον τεχνικοί (προαιρετικό — πέρα από την «Ανάθεση σε» πάνω)</label>
+          <div id="tk-extra-techs" style="max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px 10px;">
+            ${STAFF_USERS_CACHE.length === 0 ? '<span class="cell-sub">Δεν υπάρχουν άλλοι διαθέσιμοι τεχνικοί.</span>' :
+              STAFF_USERS_CACHE.map(u => `
+                <label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13.5px;font-weight:400;">
+                  <input type="checkbox" value="${u.id}" ${extraTechIds.includes(u.id) ? "checked" : ""} style="width:16px;height:16px;">
+                  ${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})
+                </label>`).join("")}
+          </div>
+        </div>
       </div>
+      ${isFieldRole && extraTechIds.length ? `
+        <p class="cell-sub" style="margin:-6px 0 10px;">Επιπλέον τεχνικοί σε αυτή τη βλάβη: ${escapeHtml(extraTechIds.map(id => {
+          const u = STAFF_USERS_CACHE.find(x => x.id === id); return u ? (u.full_name || u.email) : "—";
+        }).join(", "))}</p>` : ""}
 
       ${PROFILE && PROFILE.role === "owner" ? '<button type="button" class="add-link" id="tk-delete-link" style="color:var(--red);">Διαγραφή βλάβης</button><div id="tk-delete-confirm"></div>' : ""}
     `;
@@ -2743,7 +2865,9 @@
         <textarea id="tk-admin-note" placeholder="π.χ. πλήρωσε 50€ μετρητά, οφείλει ακόμα..." style="min-height:80px;margin-bottom:14px;">${escapeHtml(adminNote)}</textarea>
       ` : ""}
 
+      ${canSeeConversation ? `
       <div class="section-title">Συνομιλία</div>
+      <p class="cell-sub" style="margin:0 0 8px;">Εσωτερική — ο πελάτης δεν τη βλέπει.</p>
       <div id="notes-list">
         ${(notes||[]).map(n => `
           <div class="note-item">
@@ -2755,6 +2879,7 @@
         <textarea id="note-body" placeholder="Γράψε ένα μήνυμα..."></textarea>
         <button type="button" class="btn-primary btn-sm" id="note-send">Αποστολή</button>
       </div>
+      ` : ""}
 
       ${!portalMode ? `<div class="drawer-foot" style="margin:22px -22px -20px;"><button type="button" class="btn-primary" id="tk-save" style="width:100%;">Αποθήκευση αλλαγών</button></div>` : ""}
     `);
@@ -2934,6 +3059,16 @@
         }
         const { error } = await sb.from("tickets").update(payload).eq("id", ticketId);
         if (error) { showMsg($("#tk-msg"), "Σφάλμα: " + error.message, "error"); return; }
+        // Επιπλέον τεχνικοί (schema_v29) — δικός του πίνακας/RPC, ίδιο μοτίβο με
+        // το σημειωματάριο διαχειριστή: ξεχωριστή αποθήκευση, ώστε ένα σφάλμα
+        // εδώ να μην κρύβει ότι η ίδια η βλάβη αποθηκεύτηκε κανονικά. Μόνο το
+        // γραφείο (owner/reception) το επιλέγει — ο τεχνικός/συνεργάτης δεν έχει
+        // καν ορατό το πλαίσιο (είναι μέσα στο κρυμμένο «Προγραμματισμός επίσκεψης»).
+        if (!isFieldRole) {
+          const extraTechIdsNow = $$("#tk-extra-techs input[type=checkbox]:checked").map(cb => cb.value);
+          const { error: techErr } = await sb.rpc("set_ticket_technicians", { p_ticket_id: ticketId, p_technician_ids: extraTechIdsNow });
+          if (techErr) { showMsg($("#tk-msg"), "Η βλάβη αποθηκεύτηκε, αλλά οι επιπλέον τεχνικοί όχι: " + techErr.message, "error"); return; }
+        }
         // Σημειωματάριο διαχειριστή (schema_v28) — δικός του πίνακας, δική του
         // αποθήκευση, ώστε ένα σφάλμα εδώ να μην κρύβει ότι η ίδια η βλάβη
         // αποθηκεύτηκε κανονικά.
@@ -2973,7 +3108,11 @@
       }
     }
 
-    $("#note-send").addEventListener("click", async () => {
+    // Η Συνομιλία (schema_v29) είναι πλέον εσωτερική — το #note-send υπάρχει
+    // μόνο όταν canSeeConversation (owner/τεχνικός-συνεργάτη πάνω στη βλάβη),
+    // ποτέ στο portal του πελάτη ούτε για reception.
+    const noteSendBtn = $("#note-send");
+    if (noteSendBtn) noteSendBtn.addEventListener("click", async () => {
       const body = $("#note-body").value.trim();
       if (!body) return;
       const sendBtn = $("#note-send");
@@ -2982,7 +3121,7 @@
       const payload = {
         ticket_id: ticketId,
         author_name: PROFILE.full_name || USER.email,
-        role: portalMode ? "client" : "staff",
+        role: "staff",
         body
       };
       const { error } = await sb.from("ticket_notes").insert(payload);
@@ -3044,7 +3183,11 @@
         .order("calendar_date").order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
       if (toISO)   q = q.lte("calendar_date", toISO);
-      if (isFieldRole) q = q.eq("assigned_to", USER.id);
+      if (isFieldRole) {
+        // schema_v29: «δικές μου» = κύριος ΚΑΙ επιπλέον τεχνικός.
+        const extraIds = await myExtraTicketIds();
+        q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
+      }
       else if (SCHEDULE_TECH_FILTER) q = q.eq("assigned_to", SCHEDULE_TECH_FILTER);
       if (SCHEDULE_STATUS_FILTER.size) q = q.in("status", [...SCHEDULE_STATUS_FILTER]);
       const { data, error } = await q;
@@ -3332,8 +3475,10 @@
 
   // ================= STAFF USERS (for the ticket "Ανάθεση σε" picker — everyone) =================
   async function loadStaffUsers(){
+    // deleted_at is null -> ένας διαγραμμένος (schema_v29) λογαριασμός δεν πρέπει να
+    // εμφανίζεται πουθενά ως επιλογή για ανάθεση (ούτε κύρια ούτε επιπλέον τεχνικός).
     const { data, error } = await sb.from("profiles").select("id, full_name, email, role, leave_days_per_year")
-      .in("role", ["owner","staff","external"]).order("full_name");
+      .in("role", ["owner","staff","external"]).is("deleted_at", null).order("full_name");
     if (!error) STAFF_USERS_CACHE = data || [];
   }
 
@@ -3919,24 +4064,45 @@
   let USERS_CACHE = [];
   const ROLE_LABEL = { owner:"Διαχειριστής", staff:"Τεχνικός", external:"Εξωτερικός συνεργάτης", client:"Πελάτης", reception:"Reception" };
 
+  // Κατηγορία «Διεγραμμένοι» (schema_v29 — deleted_at): η διαγραφή λογαριασμού
+  // πλέον ΔΕΝ είναι οριστική — απενεργοποιεί μόνο τη σύνδεση (βλ. Χρήστης/
+  // Διαγραφή παρακάτω) — αυτή η καρτέλα είναι το «καλάθι» για να τους βρίσκεις
+  // και να τους επαναφέρεις αν χρειαστεί.
+  const USER_FILTERS = [["active","Ενεργοί"],["deleted","Διεγραμμένοι"]];
+  let USER_STATUS_FILTER = "active";
+  $("#user-filters").innerHTML = USER_FILTERS.map(([k,l]) => `<div class="chip ${k==='active'?'active':''}" data-f="${k}">${l}</div>`).join("");
+  $("#user-filters").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-f]");
+    if (!chip) return;
+    $$("#user-filters .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    USER_STATUS_FILTER = chip.dataset.f;
+    renderUsers();
+  });
+
   async function loadUsers(){
     if (CLIENTS_CACHE.length === 0) await loadClients();
     const { data, error } = await sb.from("profiles").select("*").order("created_at");
-    const tbody = $("#users-tbody");
     if (error) { showMsg($("#users-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     clearMsg($("#users-msg"));
     USERS_CACHE = data || [];
-    if (USERS_CACHE.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">Δεν υπάρχουν χρήστες.</div></td></tr>';
+    renderUsers();
+  }
+
+  function renderUsers(){
+    const tbody = $("#users-tbody");
+    const rows = USERS_CACHE.filter(p => (p.deleted_at ? "deleted" : "active") === USER_STATUS_FILTER);
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state">${USER_STATUS_FILTER === "deleted" ? "Δεν υπάρχουν διαγραμμένοι χρήστες." : "Δεν υπάρχουν χρήστες."}</div></td></tr>`;
       return;
     }
-    tbody.innerHTML = USERS_CACHE.map(p => {
+    tbody.innerHTML = rows.map(p => {
       const client = p.client_id ? CLIENTS_CACHE.find(c => c.id === p.client_id) : null;
       const pillClass = { owner:"pill-owner", staff:"pill-staff", external:"pill-external", client:"pill-client", reception:"pill-reception" }[p.role] || "";
       return `
       <tr data-id="${p.id}">
         <td><strong>${escapeHtml(p.full_name || "—")}</strong><div class="cell-sub">${escapeHtml(p.email || "")}</div></td>
-        <td><span class="pill ${pillClass}">${ROLE_LABEL[p.role] || p.role}</span></td>
+        <td><span class="pill ${pillClass}">${ROLE_LABEL[p.role] || p.role}</span>${p.deleted_at ? ' <span class="pill" style="background:var(--red-bg);color:var(--red);">Διαγραμμένος</span>' : ""}</td>
         <td>${p.role === "client" ? escapeHtml(client ? client.name : "— δεν έχει οριστεί —") : "—"}</td>
       </tr>`;
     }).join("");
@@ -3949,6 +4115,32 @@
     const p = USERS_CACHE.find(u => u.id === userId);
     if (!p) return;
     const isSelf = USER && USER.id === userId;
+    // Διαγραμμένος λογαριασμός (schema_v29): δεν έχει νόημα να δείχνουμε φόρμα
+    // ρόλου/διαγραφής — μόνο τα βασικά στοιχεία και ένα κουμπί επαναφοράς.
+    if (p.deleted_at) {
+      openDrawer("Χρήστης", `
+        <div id="user-form-msg"></div>
+        <p class="sub" style="margin-bottom:16px;"><strong>${escapeHtml(p.full_name || "—")}</strong><br>${escapeHtml(p.email || "")}</p>
+        <div class="msg msg-error" style="margin-bottom:16px;">
+          Διαγραμμένος λογαριασμός από ${new Date(p.deleted_at).toLocaleString("el-GR")} — δεν μπορεί να συνδεθεί.
+          Η καρτέλα πελάτη, τα αιτήματα και οι κινήσεις του παραμένουν ανέπαφα.
+        </div>
+        <button type="button" class="btn-primary" id="usr-restore">↺ Επαναφορά λογαριασμού</button>
+      `);
+      $("#usr-restore").addEventListener("click", async () => {
+        const btn = $("#usr-restore");
+        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Επαναφορά...';
+        const { error } = await sb.rpc("restore_user_account", { p_user: userId });
+        if (error) {
+          btn.disabled = false; btn.textContent = "↺ Επαναφορά λογαριασμού";
+          showMsg($("#user-form-msg"), "Σφάλμα: " + error.message, "error");
+          return;
+        }
+        closeDrawer();
+        await loadUsers();
+      });
+      return;
+    }
     // Στοιχεία που συμπλήρωσε ο ίδιος στην εγγραφή — αποθηκεύονται στο profile του,
     // ΔΕΝ δημιουργούν πλέον αυτόματα καρτέλα πελάτη. Αν χρειάζεται να γίνει πελάτης,
     // φτιάξε την καρτέλα από τους Πελάτες και σύνδεσέ την εδώ (πεδίο πιο κάτω).
@@ -3993,7 +4185,7 @@
         </div>
         ${isSelf ? "" : `
           <div class="section-title">Διαγραφή λογαριασμού</div>
-          <p class="cell-sub" style="margin:-4px 0 8px;">Φεύγει μόνο η δυνατότητα σύνδεσης. Η καρτέλα πελάτη, τα αιτήματα και οι κινήσεις του παραμένουν.</p>
+          <p class="cell-sub" style="margin:-4px 0 8px;">Φεύγει μόνο η δυνατότητα σύνδεσης — ανακτήσιμο από «Χρήστες → Διεγραμμένοι» όποτε χρειαστεί. Η καρτέλα πελάτη, τα αιτήματα και οι κινήσεις του παραμένουν.</p>
           <button type="button" class="add-link" id="usr-delete" style="color:var(--red);">Διαγραφή αυτού του λογαριασμού</button>
           <div id="usr-delete-confirm"></div>`}
         <div class="drawer-foot" style="margin:22px -22px -20px;">
@@ -4004,7 +4196,7 @@
     `);
     const delBtn = $("#usr-delete");
     if (delBtn) delBtn.addEventListener("click", () => {
-      $("#usr-delete-confirm").innerHTML = `<span style="font-size:13px;">Οριστική διαγραφή του λογαριασμού <strong>${escapeHtml(p.email || "")}</strong>; <button type="button" class="btn-sm btn-ghost" id="usr-del-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="usr-del-yes">Ναι, διαγραφή</button></span>`;
+      $("#usr-delete-confirm").innerHTML = `<span style="font-size:13px;">Διαγραφή του λογαριασμού <strong>${escapeHtml(p.email || "")}</strong> — θα μπορείς να τον επαναφέρεις από «Χρήστες → Διεγραμμένοι»· <button type="button" class="btn-sm btn-ghost" id="usr-del-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="usr-del-yes">Ναι, διαγραφή</button></span>`;
       $("#usr-del-no").addEventListener("click", () => { $("#usr-delete-confirm").innerHTML = ""; });
       $("#usr-del-yes").addEventListener("click", async () => {
         const btn = $("#usr-del-yes");
