@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260914";
+  const APP_BUILD = "20260915";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2447,7 +2447,7 @@
     loadTickets();
   });
 
-  // Φίλτρο πελάτη (owner/reception μόνο — βλ. toggle μέσα στο loadTickets): σου
+  // Φίλτρο πελάτη (όλοι οι ρόλοι, ΚΑΙ ο τεχνικός/συνεργάτης — 15/09): σου
   // δείχνει ΟΛΕΣ τις βλάβες ενός συγκεκριμένου πελάτη, με αναζήτηση αντί για
   // σκρολάρισμα σε μεγάλη λίστα. Ίδιο μοτίβο αναζήτησης με το «Νέο αίτημα».
   let TICKET_CLIENT_FILTER = null; // { id, name }
@@ -2518,7 +2518,10 @@
   async function loadTickets(){
     if (CLIENTS_CACHE.length === 0) await loadClients();
     const clientFilterWrap = $("#tkf-client-wrap"), clientFilterActive = $("#tkf-client-active");
-    const showClientFilter = PROFILE && !FIELD_ROLES.has(PROFILE.role);
+    // 15/09: ο τεχνικός/συνεργάτης βλέπει κι αυτός το φίλτρο πλέον — φιλτράρει
+    // ΜΕΣΑ στις δικές του βλάβες (το φίλτρο "assigned_to/extra techs" παρακάτω
+    // εφαρμόζεται ούτως ή άλλως, ανεξάρτητα — τα δύο φίλτρα συνδυάζονται με ΚΑΙ).
+    const showClientFilter = !!PROFILE;
     if (clientFilterWrap) clientFilterWrap.classList.toggle("hidden", !showClientFilter || !!TICKET_CLIENT_FILTER);
     if (clientFilterActive) clientFilterActive.classList.toggle("hidden", !showClientFilter || !TICKET_CLIENT_FILTER);
     let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name)").order("created_at", { ascending:false });
