@@ -313,7 +313,7 @@
   .cal-ev.st-to_invoice{background:var(--red-dot);color:#fff;font-weight:600;}
   .cal-dot.st-to_invoice{background:var(--red-dot);box-shadow:0 0 0 2px var(--red-bg);}
   .hist-dot.st-to_invoice{color:var(--red-dot);}
-  .st-done{background:var(--green-bg);color:var(--green);}
+  .st-done,.st-done_xx{background:var(--green-bg);color:var(--green);}
   .st-cancelled{background:var(--muted-bg);color:var(--muted-fg);}
   /* ξεχασμένη βλάβη: ανοιχτή πάνω από μία εβδομάδα */
   .stale-flag{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:1px 7px;
@@ -378,7 +378,7 @@
   .hist-dot{position:absolute;left:-20px;top:11px;width:8px;height:8px;border-radius:50%;
     background:currentColor;box-shadow:0 0 0 3px var(--surface);}
   .hist-dot.st-new{color:var(--blue-dot);} .hist-dot.st-progress{color:var(--orange-dot);}
-  .hist-dot.st-waiting{color:var(--red-dot);} .hist-dot.st-done{color:var(--green-dot);}
+  .hist-dot.st-waiting{color:var(--red-dot);} .hist-dot.st-done,.hist-dot.st-done_xx{color:var(--green-dot);}
   .hist-dot.st-cancelled{color:var(--muted-fg);}
   .hist-meta{color:var(--ink-soft);font-size:11.5px;margin-top:1px;}
   .note-item{padding:11px 0;border-bottom:1px solid var(--line-soft);}
@@ -432,7 +432,7 @@
   .cal-ev.st-new{background:var(--blue-bg);color:var(--blue);}
   .cal-ev.st-progress{background:var(--orange-bg);color:var(--orange);}
   .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
-  .cal-ev.st-done{background:var(--green-bg);color:var(--green);}
+  .cal-ev.st-done,.cal-ev.st-done_xx{background:var(--green-bg);color:var(--green);}
   .cal-ev.leave{background:var(--yellow-bg);color:var(--yellow);}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
@@ -440,7 +440,7 @@
   .cal-dot.st-new{background:var(--blue-dot);}
   .cal-dot.st-progress{background:var(--orange-dot);}
   .cal-dot.st-waiting{background:var(--red-dot);}
-  .cal-dot.st-done{background:var(--green-dot);}
+  .cal-dot.st-done,.cal-dot.st-done_xx{background:var(--green-dot);}
   .cal-dot.leave{background:var(--yellow-dot);}
   /* Κυριακές & κλειστές μέρες: ελαφρύ κόκκινο φόντο + ✕ στη γωνία */
   .cal-cell.sunday{background:var(--sunday-bg);}
@@ -484,7 +484,7 @@
   .sf-chip.on.st-progress{background:var(--orange-bg);color:var(--orange);}
   .sf-chip.on.st-waiting{background:var(--red-bg);color:var(--red);}
   .sf-chip.on.st-to_invoice{background:var(--red-dot);color:#fff;}
-  .sf-chip.on.st-done{background:var(--green-bg);color:var(--green);}
+  .sf-chip.on.st-done,.sf-chip.on.st-done_xx{background:var(--green-bg);color:var(--green);}
   .sched-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);
     align-items:center;margin-left:auto;}
   .sched-legend span{display:flex;align-items:center;gap:4px;}
@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915e";
+  const APP_BUILD = "20260915f";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -991,13 +991,28 @@
   // owner and reception always see everything (reception dispatches, doesn't do visits).
   const FIELD_ROLES = new Set(["staff", "external"]);
 
-  const STATUS_LABEL = { new:"Νέο", progress:"Σε εξέλιξη", waiting:"Αναμονή", to_invoice:"Προς τιμολόγηση", done:"Τιμολογημένο" };
+  // done_xx (15/09): «Τιμολογημένο ΧΧ» — ίδιο με «Τιμολογημένο» (κλειστή, μετράει
+  // στο ημερολόγιο/στατιστικά ως κλειστή) αλλά ΜΟΝΟ ο διαχειριστής βλέπει/επιλέγει
+  // την ξεχωριστή ετικέτα· σε όλους τους άλλους ρόλους φαίνεται σαν απλό
+  // «Τιμολογημένο» — βλ. maskStatus()/statusLabel() παρακάτω.
+  const STATUS_LABEL = { new:"Νέο", progress:"Σε εξέλιξη", waiting:"Αναμονή", to_invoice:"Προς τιμολόγηση", done:"Τιμολογημένο", done_xx:"Τιμολογημένο ΧΧ" };
   // «Προς τιμολόγηση» θέλει να χτυπάει στο μάτι — είναι λεφτά που περιμένουν
   const STATUS_ICON = { to_invoice:"! " };
-  const CLOSED_STATUSES = new Set(["to_invoice","done"]);
+  const CLOSED_STATUSES = new Set(["to_invoice","done","done_xx"]);
+  // Κρύβει το «done_xx» από όποιον δεν είναι owner — του δείχνει «done» αντ' αυτού.
+  // Η ΠΡΑΓΜΑΤΙΚΗ τιμή στη βάση δεν αλλάζει (χρησιμοποιείται μόνο για την οθόνη) —
+  // CLOSED_STATUSES/isStaleTicket κ.λπ. συνεχίζουν να δουλεύουν σωστά στην πραγματική τιμή.
+  function maskStatus(status){
+    return (status === "done_xx" && !(PROFILE && PROFILE.role === "owner")) ? "done" : status;
+  }
+  function statusLabel(status){
+    const s = maskStatus(status);
+    return STATUS_LABEL[s] || s;
+  }
   function statusPillHtml(status, extraStyle){
     // το θαυμαστικό του «Προς τιμολόγηση» το βάζει το CSS (.status-pill.st-to_invoice::before)
-    return `<span class="status-pill st-${status}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[status] || status}</span>`;
+    const s = maskStatus(status);
+    return `<span class="status-pill st-${s}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[s] || s}</span>`;
   }
   // Ο πελάτης δεν βλέπει εσωτερική ορολογία τιμολόγησης («Προς τιμολόγηση» /
   // «Τιμολογημένο») — από τη στιγμή που ο τεχνικός βάλει «Προς τιμολόγηση», ο
@@ -1813,12 +1828,12 @@
 
     const [clientsRes, openTicketsRes, upcomingRes, urgentRes, upcomingCountRes] = await Promise.all([
       sb.from("clients").select("id", { count: "exact", head: true }),
-      sb.from("tickets_view").select("id, priority, created_at").neq("status","done"),
+      sb.from("tickets_view").select("id, priority, created_at").neq("status","done").neq("status","done_xx"),
       sb.from("tickets_view").select("id, code, title, scheduled_date, scheduled_time, clients(name)")
         .not("scheduled_date","is",null).gte("scheduled_date", today).lte("scheduled_date", in7)
         .order("scheduled_date").order("scheduled_time").limit(8),
       sb.from("tickets_view").select("id, code, title, clients(name)")
-        .eq("priority","urgent").neq("status","done")
+        .eq("priority","urgent").neq("status","done").neq("status","done_xx")
         .order("created_at",{ ascending:false }).limit(8),
       // ξεχωριστή καταμέτρηση: η λίστα από κάτω δείχνει 8, ο αριθμός στο πλακίδιο όμως
       // πρέπει να λέει ΠΟΣΕΣ είναι πραγματικά
@@ -2060,7 +2075,7 @@
       : `
         <div class="vlog-row" data-ticket-id="${mostRecentTicket.id}" style="cursor:pointer;">
           <strong>${escapeHtml(mostRecentTicket.code)}</strong> — ${escapeHtml(mostRecentTicket.title)}
-          <div class="vlog-who">${STATUS_LABEL[mostRecentTicket.status] || mostRecentTicket.status} · ${new Date(mostRecentTicket.created_at).toLocaleDateString("el-GR")}</div>
+          <div class="vlog-who">${statusLabel(mostRecentTicket.status)} · ${new Date(mostRecentTicket.created_at).toLocaleDateString("el-GR")}</div>
         </div>
         ${olderTickets.length ? `
         <select id="client-older-tickets" style="margin-top:8px;width:100%;">
@@ -2544,7 +2559,10 @@
     if (clientFilterWrap) clientFilterWrap.classList.toggle("hidden", !showClientFilter || !!TICKET_CLIENT_FILTER);
     if (clientFilterActive) clientFilterActive.classList.toggle("hidden", !showClientFilter || !TICKET_CLIENT_FILTER);
     let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name, trade_name)").order("created_at", { ascending:false });
-    if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
+    // Το φίλτρο «Τιμολογημένο» δείχνει και τα «done_xx» (Τιμολογημένο ΧΧ) —
+    // αλλιώς θα εξαφανίζονταν από τη λίστα εκτός του «Όλα» για όποιον τα βλέπει.
+    if (TICKET_STATUS_FILTER === "done") q = q.in("status", ["done", "done_xx"]);
+    else if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (showClientFilter && TICKET_CLIENT_FILTER) q = q.eq("client_id", TICKET_CLIENT_FILTER.id);
     if (PROFILE && FIELD_ROLES.has(PROFILE.role)) {
       const extraIds = await myExtraTicketIds();
@@ -2644,6 +2662,7 @@
           <div class="field"><label>${portalMode ? "Προτιμώμενη ημ/νία" : "Ημερομηνία επίσκεψης (μπαίνει στο ημερολόγιο)"}</label><input type="date" id="tk-pref-date"></div>
         </div>
         ${portalMode ? "" : `
+        <div class="field"><label>Ώρα επίσκεψης (προαιρετικό)</label><input type="time" id="tk-pref-time"></div>
         <div class="field"><label>Ανάθεση σε</label>
           <select id="tk-new-assigned">
             <option value="">— Χωρίς ανάθεση, θα το κάνω μετά —</option>
@@ -2767,6 +2786,7 @@
         // drawer της βλάβης).
         preferred_date: portalMode ? ($("#tk-pref-date").value || null) : null,
         scheduled_date: portalMode ? null : ($("#tk-pref-date").value || null),
+        scheduled_time: portalMode ? null : ($("#tk-pref-time").value || null),
         status: "new",
         // a Τεχνικός/Εξωτερικός συνεργάτης who creates a ticket gets it auto-assigned to
         // themselves, so it shows up right away in their own filtered ticket list —
@@ -2854,8 +2874,8 @@
              const when = new Date(h.changed_at).toLocaleString("el-GR", {
                day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
              const label = h.from_status
-               ? `${STATUS_LABEL[h.from_status] || h.from_status} → ${STATUS_LABEL[h.to_status] || h.to_status}`
-               : `Καταχωρήθηκε (${STATUS_LABEL[h.to_status] || h.to_status})`;
+               ? `${statusLabel(h.from_status)} → ${statusLabel(h.to_status)}`
+               : `Καταχωρήθηκε (${statusLabel(h.to_status)})`;
              return `<div class="hist-row">
                <span class="hist-dot st-${h.to_status}"></span>
                <div class="hist-main"><strong>${escapeHtml(label)}</strong>
@@ -2883,7 +2903,13 @@
       <div class="form-row">
         <div class="field"><label>Κατάσταση</label>
           <select id="tk-status-sel">
-            ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${t.status===k?"selected":""}>${l}</option>`).join("")}
+            ${Object.entries(STATUS_LABEL)
+              // «Τιμολογημένο ΧΧ» επιλέγεται μόνο από τον διαχειριστή — αλλά αν η βλάβη
+              // είναι ΗΔΗ σε αυτή την κατάσταση, μένει στη λίστα (με κρυμμένη/μασκαρισμένη
+              // ετικέτα) ώστε να μην αλλάζει κατάσταση από μόνη της όταν κάποιος άλλος
+              // αποθηκεύσει τη φόρμα χωρίς να την αγγίξει.
+              .filter(([k]) => k !== "done_xx" || isOwner || t.status === "done_xx")
+              .map(([k,l]) => `<option value="${k}" ${t.status===k?"selected":""}>${(k === "done_xx" && !isOwner) ? STATUS_LABEL.done : l}</option>`).join("")}
           </select>
         </div>
         <div class="field ${isFieldRole ? "hidden" : ""}"><label>Προτεραιότητα</label>
@@ -3344,7 +3370,10 @@
     // φίλτρο κατάστασης βλάβης: κανένα επιλεγμένο = δείξε τα πάντα
     const statusBox = $("#sched-filter-status");
     if (statusBox.dataset.built !== "1") {
-      statusBox.innerHTML = Object.entries(STATUS_LABEL).map(([k, l]) =>
+      // «Τιμολογημένο ΧΧ» ως ξεχωριστό φίλτρο μόνο για τον διαχειριστή.
+      statusBox.innerHTML = Object.entries(STATUS_LABEL)
+        .filter(([k]) => k !== "done_xx" || (PROFILE && PROFILE.role === "owner"))
+        .map(([k, l]) =>
         `<button type="button" class="sf-chip st-${k}" data-status="${k}">${(STATUS_ICON[k] || "") + l}</button>`).join("");
       statusBox.addEventListener("click", (e) => {
         const chip = e.target.closest("[data-status]");
@@ -3898,7 +3927,7 @@
     const year = new Date().getFullYear();
     const [leaveRes, ticketsRes] = await Promise.all([
       sb.from("leave_requests").select("*"),
-      sb.from("tickets_view").select("assigned_to").neq("status","done")
+      sb.from("tickets_view").select("assigned_to").neq("status","done").neq("status","done_xx")
     ]);
     if (leaveRes.error) { showMsg($("#technicians-msg"), "Σφάλμα φόρτωσης: " + leaveRes.error.message, "error"); return; }
     const leaves = leaveRes.data || [];
@@ -3949,7 +3978,7 @@
     const [leaveRes, ticketsRes] = await Promise.all([
       sb.from("leave_requests").select("*").eq("tech_id", techId).order("start_date", { ascending:false }),
       sb.from("tickets_view").select("id, code, title, status, scheduled_date, clients(name)")
-        .eq("assigned_to", techId).neq("status","done").order("created_at", { ascending:false })
+        .eq("assigned_to", techId).neq("status","done").neq("status","done_xx").order("created_at", { ascending:false })
     ]);
     const leaves = leaveRes.data || [];
     const jobs = ticketsRes.data || [];
@@ -4009,7 +4038,7 @@
         : jobs.map(t => `
           <div class="vlog-row" data-job="${t.id}" style="cursor:pointer;">
             <strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong> — ${escapeHtml(t.title)}
-            <div class="vlog-who">${escapeHtml(t.code)} · ${STATUS_LABEL[t.status] || t.status}${t.scheduled_date ? " · επίσκεψη " + t.scheduled_date.split("-").reverse().slice(0,2).join("/") : ""}</div>
+            <div class="vlog-who">${escapeHtml(t.code)} · ${statusLabel(t.status)}${t.scheduled_date ? " · επίσκεψη " + t.scheduled_date.split("-").reverse().slice(0,2).join("/") : ""}</div>
           </div>`).join("")}</div>
     `);
 
