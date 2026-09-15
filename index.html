@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915c";
+  const APP_BUILD = "20260915d";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1993,14 +1993,18 @@
     let ticketCount = 0;
     let clientTickets = [];
     let contracts = [];
-    // Νέος πελάτης: μπορεί να συνδεθεί κατευθείαν με έναν χρήστη που έχει ήδη
-    // κάνει εγγραφή μόνος του (role='client', χωρίς ακόμα καρτέλα πελάτη) —
+    // Σύνδεση με χρήστη που έχει ήδη κάνει εγγραφή μόνος του (role='client') —
     // γλιτώνει το χειροκίνητο αντιγράφω-στοιχεία-και-μετά-πήγαινε-σύνδεσε-τον
-    // στους Χρήστες που περιγράφει το schema_v18.
+    // στους Χρήστες που περιγράφει το schema_v18. Αρχικά ήταν μόνο στη
+    // δημιουργία νέου πελάτη· από 15/09 διαθέσιμο και σε υπάρχοντα πελάτη,
+    // ώστε να μπορείς να συνδέσεις (ή να αλλάξεις/αφαιρέσεις τη σύνδεση) και
+    // σε καρτέλες που υπήρχαν ήδη πριν φτιαχτεί αυτή η δυνατότητα.
     let unlinkedClientUsers = [];
-    if (!clientId) {
-      if (USERS_CACHE.length === 0) await loadUsers();
-      unlinkedClientUsers = USERS_CACHE.filter(u => u.role === "client" && !u.client_id && !u.deleted_at);
+    let linkedUser = null; // ο χρήστης ήδη συνδεδεμένος με ΑΥΤΟΝ τον πελάτη (μόνο σε edit)
+    if (USERS_CACHE.length === 0) await loadUsers();
+    unlinkedClientUsers = USERS_CACHE.filter(u => u.role === "client" && !u.client_id && !u.deleted_at);
+    if (clientId) {
+      linkedUser = USERS_CACHE.find(u => u.client_id === clientId && !u.deleted_at) || null;
     }
     if (clientId) {
       const { data } = await sb.from("clients").select("*").eq("id", clientId).single();
@@ -2065,19 +2069,23 @@
         </select>` : ""}
       `;
 
-    // Σύνδεση με ήδη-εγγεγραμμένο χρήστη — μόνο στη δημιουργία νέου πελάτη.
-    // Το εικονίδιο 🔍 ανοίγει πάνελ αναζήτησης με όνομα/ΑΦΜ/email/επωνυμία,
+    // Σύνδεση με ήδη-εγγεγραμμένο χρήστη — αρχικά μόνο στη δημιουργία νέου
+    // πελάτη, από 15/09 και σε υπάρχοντα πελάτη (βλ. σχόλιο παραπάνω). Το
+    // εικονίδιο 🔍 ανοίγει πάνελ αναζήτησης με όνομα/ΑΦΜ/email/επωνυμία,
     // ίδιο μοτίβο με την αναζήτηση πελάτη στο «Νέο αίτημα».
-    const userLinkHtml = !clientId ? `
-      <div class="field"><label>Χρήστης (προαιρετικό)</label>
+    const userLinkHtml = `
+      <div class="field"><label>Συνδεδεμένος χρήστης (προαιρετικό)</label>
         <div style="display:flex;gap:8px;">
           <select id="cl-user-link" style="flex:1;">
             <option value="">— Χωρίς σύνδεση με χρήστη —</option>
+            ${linkedUser ? `<option value="${linkedUser.id}" selected>${escapeHtml(linkedUser.full_name || linkedUser.email || "—")} (${escapeHtml(linkedUser.email || "")})</option>` : ""}
             ${unlinkedClientUsers.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email || "—")} (${escapeHtml(u.email || "")})</option>`).join("")}
           </select>
           <button type="button" class="btn-ghost btn-sm" id="cl-user-search-btn" style="flex:none;" title="Αναζήτηση χρήστη (όνομα/ΑΦΜ/email/επωνυμία)" aria-label="Αναζήτηση χρήστη">🔍</button>
         </div>
-        <p class="cell-sub" style="margin:4px 0 0;">Αν έχει ήδη κάνει εγγραφή, διάλεξέ τον εδώ — συμπληρώνονται αυτόματα τα στοιχεία του και συνδέεται ο λογαριασμός του με αυτή την καρτέλα.</p>
+        <p class="cell-sub" style="margin:4px 0 0;">${clientId
+          ? "Ο λογαριασμός που θα διαλέξεις εδώ βλέπει το portal του σαν αυτόν τον πελάτη — η αλλαγή/αφαίρεση της σύνδεσης δεν πειράζει τα στοιχεία της καρτέλας. Αν έχει ήδη κάνει εγγραφή μόνος του, διάλεξέ τον εδώ."
+          : "Αν έχει ήδη κάνει εγγραφή, διάλεξέ τον εδώ — συμπληρώνονται αυτόματα τα στοιχεία του και συνδέεται ο λογαριασμός του με αυτή την καρτέλα."}</p>
       </div>
       <div id="cl-user-search-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
         <p class="cell-sub" style="margin:0 0 8px;">Γράψε σε ένα ή περισσότερα πεδία — τα κριτήρια συνδυάζονται.</p>
@@ -2090,7 +2098,7 @@
           <div class="field"><label>Επωνυμία</label><input id="clu-company"></div>
         </div>
         <div id="cl-user-search-results"></div>
-      </div>` : "";
+      </div>`;
 
     openDrawer(clientId ? "Στοιχεία πελάτη" : "Νέος πελάτης", `
       <form id="client-form">
@@ -2227,12 +2235,15 @@
       $("#cl-trade-field").classList.toggle("hidden", !isCompany);
     });
 
-    // Σύνδεση με χρήστη (μόνο νέος πελάτης): επιλογή από dropdown ή αναζήτηση,
-    // συμπληρώνει αυτόματα τη φόρμα από τα signup_* στοιχεία του λογαριασμού.
+    // Σύνδεση με χρήστη: επιλογή από dropdown ή αναζήτηση. Στη δημιουργία
+    // νέου πελάτη συμπληρώνει επιπλέον αυτόματα τη φόρμα από τα signup_*
+    // στοιχεία του λογαριασμού — σε υπάρχοντα πελάτη (15/09) η επιλογή ΜΟΝΟ
+    // συνδέει τον λογαριασμό, δεν αγγίζει τα ήδη καταχωρημένα στοιχεία του.
     // full_name δεν είναι χωρισμένο σε όνομα/επώνυμο στη βάση — γίνεται best-effort
     // σπάσιμο εδώ μόνο για ιδιώτες, ο owner διορθώνει αν χρειάζεται.
-    if (!clientId) {
+    {
       function applyUserToClientForm(userId){
+        if (clientId) return; // υπάρχων πελάτης: μόνο σύνδεση, καμία αυτόματη συμπλήρωση
         const u = unlinkedClientUsers.find(x => x.id === userId);
         if (!u) return;
         const isCompany = !!(u.signup_company_name && u.signup_company_name.trim());
@@ -2408,13 +2419,21 @@
         });
         if (sideErr) sideError = "Η απομακρυσμένη πρόσβαση/συμβάσεις δεν αποθηκεύτηκαν: " + sideErr.message;
 
-        // Σύνδεση με χρήστη — μόνο στη δημιουργία νέου πελάτη (το πεδίο δεν
-        // υπάρχει καν στη φόρμα επεξεργασίας υπάρχοντος πελάτη).
-        const linkUserId = !clientId && $("#cl-user-link") ? $("#cl-user-link").value : "";
-        if (linkUserId) {
-          const { error: linkErr } = await sb.from("profiles").update({ client_id: savedId }).eq("id", linkUserId);
-          if (linkErr) sideError = (sideError ? sideError + " " : "") + "Ο λογαριασμός χρήστη δεν συνδέθηκε: " + linkErr.message;
-          else await loadUsers();
+        // Σύνδεση με χρήστη — πλέον διαθέσιμη ΚΑΙ σε υπάρχοντα πελάτη, όχι μόνο
+        // σε νέο (15/09). Συγκρίνουμε με τον ήδη συνδεδεμένο (αν υπήρχε) ώστε
+        // να αλλάξουμε/αφαιρέσουμε τη σύνδεση χωρίς να πειράξουμε τίποτα άλλο.
+        const newLinkUserId = $("#cl-user-link") ? $("#cl-user-link").value : "";
+        const oldLinkUserId = linkedUser ? linkedUser.id : "";
+        if (newLinkUserId !== oldLinkUserId) {
+          if (oldLinkUserId) {
+            const { error: unlinkErr } = await sb.from("profiles").update({ client_id: null }).eq("id", oldLinkUserId);
+            if (unlinkErr) sideError = (sideError ? sideError + " " : "") + "Η προηγούμενη σύνδεση χρήστη δεν αφαιρέθηκε: " + unlinkErr.message;
+          }
+          if (newLinkUserId) {
+            const { error: linkErr } = await sb.from("profiles").update({ client_id: savedId }).eq("id", newLinkUserId);
+            if (linkErr) sideError = (sideError ? sideError + " " : "") + "Ο λογαριασμός χρήστη δεν συνδέθηκε: " + linkErr.message;
+          }
+          await loadUsers();
         }
       }
       if (sideError) {
