@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915";
+  const APP_BUILD = "20260915b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2577,6 +2577,7 @@
             ${CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
           </select>
           <button type="button" class="btn-ghost btn-sm" id="tk-client-search-btn" style="flex:none;" title="Αναζήτηση πελάτη (ΑΦΜ/επωνυμία/διακριτικός τίτλος/τηλέφωνο)" aria-label="Αναζήτηση πελάτη">🔍</button>
+          <button type="button" class="btn-ghost btn-sm" id="tk-client-new-btn" style="flex:none;" title="Προσθήκη νέου πελάτη" aria-label="Νέος πελάτης">➕</button>
         </div>
       </div>
       <div id="tk-client-search-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
@@ -2590,6 +2591,20 @@
           <div class="field"><label>Τηλέφωνο</label><input id="tks-phone"></div>
         </div>
         <div id="tk-client-search-results"></div>
+      </div>
+      <div id="tk-client-new-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
+        <p class="cell-sub" style="margin:0 0 8px;">Γρήγορη καταχώρηση νέου πελάτη — τα υπόλοιπα στοιχεία (ΑΦΜ, διεύθυνση, συμβάσεις κ.λπ.) τα συμπληρώνεις μετά, από την καρτέλα του στους Πελάτες.</p>
+        <div id="tknc-msg"></div>
+        <div class="field"><label>Επωνυμία *</label><input id="tknc-name"></div>
+        <div class="form-row">
+          <div class="field"><label>Τηλέφωνο</label><input id="tknc-phone"></div>
+          <div class="field"><label>Πόλη</label><input id="tknc-city"></div>
+        </div>
+        <div class="field"><label>Email</label><input type="email" id="tknc-email"></div>
+        <div class="form-row" style="margin-top:4px;">
+          <span></span>
+          <button type="button" class="btn-primary btn-sm" id="tknc-save">Δημιουργία πελάτη</button>
+        </div>
       </div>`;
     openDrawer("Νέα βλάβη", `
       <form id="new-ticket-form">
@@ -2659,12 +2674,50 @@
         });
       }
       $("#tk-client-search-btn").addEventListener("click", () => {
+        $("#tk-client-new-panel").classList.add("hidden");
         const panel = $("#tk-client-search-panel");
         panel.classList.toggle("hidden");
         if (!panel.classList.contains("hidden")) renderClientSearchResults();
       });
       ["#tks-vat", "#tks-name", "#tks-trade", "#tks-phone"].forEach(sel => {
         $(sel).addEventListener("input", renderClientSearchResults);
+      });
+
+      // Γρήγορη προσθήκη νέου πελάτη χωρίς να φύγουμε από τη φόρμα «Νέα βλάβη» —
+      // μόνο επωνυμία/τηλέφωνο/πόλη/email εδώ, τα υπόλοιπα (ΑΦΜ, διεύθυνση,
+      // συμβάσεις κ.λπ.) συμπληρώνονται μετά από την πλήρη καρτέλα πελάτη.
+      $("#tk-client-new-btn").addEventListener("click", () => {
+        $("#tk-client-search-panel").classList.add("hidden");
+        $("#tk-client-new-panel").classList.toggle("hidden");
+      });
+      $("#tknc-save").addEventListener("click", async () => {
+        const name = $("#tknc-name").value.trim();
+        if (!name) { showMsg($("#tknc-msg"), "Συμπλήρωσε επωνυμία.", "error"); return; }
+        const btn = $("#tknc-save");
+        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
+        const payload = {
+          name,
+          entity_type: "individual",
+          type: "Άλλο",
+          phone: $("#tknc-phone").value.trim() || null,
+          city: $("#tknc-city").value.trim() || null,
+          email: $("#tknc-email").value.trim() || null,
+        };
+        const { data, error } = await sb.from("clients").insert(payload).select("id").single();
+        if (error) {
+          btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
+          showMsg($("#tknc-msg"), "Σφάλμα: " + error.message, "error");
+          return;
+        }
+        await loadClients();
+        const sel = $("#tk-client");
+        sel.innerHTML = `<option value="">— Επιλογή πελάτη —</option>` +
+          CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+        sel.value = data.id;
+        btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
+        $("#tk-client-new-panel").classList.add("hidden");
+        ["#tknc-name", "#tknc-phone", "#tknc-city", "#tknc-email"].forEach(s => { $(s).value = ""; });
+        clearMsg($("#tknc-msg"));
       });
     }
 
