@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915d";
+  const APP_BUILD = "20260915e";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2543,7 +2543,7 @@
     const showClientFilter = !!PROFILE;
     if (clientFilterWrap) clientFilterWrap.classList.toggle("hidden", !showClientFilter || !!TICKET_CLIENT_FILTER);
     if (clientFilterActive) clientFilterActive.classList.toggle("hidden", !showClientFilter || !TICKET_CLIENT_FILTER);
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name)").order("created_at", { ascending:false });
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name, trade_name)").order("created_at", { ascending:false });
     if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (showClientFilter && TICKET_CLIENT_FILTER) q = q.eq("client_id", TICKET_CLIENT_FILTER.id);
     if (PROFILE && FIELD_ROLES.has(PROFILE.role)) {
@@ -2569,7 +2569,7 @@
     tbody.innerHTML = data.map(t => `
       <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td><strong>${escapeHtml(t.clients ? t.clients.name : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div></td>
+        <td><strong>${escapeHtml(t.clients ? (t.clients.trade_name || t.clients.name) : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div></td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
         <td>${statusPillHtml(t.status)}</td>
       </tr>`).join("");
@@ -2641,14 +2641,14 @@
               <option value="low">Χαμηλή</option>
             </select>
           </div>
-          <div class="field"><label>Προτιμώμενη ημ/νία</label><input type="date" id="tk-pref-date"></div>
+          <div class="field"><label>${portalMode ? "Προτιμώμενη ημ/νία" : "Ημερομηνία επίσκεψης (μπαίνει στο ημερολόγιο)"}</label><input type="date" id="tk-pref-date"></div>
         </div>
         ${portalMode ? "" : `
-        <div class="field"><label>Ανάθεση σε τεχνικό</label>
+        <div class="field"><label>Ανάθεση σε</label>
           <select id="tk-new-assigned">
             <option value="">— Χωρίς ανάθεση, θα το κάνω μετά —</option>
-            ${STAFF_USERS_CACHE.filter(u => FIELD_ROLES.has(u.role))
-              .map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("")}
+            ${STAFF_USERS_CACHE
+              .map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})</option>`).join("")}
           </select>
         </div>`}
         <div class="drawer-foot" style="margin:22px -22px -20px;">
@@ -2757,7 +2757,16 @@
         description: $("#tk-desc").value.trim() || null,
         opening_note: $("#tk-note").value.trim() || null,
         priority: $("#tk-priority").value,
-        preferred_date: $("#tk-pref-date").value || null,
+        // 15/09: όταν βάζει ημερομηνία το ΠΡΟΣΩΠΙΚΟ (owner/reception/τεχνικός/
+        // συνεργάτης) κατά τη δημιουργία, μπαίνει κατευθείαν στο ημερολόγιο
+        // (scheduled_date -> calendar_date, trigger schema_v22) — δεν χρειάζεται
+        // να ξανανοίξει τη βλάβη για να την προγραμματίσει. Όταν την καταχωρεί ο
+        // ΠΕΛΑΤΗΣ από το portal, η ημερομηνία μένει ΜΟΝΟ ως πρόταση
+        // (preferred_date) — δεν μπαίνει μόνη της στο ημερολόγιο, περιμένει να
+        // την προγραμματίσει το κατάστημα (βλ. «Προτιμώμενη ημ/νία πελάτη» στο
+        // drawer της βλάβης).
+        preferred_date: portalMode ? ($("#tk-pref-date").value || null) : null,
+        scheduled_date: portalMode ? null : ($("#tk-pref-date").value || null),
         status: "new",
         // a Τεχνικός/Εξωτερικός συνεργάτης who creates a ticket gets it auto-assigned to
         // themselves, so it shows up right away in their own filtered ticket list —
@@ -2782,7 +2791,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -2920,7 +2929,7 @@
 
     openDrawer(t.code, `
       <div id="tk-msg"></div>
-      <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients ? t.clients.name : "")}</strong> ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
+      <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
