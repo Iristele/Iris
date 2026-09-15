@@ -966,7 +966,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915b";
+  const APP_BUILD = "20260915c";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2763,7 +2763,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -2902,6 +2902,7 @@
     openDrawer(t.code, `
       <div id="tk-msg"></div>
       <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients ? t.clients.name : "")}</strong> ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
+      ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
       ${t.opening_note ? `<div style="font-size:13px;white-space:pre-wrap;background:var(--tile-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px;">
