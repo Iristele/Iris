@@ -295,6 +295,10 @@
   tbody tr:hover{background:var(--surface-2);}
   tbody tr:last-child td{border-bottom:none;}
   .cell-sub{color:var(--ink-soft);font-size:12px;margin-top:2px;}
+  /* σειρά επισκέψεων ανά μέρα/τεχνικό (schema_v31) — κουμπάκια ▲▼, Βλάβες + Πρόγραμμα */
+  .visit-order-row{display:flex;align-items:center;gap:6px;margin-top:4px;}
+  .order-btn{padding:2px 7px;font-size:11px;line-height:1.4;}
+  .order-btn:disabled{opacity:.3;cursor:default;}
 
   /* ---- ετικέτες κατάστασης: μικρό γεμάτο ορθογώνιο με τελεία, όχι μεγάλο «χάπι» ---- */
   .status-pill,.prio-pill{display:inline-flex;align-items:center;gap:5px;
@@ -467,6 +471,7 @@
   .sched-time{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);min-width:78px;}
   .sched-info{flex:1;font-size:13.5px;min-width:0;}
   .sched-tech{font-size:12px;color:var(--ink-soft);}
+  .sched-order{display:flex;gap:4px;flex:none;}
   .sched-leave{background:var(--yellow-bg);border-color:transparent;}
   .sched-leave .sched-info strong{color:var(--yellow);}
   /* γραμμή φίλτρων: σε κινητό το υπόμνημα πέφτει σε δική του σειρά αντί να κόβεται δεξιά */
@@ -966,7 +971,7 @@
   // παρακάτω συγκρίνει αντ' αυτού το APP_BUILD με το "build" του version.json —
   // ένα εσωτερικό αναγνωριστικό ανά deploy, αόρατο στον χρήστη. Άλλαξε ΚΑΙ τα δύο
   // (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy.
-  const APP_BUILD = "20260915f";
+  const APP_BUILD = "20260916";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2471,7 +2476,10 @@
          <input id="tkf-client-input" type="search" placeholder="🔍 Φίλτρο πελάτη — γράψε για αναζήτηση" style="width:100%;">
          <div id="tkf-client-results" class="hidden" style="margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--tile-bg);max-height:220px;overflow:auto;"></div>
        </div>
-       <div id="tkf-client-active" class="chip active hidden" style="cursor:default;">Πελάτης: <strong id="tkf-client-active-name"></strong> <span id="tkf-client-clear" style="cursor:pointer;margin-left:6px;" title="Καθαρισμός φίλτρου">✕</span></div>`;
+       <div id="tkf-client-active" class="chip active hidden" style="cursor:default;">Πελάτης: <strong id="tkf-client-active-name"></strong> <span id="tkf-client-clear" style="cursor:pointer;margin-left:6px;" title="Καθαρισμός φίλτρου">✕</span></div>
+       <select id="tkf-assignee" class="hidden" style="font-size:13px;max-width:210px;width:auto;">
+         <option value="">Ανάθεση σε — Όλοι</option>
+       </select>`;
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
     if (!chip) return;
@@ -2524,6 +2532,43 @@
     loadTickets();
   });
 
+  // Φίλτρο «Ανάθεση σε» (owner/reception μόνο — 16/09): δείχνει ΜΟΝΟ τις βλάβες
+  // ενός συγκεκριμένου τεχνικού/συνεργάτη/owner (κύριος ΑΝΑΘΕΣΗ ή επιπλέον
+  // τεχνικός, ίδιο μοτίβο με «δικές μου» του schema_v29). Όταν είναι ενεργό,
+  // η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (βλ. loadTickets) ώστε
+  // να φαίνεται η ΣΕΙΡΑ που θα κάνει τις επισκέψεις εκείνη τη μέρα.
+  let TICKET_ASSIGNEE_FILTER = null; // staff/tech/owner id, ή null = όλοι
+  $("#tkf-assignee").addEventListener("change", () => {
+    TICKET_ASSIGNEE_FILTER = $("#tkf-assignee").value || null;
+    loadTickets();
+  });
+
+  // Ίδια συνάρτηση με το myExtraTicketIds() παρακάτω, αλλά γενική για
+  // ΟΠΟΙΟΝΔΗΠΟΤΕ τεχνικό — τη χρησιμοποιεί και το φίλτρο «Ανάθεση σε».
+  async function extraTicketIdsFor(techId){
+    const { data } = await sb.from("ticket_technicians").select("ticket_id").eq("technician_id", techId);
+    return (data || []).map(r => r.ticket_id);
+  }
+
+  // Αλλαγή σειράς επισκέψεων μέσα σε μία μέρα (schema_v31) — owner/reception
+  // μόνο (το guard_ticket_fields() το επιβάλλει ΚΑΙ στη βάση, ανεξάρτητα από
+  // το τι δείχνει η οθόνη). «orderedIds» είναι τα ids των βλαβών της ίδιας
+  // μέρας/τεχνικού με τη ΣΕΙΡΑ που φαίνονται τώρα· τα ξαναγράφουμε όλα σαν
+  // 0..ν-1 ώστε η σειρά να είναι πάντα καθορισμένη — δεν μένει ποτέ σενάριο με
+  // «ίσα visit_order» ή «όλα null» που θα μπέρδευε την επόμενη μετακίνηση.
+  // Χρησιμοποιείται ΚΑΙ από τις Βλάβες ΚΑΙ από το Πρόγραμμα.
+  async function moveVisitOrder(orderedIds, ticketId, direction){
+    const ids = orderedIds.slice();
+    const idx = ids.indexOf(ticketId);
+    const swapIdx = idx + direction;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= ids.length) return false;
+    [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
+    for (let i = 0; i < ids.length; i++) {
+      await sb.from("tickets").update({ visit_order: i }).eq("id", ids[i]);
+    }
+    return true;
+  }
+
   // ΞΕΧΑΣΜΕΝΕΣ ΒΛΑΒΕΣ: ανοιχτό αίτημα πάνω από μία εβδομάδα. Δεν υπάρχει κουμπί
   // «το είδα» ή «αναβολή» επίτηδες — η ένδειξη φεύγει μόνο όταν η βλάβη κλείσει
   // ή ακυρωθεί, ώστε να μη γίνει κάτι που αγνοείται με ένα κλικ.
@@ -2545,12 +2590,17 @@
   // δεν θα έβλεπε καν στη δική του λίστα κάτι στο οποίο έχει πρόσβαση μέσω RLS.
   async function myExtraTicketIds(){
     if (!PROFILE || !FIELD_ROLES.has(PROFILE.role)) return [];
-    const { data } = await sb.from("ticket_technicians").select("ticket_id").eq("technician_id", USER.id);
-    return (data || []).map(r => r.ticket_id);
+    return extraTicketIdsFor(USER.id);
+  }
+
+  function shortDate(dateStr){
+    return new Date(dateStr + "T00:00:00").toLocaleDateString("el-GR", { day:"numeric", month:"short" });
   }
 
   async function loadTickets(){
     if (CLIENTS_CACHE.length === 0) await loadClients();
+    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
+    const isFieldRole = PROFILE && FIELD_ROLES.has(PROFILE.role);
     const clientFilterWrap = $("#tkf-client-wrap"), clientFilterActive = $("#tkf-client-active");
     // 15/09: ο τεχνικός/συνεργάτης βλέπει κι αυτός το φίλτρο πλέον — φιλτράρει
     // ΜΕΣΑ στις δικές του βλάβες (το φίλτρο "assigned_to/extra techs" παρακάτω
@@ -2558,22 +2608,44 @@
     const showClientFilter = !!PROFILE;
     if (clientFilterWrap) clientFilterWrap.classList.toggle("hidden", !showClientFilter || !!TICKET_CLIENT_FILTER);
     if (clientFilterActive) clientFilterActive.classList.toggle("hidden", !showClientFilter || !TICKET_CLIENT_FILTER);
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, clients(name, trade_name)").order("created_at", { ascending:false });
+    // Φίλτρο «Ανάθεση σε» — μόνο owner/reception (16/09), ίδιο μοτίβο με το
+    // φίλτρο τεχνικού του Προγράμματος.
+    const assigneeSelect = $("#tkf-assignee");
+    assigneeSelect.classList.toggle("hidden", isFieldRole);
+    if (!isFieldRole && assigneeSelect.dataset.populated !== "1") {
+      assigneeSelect.innerHTML = '<option value="">Ανάθεση σε — Όλοι</option>' +
+        STAFF_USERS_CACHE.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})</option>`).join("");
+      assigneeSelect.dataset.populated = "1";
+      assigneeSelect.value = TICKET_ASSIGNEE_FILTER || "";
+    }
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, clients(name, trade_name)");
+    // Σειρά: όταν βλέπουμε τις βλάβες ΕΝΟΣ τεχνικού (είτε γιατί είσαι εσύ ο
+    // τεχνικός, είτε γιατί ο owner/reception διάλεξε κάποιον από το «Ανάθεση
+    // σε»), η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (visit_order,
+    // schema_v31) ώστε να φαίνεται η ΣΕΙΡΑ επισκέψεων της ημέρας — αλλιώς
+    // (γενική λίστα, «Όλοι») μένει η παλιά ταξινόμηση, πιο πρόσφατη πρώτη.
+    const singleTechView = isFieldRole || (!isFieldRole && !!TICKET_ASSIGNEE_FILTER);
+    q = singleTechView
+      ? q.order("scheduled_date", { ascending:true, nullsFirst:false }).order("visit_order", { ascending:true, nullsFirst:false }).order("created_at", { ascending:false })
+      : q.order("created_at", { ascending:false });
     // Το φίλτρο «Τιμολογημένο» δείχνει και τα «done_xx» (Τιμολογημένο ΧΧ) —
     // αλλιώς θα εξαφανίζονταν από τη λίστα εκτός του «Όλα» για όποιον τα βλέπει.
     if (TICKET_STATUS_FILTER === "done") q = q.in("status", ["done", "done_xx"]);
     else if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (showClientFilter && TICKET_CLIENT_FILTER) q = q.eq("client_id", TICKET_CLIENT_FILTER.id);
-    if (PROFILE && FIELD_ROLES.has(PROFILE.role)) {
+    if (isFieldRole) {
       const extraIds = await myExtraTicketIds();
       q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
+    } else if (TICKET_ASSIGNEE_FILTER) {
+      const extraIds = await extraTicketIdsFor(TICKET_ASSIGNEE_FILTER);
+      q = extraIds.length ? q.or(`assigned_to.eq.${TICKET_ASSIGNEE_FILTER},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", TICKET_ASSIGNEE_FILTER);
     }
     const { data, error } = await q;
     const tbody = $("#tickets-tbody");
     if (error) { showMsg($("#tickets-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     clearMsg($("#tickets-msg"));
     if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${PROFILE && FIELD_ROLES.has(PROFILE.role) ? "Δεν έχεις ανατεθειμένες εργασίες σε αυτή την κατηγορία." : "Δεν υπάρχουν βλάβες σε αυτή την κατηγορία."}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${isFieldRole ? "Δεν έχεις ανατεθειμένες εργασίες σε αυτή την κατηγορία." : "Δεν υπάρχουν βλάβες σε αυτή την κατηγορία."}</div></td></tr>`;
       return;
     }
     const staleCount = data.filter(isStaleTicket).length;
@@ -2584,16 +2656,43 @@
         ? "⚠ 1 βλάβη είναι ανοιχτή πάνω από μία εβδομάδα."
         : `⚠ ${staleCount} βλάβες είναι ανοιχτές πάνω από μία εβδομάδα.`;
     }
-    tbody.innerHTML = data.map(t => `
+    // Κουμπάκια ▲▼ σειράς: ΜΟΝΟ owner/reception, ΜΟΝΟ όταν έχει επιλεγεί
+    // συγκεκριμένος τεχνικός στο «Ανάθεση σε» (αλλιώς δεν έχει νόημα ομαδοποίηση
+    // ανά μέρα, αφού θα αναμιγνύονταν βλάβες πολλών διαφορετικών τεχνικών).
+    const canReorder = !isFieldRole && !!TICKET_ASSIGNEE_FILTER;
+    tbody.innerHTML = data.map((t, i) => {
+      const sameDatePrev = canReorder && i > 0 && t.scheduled_date && data[i-1].scheduled_date === t.scheduled_date;
+      const sameDateNext = canReorder && i < data.length - 1 && t.scheduled_date && data[i+1].scheduled_date === t.scheduled_date;
+      const orderRow = (canReorder && t.scheduled_date) ? `
+        <div class="cell-sub visit-order-row">
+          📅 ${shortDate(t.scheduled_date)}
+          <button type="button" class="btn-ghost btn-sm order-btn" data-order-btn data-id="${t.id}" data-dir="-1" ${sameDatePrev ? "" : "disabled"} title="Μετακίνηση πάνω" aria-label="Μετακίνηση πάνω">▲</button>
+          <button type="button" class="btn-ghost btn-sm order-btn" data-order-btn data-id="${t.id}" data-dir="1" ${sameDateNext ? "" : "disabled"} title="Μετακίνηση κάτω" aria-label="Μετακίνηση κάτω">▼</button>
+        </div>` : "";
+      return `
       <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td><strong>${escapeHtml(t.clients ? (t.clients.trade_name || t.clients.name) : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div></td>
+        <td><strong>${escapeHtml(t.clients ? (t.clients.trade_name || t.clients.name) : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div>${orderRow}</td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
         <td>${statusPillHtml(t.status)}</td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
       tr.addEventListener("click", () => openTicketDrawer(tr.dataset.id, false));
     });
+    if (canReorder) {
+      tbody.querySelectorAll("[data-order-btn]").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const ticketId = btn.dataset.id;
+          const t = data.find(x => x.id === ticketId);
+          const groupIds = data.filter(x => x.scheduled_date === t.scheduled_date).map(x => x.id);
+          btn.disabled = true;
+          await moveVisitOrder(groupIds, ticketId, parseInt(btn.dataset.dir, 10));
+          await loadTickets();
+        });
+      });
+    }
   }
 
   $("#new-ticket-btn").addEventListener("click", async () => {
@@ -3289,9 +3388,9 @@
       // προγραμματισμένης επίσκεψης· μόλις πάει «Προς τιμολόγηση»/«Τιμολογημένο»
       // μετακινείται στη μέρα που άλλαξε η κατάσταση.
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, clients(name)")
+        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, clients(name)")
         .not("calendar_date", "is", null)
-        .order("calendar_date").order("scheduled_time");
+        .order("calendar_date").order("visit_order", { ascending:true, nullsFirst:false }).order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
       if (toISO)   q = q.lte("calendar_date", toISO);
       if (isFieldRole) {
@@ -3336,13 +3435,29 @@
     return { byDay };
   }
 
-  function scheduleEntryHtml(r){
-    return r.__leave ? `
+  // Σειρά επισκέψεων ανά μέρα (schema_v31) — τα κουμπάκια ▲▼ φαίνονται ΜΟΝΟ σε
+  // owner/reception, και ΜΟΝΟ όταν έχει επιλεγεί συγκεκριμένος τεχνικός στο
+  // φίλτρο «Τεχνικός» του Προγράμματος (αλλιώς μπερδεύονται επισκέψεις πολλών
+  // διαφορετικών τεχνικών μέσα στην ίδια μέρα, χωρίς σαφή ομαδοποίηση).
+  function canReorderSchedule(){
+    const isFieldRole = PROFILE && FIELD_ROLES.has(PROFILE.role);
+    return !isFieldRole && !!SCHEDULE_TECH_FILTER && SCHEDULE_SHOW_TICKETS;
+  }
+
+  function scheduleEntryHtml(r, opts){
+    opts = opts || {};
+    if (r.__leave) return `
       <div class="sched-visit sched-leave">
         <div class="sched-time">🌴</div>
         <div class="sched-info"><strong>${escapeHtml(r.who)}</strong> — ${escapeHtml(LEAVE_KIND[r.kind] || "Άδεια")}</div>
         <div class="sched-tech">εκτός</div>
-      </div>` : `
+      </div>`;
+    const orderBtns = opts.canReorder ? `
+      <div class="sched-order">
+        <button type="button" class="btn-ghost btn-sm order-btn" data-order-btn data-id="${r.id}" data-dir="-1" ${opts.isFirst ? "disabled" : ""} title="Μετακίνηση πάνω" aria-label="Μετακίνηση πάνω">▲</button>
+        <button type="button" class="btn-ghost btn-sm order-btn" data-order-btn data-id="${r.id}" data-dir="1" ${opts.isLast ? "disabled" : ""} title="Μετακίνηση κάτω" aria-label="Μετακίνηση κάτω">▼</button>
+      </div>` : "";
+    return `
       <div class="sched-visit" data-id="${r.id}">
         <div class="sched-time">${r.scheduled_time ? r.scheduled_time.slice(0,5) : "—"}${r.scheduled_end ? "–" + r.scheduled_end.slice(0,5) : ""}</div>
         <div class="sched-info"><strong>${escapeHtml(r.clients ? r.clients.name : "")}</strong> — ${escapeHtml(r.title)}
@@ -3350,7 +3465,35 @@
           ${r.status === "waiting" && r.waiting_reason ? `<div class="sched-tech">${escapeHtml(r.waiting_reason)}</div>` : ""}
         </div>
         <div class="sched-tech">${escapeHtml(r.tech || "—")}</div>
+        ${orderBtns}
       </div>`;
+  }
+
+  // Χτίζει τα entries μιας μέρας με τα σωστά opts (canReorder/isFirst/isLast) και
+  // κολλάει τα event listeners των κουμπιών ▲▼ πάνω στο ήδη-γεμισμένο container —
+  // κοινή λογική για την ημερήσια προβολή ΚΑΙ τη λίστα (schema_v31).
+  function dayEntriesHtml(items){
+    const canReorder = canReorderSchedule();
+    const visitIds = items.filter(i => !i.__leave).map(i => i.id);
+    return items.map(r => {
+      if (r.__leave) return scheduleEntryHtml(r);
+      const idx = visitIds.indexOf(r.id);
+      return scheduleEntryHtml(r, { canReorder, isFirst: idx === 0, isLast: idx === visitIds.length - 1 });
+    }).join("");
+  }
+
+  function bindScheduleOrderButtons(container){
+    if (!canReorderSchedule()) return;
+    container.querySelectorAll("[data-order-btn]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const container2 = btn.closest("[data-id]").parentElement;
+        const visitIds = [...container2.querySelectorAll(".sched-visit[data-id]")].map(el => el.dataset.id);
+        btn.disabled = true;
+        await moveVisitOrder(visitIds, btn.dataset.id, parseInt(btn.dataset.dir, 10));
+        await loadSchedule();
+      });
+    });
   }
 
   async function loadSchedule(){
@@ -3459,10 +3602,11 @@
       : (isSunday ? '<div class="msg-error" style="margin:0 20px 12px;">✕ Κυριακή — κλειστά</div>' : "");
     body.innerHTML = closedNote + (items.length === 0
       ? '<div class="empty-state">Καμία επίσκεψη αυτή τη μέρα.</div>'
-      : `<div style="padding:0 20px;">${items.map(scheduleEntryHtml).join("")}</div>`);
+      : `<div style="padding:0 20px;">${dayEntriesHtml(items)}</div>`);
     body.querySelectorAll("[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
+    bindScheduleOrderButtons(body);
   }
 
   async function renderScheduleWeek(){
@@ -3524,11 +3668,12 @@
     list.innerHTML = days.map(day => `
       <div class="sched-day">
         <div class="sched-day-title">${new Date(day + "T00:00:00").toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long" })}</div>
-        ${byDay[day].map(scheduleEntryHtml).join("")}
+        ${dayEntriesHtml(byDay[day])}
       </div>`).join("");
     list.querySelectorAll("[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
+    bindScheduleOrderButtons(list);
   }
 
   $("#cal-prev").addEventListener("click", () => {
@@ -4339,6 +4484,8 @@
       STAFF_USERS_CACHE = [];
       const techSel = $("#sched-filter-tech");
       if (techSel) delete techSel.dataset.populated;
+      const assigneeSel = $("#tkf-assignee");
+      if (assigneeSel) delete assigneeSel.dataset.populated;
       closeDrawer();
       await loadUsers();
     });
