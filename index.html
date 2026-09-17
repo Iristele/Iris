@@ -481,6 +481,9 @@
      τιμολόγηση» — το οποίο έχει ήδη δικό του λευκό «!» (STATUS_ICON). */
   .appt-mark{width:13px;height:12px;margin-right:4px;vertical-align:-1.5px;flex:none;}
   .sched-visit .appt-mark,.sched-info .appt-mark{width:15px;height:14px;vertical-align:-2px;margin-right:6px;}
+  /* Γραμμή ΑΦΜ μέσα στην καρτέλα βλάβης — το βλέπει και ο τεχνικός· αν λείπει, το
+     συμπληρώνει εκεί και αποθηκεύεται μόνο του στην καρτέλα του πελάτη (17/09). */
+  .vat-box{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 10px;}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
@@ -1037,7 +1040,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.6";
+  const APP_VERSION = "Ver 1.7";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1046,7 +1049,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917e";
+  const APP_BUILD = "20260917f";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3023,7 +3026,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -3146,6 +3149,13 @@
           <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
         </div>
         <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;">
+            <input type="checkbox" id="tk-appointment" ${t.is_appointment ? "checked" : ""}>
+            Ραντεβού — κλεισμένο με τον πελάτη
+          </label>
+          <span class="cell-sub">Όταν είναι τσεκαρισμένο, η βλάβη δείχνει κόκκινο τρίγωνο στο ημερολόγιο.</span>
+        </div>
+        <div class="field">
           <label>Επιπλέον τεχνικοί (προαιρετικό — πέρα από την «Ανάθεση σε» πάνω)</label>
           <div id="tk-extra-techs" style="max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px 10px;">
             ${STAFF_USERS_CACHE.length === 0 ? '<span class="cell-sub">Δεν υπάρχουν άλλοι διαθέσιμοι τεχνικοί.</span>' :
@@ -3169,6 +3179,15 @@
       <div id="tk-msg"></div>
       <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
+      ${(!portalMode && t.client_id) ? `
+        <div class="vat-box">
+          <span class="cell-sub">ΑΦΜ:</span>
+          ${t.clients && t.clients.vat_number
+            ? `<strong class="mono" id="tk-vat-shown">${escapeHtml(t.clients.vat_number)}</strong>`
+            : `<input id="tk-vat" class="mono" inputmode="numeric" maxlength="12" placeholder="Συμπλήρωσέ το εδώ"
+                 style="width:130px;font-size:13px;padding:4px 8px;">
+               <span id="tk-vat-note" class="cell-sub"></span>`}
+        </div>` : ""}
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
       ${t.opening_note ? `<div style="font-size:13px;white-space:pre-wrap;background:var(--tile-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px;">
@@ -3208,6 +3227,46 @@
     `);
 
     if (!portalMode) {
+      // ---- ΑΦΜ πελάτη: συμπλήρωση επί τόπου, με αυτόματη αποθήκευση ----
+      // Ο τεχνικός συχνά το χρειάζεται (τιμολόγιο) και το βρίσκει στο χώρο του πελάτη.
+      // Αν λείπει από την καρτέλα πελάτη, το γράφει εδώ και αποθηκεύεται μόνο του —
+      // δεν χρειάζεται να πάει στους «Πελάτες» (οθόνη που ο τεχνικός δεν βλέπει καν).
+      // Η RLS το επιτρέπει ήδη σε όλο το προσωπικό ("staff update clients", schema_v26).
+      const vatInput = $("#tk-vat");
+      if (vatInput) {
+        const vatNote = $("#tk-vat-note");
+        let lastSaved = "";
+        const saveVat = async () => {
+          const digits = normalizeVat(vatInput.value);
+          if (!digits || digits === lastSaved) return;
+          if (digits.length !== 9) {
+            vatNote.innerHTML = '<span style="color:var(--amber);">Το ΑΦΜ έχει 9 ψηφία.</span>';
+            return;
+          }
+          vatNote.textContent = "Αποθήκευση…";
+          // ΟΧΙ απευθείας update στο clients: το schema_v27 το επιτρέπει μόνο στο
+          // γραφείο. Η set_client_vat() (schema_v34) αφήνει τον τεχνικό να ΣΥΜΠΛΗΡΩΣΕΙ
+          // ΑΦΜ που λείπει, μόνο σε πελάτη που έχει δική του βλάβη — και ποτέ να
+          // ξαναγράψει υπάρχον.
+          const { error: vatErr } = await sb.rpc("set_client_vat", { p_client_id: t.client_id, p_vat: digits });
+          if (vatErr) {
+            vatNote.innerHTML = '<span style="color:var(--red);">Δεν αποθηκεύτηκε: ' + escapeHtml(vatErr.message) + '</span>';
+            return;
+          }
+          lastSaved = digits;
+          vatInput.value = digits;
+          vatNote.innerHTML = vatChecksumOk(digits)
+            ? '<span style="color:var(--green);">✓ Αποθηκεύτηκε</span>'
+            : '<span style="color:var(--amber);">Αποθηκεύτηκε — δεν περνάει όμως τον έλεγχο, τσέκαρέ το.</span>';
+          const cached = CLIENTS_CACHE.find(c => c.id === t.client_id);
+          if (cached) cached.vat_number = digits;
+        };
+        vatInput.addEventListener("blur", saveVat);
+        vatInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); vatInput.blur(); }
+        });
+      }
+
       async function refreshVlogBox(){
         VLOGS = await fetchVlogs();
         $("#vlog-box").innerHTML = vlogBoxHtml(VLOGS, t, VLOG_LOAD_ERROR);
@@ -3372,6 +3431,7 @@
           scheduled_date: $("#tk-sched-date").value || null,
           scheduled_time: $("#tk-sched-time").value || null,
           scheduled_end: $("#tk-sched-end").value || null,
+          is_appointment: $("#tk-appointment").checked,
           scheduled_tech: assignedName
         };
         // Η βάση κλείνει μόνη της τυχόν ανοιχτή επίσκεψη (schema_v21), αλλά καλό
@@ -3504,7 +3564,7 @@
       // που σήμαινε ότι μια δουλειά της Δευτέρας εμφανιζόταν την Πέμπτη μόλις
       // τιμολογούνταν. Το γεμίζει το trigger sync_ticket_calendar_date().
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, clients(name, trade_name)")
+        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, is_appointment, clients(name, trade_name)")
         .not("calendar_date", "is", null)
         .order("calendar_date").order("visit_order", { ascending:true, nullsFirst:false }).order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
@@ -3584,8 +3644,11 @@
       '<rect x="7.15" y="5" width="1.7" height="4.3" rx="0.85" fill="#fff"/>' +
       '<circle cx="8" cy="11.1" r="1" fill="#fff"/>' +
     '</svg>';
+  // Το τρίγωνο μπαίνει ΜΟΝΟ όταν ο χρήστης έχει τσεκάρει «Ραντεβού» στην καρτέλα της
+  // βλάβης (schema_v34). Μέχρι τις 17/09 έβγαινε μόνο του όποτε υπήρχε ώρα επίσκεψης —
+  // λάθος υπόθεση: ώρα μπαίνει και για απλό προγραμματισμό του τεχνικού.
   function apptMarkHtml(t){
-    if (!t || !t.scheduled_time) return "";
+    if (!t || !t.is_appointment) return "";
     return '<span title="Ραντεβού με ώρα">' + APPT_ICON_SVG + '</span>';
   }
 
