@@ -321,7 +321,7 @@
     line-height:18px;white-space:nowrap;}
   .status-pill::before{content:"";width:6px;height:6px;border-radius:50%;
     background:currentColor;flex:none;opacity:.9;}
-  .st-new{background:var(--blue-bg);color:var(--blue);}
+  .st-new{background:var(--yellow-bg);color:var(--yellow);}
   .st-new-assigned{background:var(--purple-bg);color:var(--purple);}
   .st-progress{background:var(--orange-bg);color:var(--orange);}
   .st-waiting{background:var(--red-bg);color:var(--red);}
@@ -346,7 +346,7 @@
      ίδια χρώματα με το ημερολόγιο, ώστε να διαβάζεται η κατάσταση με μια ματιά χωρίς
      να ψάχνεις την ετικέτα στο τέλος της γραμμής. Το «Νέο» σπάει σε γαλάζιο (χωρίς
      τεχνικό) / μοβ (ανατέθηκε), όπως ακριβώς και στο ημερολόγιο. */
-  tbody tr.row-new{background:var(--blue-bg);}
+  tbody tr.row-new{background:var(--yellow-bg);}
   tbody tr.row-new-assigned{background:var(--purple-bg);}
   tbody tr.row-progress{background:var(--orange-bg);}
   tbody tr.row-waiting,tbody tr.row-to_invoice{background:var(--red-bg);}
@@ -412,7 +412,7 @@
   .hist-row{position:relative;padding:7px 0;font-size:12.5px;}
   .hist-dot{position:absolute;left:-20px;top:11px;width:8px;height:8px;border-radius:50%;
     background:currentColor;box-shadow:0 0 0 3px var(--surface);}
-  .hist-dot.st-new{color:var(--blue-dot);} .hist-dot.st-progress{color:var(--orange-dot);}
+  .hist-dot.st-new{color:var(--yellow-dot);} .hist-dot.st-progress{color:var(--orange-dot);}
   .hist-dot.st-waiting{color:var(--red-dot);} .hist-dot.st-done,.hist-dot.st-done_xx{color:var(--green-dot);}
   .hist-dot.st-cancelled{color:var(--muted-fg);}
   .hist-meta{color:var(--ink-soft);font-size:11.5px;margin-top:1px;}
@@ -462,36 +462,34 @@
   .cal-ev{font-size:11px;line-height:1.4;padding:2px 6px;border-radius:var(--r-xs);
     background:var(--surface-2);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* χρώμα βλάβης ανά στάδιο — ίδια χρώματα με τα status-pill αλλού στην εφαρμογή:
-     γαλάζιο = Νέο, πορτοκαλί = Σε εξέλιξη, κόκκινο = Αναμονή, πράσινο = Ολοκληρώθηκε,
-     κίτρινο = Άδεια.
+     κίτρινο = Νέο, πορτοκαλί = Σε εξέλιξη, κόκκινο = Αναμονή, πράσινο = Ολοκληρώθηκε,
+     μπλε = Άδεια (αλλαγή 17/09 — πριν ήταν γαλάζιο το Νέο και κίτρινη η Άδεια).
      ΕΞΑΙΡΕΣΗ (ρητή επιλογή χρήστη, 17/09): μια ΝΕΑ βλάβη σπάει σε δύο χρώματα ανάλογα
      με το αν έχει ανατεθεί τεχνικός — γαλάζιο = καμία ανάθεση ακόμα (θέλει ενέργεια),
      μοβ = έχει ανατεθεί σε τεχνικό. Έτσι φαίνεται με μια ματιά στο ημερολόγιο ποιες
      δουλειές δεν έχουν ακόμα άνθρωπο, εκεί ακριβώς που δεν γράφεται το όνομά του
      (στην Ημέρα/Λίστα ο τεχνικός φαίνεται ούτως ή άλλως ως κείμενο). */
-  .cal-ev.st-new{background:var(--blue-bg);color:var(--blue);}
+  .cal-ev.st-new{background:var(--yellow-bg);color:var(--yellow);}
   .cal-ev.st-new-assigned{background:var(--purple-bg);color:var(--purple);}
   .cal-ev.st-progress{background:var(--orange-bg);color:var(--orange);}
   .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
   .cal-ev.st-done,.cal-ev.st-done_xx{background:var(--green-bg);color:var(--green);}
-  .cal-ev.leave{background:var(--yellow-bg);color:var(--yellow);}
+  .cal-ev.leave{background:var(--blue-bg);color:var(--blue);}
   /* Ραντεβού με ώρα: κόκκινο θαυμαστικό ΜΠΡΟΣΤΑ, χωρίς να πειράζει το χρώμα της
      κατάστασης (ρητή επιλογή χρήστη, 17/09). Είναι σήμα με δικό του φόντο, όχι σκέτο
      γράμμα, ώστε να διαβάζεται και πάνω στο συμπαγές κόκκινο chip του «Προς
      τιμολόγηση» — το οποίο έχει ήδη δικό του λευκό «!» (STATUS_ICON). */
-  .appt-mark{display:inline-block;background:#fff;color:#D92D20;font-weight:900;
-    border-radius:3px;padding:0 3.5px;margin-right:4px;font-size:10px;line-height:1.45;
-    box-shadow:0 0 0 1px rgba(217,45,32,.5);vertical-align:1px;}
-  .sched-visit .appt-mark{font-size:11px;padding:0 4.5px;}
+  .appt-mark{width:13px;height:12px;margin-right:4px;vertical-align:-1.5px;flex:none;}
+  .sched-visit .appt-mark,.sched-info .appt-mark{width:15px;height:14px;vertical-align:-2px;margin-right:6px;}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
-  .cal-dot.st-new{background:var(--blue-dot);}
+  .cal-dot.st-new{background:var(--yellow-dot);}
   .cal-dot.st-new-assigned{background:var(--purple-dot);}
   .cal-dot.st-progress{background:var(--orange-dot);}
   .cal-dot.st-waiting{background:var(--red-dot);}
   .cal-dot.st-done,.cal-dot.st-done_xx{background:var(--green-dot);}
-  .cal-dot.leave{background:var(--yellow-dot);}
+  .cal-dot.leave{background:var(--blue-dot);}
   /* Κυριακές & κλειστές μέρες: ελαφρύ κόκκινο φόντο + ✕ στη γωνία */
   .cal-cell.sunday{background:var(--sunday-bg);}
   .cal-cell.sunday:hover{background:var(--sunday-bg-hover);}
@@ -528,8 +526,8 @@
   .sched-info{flex:1;font-size:13.5px;min-width:0;}
   .sched-tech{font-size:12px;color:var(--ink-soft);}
   .sched-order{display:flex;gap:4px;flex:none;}
-  .sched-leave{background:var(--yellow-bg);border-color:transparent;}
-  .sched-leave .sched-info strong{color:var(--yellow);}
+  .sched-leave{background:var(--blue-bg);border-color:transparent;}
+  .sched-leave .sched-info strong{color:var(--blue);}
   /* γραμμή φίλτρων: σε κινητό το υπόμνημα πέφτει σε δική του σειρά αντί να κόβεται δεξιά */
   .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 18px 12px;}
   .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;
@@ -541,7 +539,7 @@
     color:var(--ink-soft);transition:background var(--t),color var(--t),border-color var(--t);}
   .sf-chip:hover{background:var(--surface-2);color:var(--ink);}
   .sf-chip.on{border-color:transparent;}
-  .sf-chip.on.st-new{background:var(--blue-bg);color:var(--blue);}
+  .sf-chip.on.st-new{background:var(--yellow-bg);color:var(--yellow);}
   .sf-chip.on.st-progress{background:var(--orange-bg);color:var(--orange);}
   .sf-chip.on.st-waiting{background:var(--red-bg);color:var(--red);}
   .sf-chip.on.st-to_invoice{background:var(--red-dot);color:#fff;}
@@ -1039,7 +1037,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.5";
+  const APP_VERSION = "Ver 1.6";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1048,7 +1046,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917d";
+  const APP_BUILD = "20260917e";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3580,8 +3578,15 @@
   // «Ραντεβού» = η βλάβη έχει ΣΥΓΚΕΚΡΙΜΕΝΗ ΩΡΑ επίσκεψης (scheduled_time), δηλαδή
   // δέσμευση απέναντι στον πελάτη — σε αντίθεση με μια δουλειά που απλώς έχει μπει
   // στο πρόγραμμα της ημέρας χωρίς ώρα. Δεν αλλάζει το χρώμα της κατάστασης.
+  const APPT_ICON_SVG =
+    '<svg class="appt-mark" viewBox="0 0 16 14" aria-hidden="true" focusable="false">' +
+      '<path d="M8 1 15.2 13H0.8Z" fill="#D92D20" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>' +
+      '<rect x="7.15" y="5" width="1.7" height="4.3" rx="0.85" fill="#fff"/>' +
+      '<circle cx="8" cy="11.1" r="1" fill="#fff"/>' +
+    '</svg>';
   function apptMarkHtml(t){
-    return t && t.scheduled_time ? '<span class="appt-mark" title="Ραντεβού με ώρα">!</span>' : "";
+    if (!t || !t.scheduled_time) return "";
+    return '<span title="Ραντεβού με ώρα">' + APPT_ICON_SVG + '</span>';
   }
 
   // Ο πελάτης εμφανίζεται ΠΑΝΤΑ με τον διακριτικό του τίτλο — έτσι τον ξέρει ο χρήστης
