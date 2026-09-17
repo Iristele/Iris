@@ -192,6 +192,12 @@
   .brand-logo{height:30px;width:auto;display:block;}
   .brand-logo-auth{height:56px;width:auto;display:block;}
   .auth-wrap .brand{margin-bottom:24px;}
+  /* Δικαιώματα — κάτω μέρος της σελίδας, ΚΑΙ στην οθόνη σύνδεσης ΚΑΙ μέσα στην
+     εφαρμογή (ρητή επιλογή του χρήστη, 17/09). */
+  .app-footer{text-align:center;padding:18px 20px 26px;font-size:11.5px;line-height:1.75;
+    color:var(--ink-faint);border-top:1px solid var(--line);margin-top:32px;}
+  .app-footer strong{font-weight:600;color:var(--ink-soft);}
+  .auth-wrap .app-footer{border-top:none;margin:22px 0 0;padding:0;}
   /* Εκδοχή εφαρμογής δίπλα στο λογότυπο — προς το παρόν "beta", βλ. APP_VERSION. */
   .version-badge{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;
     color:var(--ink-soft);background:var(--surface-3);border:1px solid var(--line);
@@ -314,6 +320,7 @@
   .status-pill::before{content:"";width:6px;height:6px;border-radius:50%;
     background:currentColor;flex:none;opacity:.9;}
   .st-new{background:var(--blue-bg);color:var(--blue);}
+  .st-new-assigned{background:var(--purple-bg);color:var(--purple);}
   .st-progress{background:var(--orange-bg);color:var(--orange);}
   .st-waiting{background:var(--red-bg);color:var(--red);}
   .st-to_invoice{background:var(--red-dot);color:#fff;font-weight:600;}
@@ -647,6 +654,10 @@
       <button type="submit" class="btn-primary btn-full" id="reset-password-btn">Αποθήκευση νέου κωδικού</button>
     </form>
   </div>
+  <div class="app-footer">
+    <div>Ιδιοκτήτης: <strong>IRIS ELECTRONICS O.E.</strong> &middot; Δημιουργός: <strong>Τομόρι Ηλίας</strong></div>
+    <div>&copy; 2026 &mdash; Όλα τα δικαιώματα διατηρούνται.</div>
+  </div>
 </div>
 
 <!-- ================= APP SHELL ================= -->
@@ -670,6 +681,10 @@
     <div style="text-align:center;margin-top:14px;">
       <button type="button" class="btn-ghost btn-sm" id="lock-signout">Αποσύνδεση</button>
     </div>
+  </div>
+  <div class="app-footer">
+    <div>Ιδιοκτήτης: <strong>IRIS ELECTRONICS O.E.</strong> &middot; Δημιουργός: <strong>Τομόρι Ηλίας</strong></div>
+    <div>&copy; 2026 &mdash; Όλα τα δικαιώματα διατηρούνται.</div>
   </div>
 </div>
 
@@ -961,6 +976,10 @@
     </div>
   </div>
   </div>
+  <div class="app-footer">
+    <div>Ιδιοκτήτης: <strong>IRIS ELECTRONICS O.E.</strong> &middot; Δημιουργός: <strong>Τομόρι Ηλίας</strong></div>
+    <div>&copy; 2026 &mdash; Όλα τα δικαιώματα διατηρούνται.</div>
+  </div>
 </div>
 
 <div id="overlay">
@@ -982,7 +1001,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.2";
+  const APP_VERSION = "Ver 1.3";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -991,7 +1010,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917a";
+  const APP_BUILD = "20260917b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1038,6 +1057,17 @@
     // το θαυμαστικό του «Προς τιμολόγηση» το βάζει το CSS (.status-pill.st-to_invoice::before)
     const s = maskStatus(status);
     return `<span class="status-pill st-${s}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[s] || s}</span>`;
+  }
+  // Ίδια χρωματολογία με το ημερολόγιο (ρητή επιλογή του χρήστη, 17/09): μια βλάβη σε
+  // κατάσταση «Νέο» είναι γαλάζια όσο δεν έχει τεχνικό και μοβ μόλις ανατεθεί. Δέχεται
+  // ΟΛΟΚΛΗΡΗ τη βλάβη (χρειάζεται το assigned_to), γι' αυτό είναι ξεχωριστή από την
+  // statusPillHtml() — εκείνη την καλούν και σημεία που έχουν μόνο την κατάσταση
+  // (καρτέλα βλάβης, ιστορικό), και το portal του πελάτη που δεν πρέπει να βλέπει
+  // εσωτερική πληροφορία ανάθεσης (χρησιμοποιεί clientStatusPillHtml()).
+  function ticketStatusPillHtml(t, extraStyle){
+    const s = maskStatus(t.status);
+    const cls = (s === "new" && t.assigned_to) ? "st-new-assigned" : "st-" + s;
+    return `<span class="status-pill ${cls}"${extraStyle ? ` style="${extraStyle}"` : ""}>${STATUS_LABEL[s] || s}</span>`;
   }
   // Ο πελάτης δεν βλέπει εσωτερική ορολογία τιμολόγησης («Προς τιμολόγηση» /
   // «Τιμολογημένο») — από τη στιγμή που ο τεχνικός βάλει «Προς τιμολόγηση», ο
@@ -2638,7 +2668,7 @@
       assigneeSelect.dataset.populated = "1";
       assigneeSelect.value = TICKET_ASSIGNEE_FILTER || "";
     }
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, clients(name, trade_name)");
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, clients(name, trade_name)");
     // Σειρά: όταν βλέπουμε τις βλάβες ΕΝΟΣ τεχνικού (είτε γιατί είσαι εσύ ο
     // τεχνικός, είτε γιατί ο owner/reception διάλεξε κάποιον από το «Ανάθεση
     // σε»), η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (visit_order,
@@ -2692,9 +2722,9 @@
       return `
       <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
-        <td><strong>${escapeHtml(t.clients ? (t.clients.trade_name || t.clients.name) : "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div>${orderRow}</td>
+        <td><strong>${escapeHtml(clientLabel(t.clients) || "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div>${orderRow}</td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
-        <td>${statusPillHtml(t.status)}</td>
+        <td>${ticketStatusPillHtml(t)}</td>
       </tr>`;
     }).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
@@ -3411,7 +3441,7 @@
       // που σήμαινε ότι μια δουλειά της Δευτέρας εμφανιζόταν την Πέμπτη μόλις
       // τιμολογούνταν. Το γεμίζει το trigger sync_ticket_calendar_date().
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, clients(name)")
+        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, clients(name, trade_name)")
         .not("calendar_date", "is", null)
         .order("calendar_date").order("visit_order", { ascending:true, nullsFirst:false }).order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
@@ -3475,6 +3505,14 @@
     return (t.status === "new" && t.assigned_to) ? "st-new-assigned" : "st-" + t.status;
   }
 
+  // Ο πελάτης εμφανίζεται ΠΑΝΤΑ με τον διακριτικό του τίτλο — έτσι τον ξέρει ο χρήστης
+  // στην πράξη· η επίσημη επωνυμία (name) είναι εφεδρεία όταν δεν έχει οριστεί
+  // διακριτικός τίτλος. Ίδια λογική με τη λίστα Βλαβών και τις ειδοποιήσεις (schema_v33).
+  function clientLabel(c){
+    if (!c) return "";
+    return (c.trade_name && c.trade_name.trim()) || c.name || "";
+  }
+
   function scheduleEntryHtml(r, opts){
     opts = opts || {};
     if (r.__leave) return `
@@ -3491,8 +3529,8 @@
     return `
       <div class="sched-visit" data-id="${r.id}">
         <div class="sched-time">${r.scheduled_time ? r.scheduled_time.slice(0,5) : "—"}${r.scheduled_end ? "–" + r.scheduled_end.slice(0,5) : ""}</div>
-        <div class="sched-info"><strong>${escapeHtml(r.clients ? r.clients.name : "")}</strong> — ${escapeHtml(r.title)}
-          ${statusPillHtml(r.status, "margin-left:6px;")}
+        <div class="sched-info"><strong>${escapeHtml(clientLabel(r.clients))}</strong> — ${escapeHtml(r.title)}
+          ${ticketStatusPillHtml(r, "margin-left:6px;")}
           ${r.status === "waiting" && r.waiting_reason ? `<div class="sched-tech">${escapeHtml(r.waiting_reason)}</div>` : ""}
         </div>
         <div class="sched-tech">${escapeHtml(r.tech || "—")}</div>
@@ -3599,7 +3637,7 @@
       const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
       const shown = items.slice(0, 3).map(i => i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
-        : `<div class="cal-ev ${calStatusClass(i)}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
+        : `<div class="cal-ev ${calStatusClass(i)}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(i.clients) || i.title)}</div>`).join("");
       const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
@@ -3657,7 +3695,7 @@
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
       const shown = items.slice(0, 8).map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
-        : `<div class="cal-ev ${calStatusClass(x)}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
+        : `<div class="cal-ev ${calStatusClass(x)}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
       const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
