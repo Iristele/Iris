@@ -974,7 +974,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.0";
+  const APP_VERSION = "Ver 1.1";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -983,7 +983,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260916b";
+  const APP_BUILD = "20260917";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3396,9 +3396,12 @@
     const isFieldRole = PROFILE && FIELD_ROLES.has(PROFILE.role);
 
     if (SCHEDULE_SHOW_TICKETS) {
-      // calendar_date (schema_v22): όσο η βλάβη είναι ανοιχτή κάθεται στη μέρα της
-      // προγραμματισμένης επίσκεψης· μόλις πάει «Προς τιμολόγηση»/«Τιμολογημένο»
-      // μετακινείται στη μέρα που άλλαξε η κατάσταση.
+      // calendar_date: η βλάβη κάθεται ΠΑΝΤΑ στη μέρα της προγραμματισμένης
+      // επίσκεψης (scheduled_date) και ΔΕΝ μετακινείται ποτέ λόγω κατάστασης —
+      // ρητή αλλαγή του χρήστη (schema_v33, 17/09). Μέχρι το v32 πήδαγε στη μέρα
+      // που έκλεινε η βλάβη («Προς τιμολόγηση»/«Τιμολογημένο»/«Τιμολογημένο ΧΧ»),
+      // που σήμαινε ότι μια δουλειά της Δευτέρας εμφανιζόταν την Πέμπτη μόλις
+      // τιμολογούνταν. Το γεμίζει το trigger sync_ticket_calendar_date().
       let q = sb.from("tickets_view")
         .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, clients(name)")
         .not("calendar_date", "is", null)
