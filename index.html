@@ -502,7 +502,17 @@
     letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* προβολή Εβδομάδα: ίδια κελιά, ψηλότερα — μόνο 7, χωράνε περισσότερα.
      Ο «αριθμός μέρας» εδώ γράφει και το όνομα («Δε 12»), οπότε θέλει ελεύθερο πλάτος. */
-  .cal-cell.week-cell{min-height:190px;}
+  /* Εβδομάδα: ο χρήστης ορίζει το ύψος σέρνοντας την κάτω-δεξιά γωνία (17/09).
+     Τα κελιά γεμίζουν αυτό το ύψος και κυλάνε μόνα τους — γι' αυτό η προβολή
+     Εβδομάδας δείχνει ΟΛΕΣ τις επισκέψεις, χωρίς «+N ακόμα» όπως ο Μήνας. */
+  #schedule-week{resize:vertical;overflow:hidden;min-height:200px;max-height:85vh;}
+  #schedule-week .cal-grid{height:100%;}
+  .cal-cell.week-cell{min-height:190px;overflow-y:auto;}
+  #schedule-week .cal-cell.week-cell{min-height:0;}
+  /* Χωρίς αυτό τα πλακίδια είναι flex items και ΣΥΜΠΙΕΖΟΝΤΑΙ για να χωρέσουν στο ύψος
+     του κελιού, αντί να ξεχειλίσουν — οπότε το κελί δεν αποκτά ποτέ μπάρα κύλισης και
+     σε πολυάσχολη μέρα τα ραντεβού γίνονται αδιάβαστες λωρίδες. */
+  .cal-cell .cal-ev,.cal-cell .cal-more,.cal-cell .cal-closed,.cal-cell .cal-daynum{flex:none;}
   .cal-cell.week-cell .cal-daynum{width:auto;min-width:44px;padding:0 8px;border-radius:var(--r-full);}
 
   .sched-day{padding:14px 18px;border-bottom:1px solid var(--line);}
@@ -579,6 +589,9 @@
     /* το ημερολόγιο δεν χωράει κείμενο — τελείες, και ανοίγεις τη μέρα από κάτω */
     .cal-cell{min-height:56px;align-items:center;gap:5px;padding:5px 2px;}
     .cal-cell.week-cell{min-height:72px;}
+    #schedule-week{resize:none;height:auto !important;max-height:none;overflow:visible;}
+    #schedule-week .cal-grid{height:auto;}
+    #schedule-week .cal-cell.week-cell{min-height:72px;overflow:visible;}
     .cal-ev,.cal-more,.cal-closed{display:none;}
     .cal-dots{display:flex;}
     .cal-title{min-width:118px;font-size:13.5px;}
@@ -1026,7 +1039,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.4";
+  const APP_VERSION = "Ver 1.5";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1035,7 +1048,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917c";
+  const APP_BUILD = "20260917d";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1535,6 +1548,33 @@
     setNavCollapsed(!document.body.classList.contains("nav-collapsed"), !isNarrow());
   });
   $("#nav-backdrop").addEventListener("click", () => setNavCollapsed(true, false));
+
+  // ---- Προβολή «Εβδομάδα»: ρυθμιζόμενο ύψος (ζήτημα χρήστη, 17/09) ----
+  // Σέρνεις την κάτω-δεξιά γωνία του πλέγματος — ίδιο μοτίβο με τα παράθυρα (CSS
+  // resize). Τα κελιά της μέρας γεμίζουν το ύψος που έδωσες και κυλάνε μόνα τους αν
+  // οι επισκέψεις δεν χωράνε, οπότε όσο πιο ψηλά το κάνεις τόσα περισσότερα βλέπεις.
+  // Το ύψος θυμάται για την επόμενη φορά. Σε κινητό είναι ανενεργό (εκεί το πλέγμα
+  // δείχνει τελείες, δεν έχει νόημα).
+  const WEEK_H_KEY = "iris.schedule.weekHeight";
+  function initWeekResize(){
+    const el = $("#schedule-week");
+    if (!el || isNarrow()) return;
+    let saved = null;
+    try { saved = localStorage.getItem(WEEK_H_KEY); } catch (e) {}
+    const h = parseInt(saved, 10);
+    if (h >= 200 && h <= Math.round(window.innerHeight * 0.9)) el.style.height = h + "px";
+    if (typeof ResizeObserver !== "function") return;
+    let timer = null;
+    new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (el.classList.contains("hidden")) return;   // κρυμμένο = ύψος 0, μην το σώσεις
+        const cur = Math.round(el.getBoundingClientRect().height);
+        if (cur >= 200) { try { localStorage.setItem(WEEK_H_KEY, String(cur)); } catch (e) {} }
+      }, 400);
+    }).observe(el);
+  }
+  initWeekResize();
   // πηγαίνει σε κατηγορία ΚΑΙ ενημερώνει το πλαϊνό μενού (το χρησιμοποιούν τα πλακίδια)
   function goToView(view){
     const item = $(`.nav-item[data-view="${view}"]`);
@@ -3732,7 +3772,7 @@
       const key = isoDay(d);
       const items = byDay[key] || [];
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
-      const shown = items.slice(0, 8).map(x => x.__leave
+      const shown = items.map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
         : `<div class="cal-ev ${calStatusClass(x)}">${apptMarkHtml(x)}${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
       const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
@@ -3744,7 +3784,6 @@
           <div class="cal-daynum">${dows[i]} ${d.getDate()}</div>
           ${closed ? `<div class="cal-closed">${escapeHtml(closed)}</div>` : ""}
           ${shown}
-          ${items.length > 8 ? `<div class="cal-more">+${items.length - 8} ακόμα</div>` : ""}
           <div class="cal-dots">${dots}</div>
         </div>`;
     }
