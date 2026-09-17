@@ -62,6 +62,7 @@
     --green:#15784C;  --green-bg:#E6F6ED;  --green-dot:#1FA163;
     --yellow:#8A6D00; --yellow-bg:#FCF4D4; --yellow-dot:#E8BE18;
     --purple:#6B3FA0; --purple-bg:#F0E9FA; --purple-dot:#8A5CC4;
+    --row-veil:rgba(0,0,0,.045);
     --amber:var(--yellow); --amber-bg:var(--yellow-bg);
     --sunday-bg:#FDF3F3; --sunday-bg-hover:#FAE8E8;
 
@@ -112,6 +113,7 @@
     --green:#63D69C;  --green-bg:#0F2D1F;  --green-dot:#3FBF80;
     --yellow:#E8CE5F; --yellow-bg:#2E2913; --yellow-dot:#DEBE33;
     --purple:#BFA0EC; --purple-bg:#261D39; --purple-dot:#A481D8;
+    --row-veil:rgba(255,255,255,.055);
     --amber:var(--yellow); --amber-bg:var(--yellow-bg);
     --sunday-bg:#291A1C; --sunday-bg-hover:#332124;
 
@@ -340,6 +342,21 @@
   .stale-banner{margin:0 18px 10px;padding:9px 12px;border-radius:var(--r-sm);font-size:12.5px;
     font-weight:500;background:var(--red-bg);color:var(--red);}
   tbody tr.row-stale td:first-child{box-shadow:inset 3px 0 0 var(--red-dot);}
+  /* Χρώμα κατάστασης σε ΟΛΗ τη γραμμή της λίστας Βλαβών (ρητή επιλογή χρήστη, 17/09) —
+     ίδια χρώματα με το ημερολόγιο, ώστε να διαβάζεται η κατάσταση με μια ματιά χωρίς
+     να ψάχνεις την ετικέτα στο τέλος της γραμμής. Το «Νέο» σπάει σε γαλάζιο (χωρίς
+     τεχνικό) / μοβ (ανατέθηκε), όπως ακριβώς και στο ημερολόγιο. */
+  tbody tr.row-new{background:var(--blue-bg);}
+  tbody tr.row-new-assigned{background:var(--purple-bg);}
+  tbody tr.row-progress{background:var(--orange-bg);}
+  tbody tr.row-waiting,tbody tr.row-to_invoice{background:var(--red-bg);}
+  tbody tr.row-done,tbody tr.row-done_xx{background:var(--green-bg);}
+  /* Το hover δεν μπορεί πια να αλλάξει φόντο (θα έσβηνε το χρώμα κατάστασης), οπότε
+     μπαίνει ένα διακριτικό πέπλο — σκουραίνει στο φωτεινό θέμα, φωτίζει στο σκούρο. */
+  tbody tr[class*="row-"]:hover{box-shadow:inset 0 0 0 999px var(--row-veil);}
+  /* Πάνω σε χρωματιστή γραμμή η ετικέτα κατάστασης έχει ίδιο φόντο με τη γραμμή —
+     ένα λεπτό περίγραμμα στο χρώμα της την ξαναφέρνει στην επιφάνεια. */
+  tbody tr[class*="row-"] .status-pill{box-shadow:inset 0 0 0 1px currentColor;}
   .prio-urgent{background:var(--red-bg);color:var(--red);}
   .prio-normal{background:var(--surface-2);color:var(--ink-soft);}
   .prio-low{background:var(--muted-bg);color:var(--muted-fg);}
@@ -458,6 +475,14 @@
   .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
   .cal-ev.st-done,.cal-ev.st-done_xx{background:var(--green-bg);color:var(--green);}
   .cal-ev.leave{background:var(--yellow-bg);color:var(--yellow);}
+  /* Ραντεβού με ώρα: κόκκινο θαυμαστικό ΜΠΡΟΣΤΑ, χωρίς να πειράζει το χρώμα της
+     κατάστασης (ρητή επιλογή χρήστη, 17/09). Είναι σήμα με δικό του φόντο, όχι σκέτο
+     γράμμα, ώστε να διαβάζεται και πάνω στο συμπαγές κόκκινο chip του «Προς
+     τιμολόγηση» — το οποίο έχει ήδη δικό του λευκό «!» (STATUS_ICON). */
+  .appt-mark{display:inline-block;background:#fff;color:#D92D20;font-weight:900;
+    border-radius:3px;padding:0 3.5px;margin-right:4px;font-size:10px;line-height:1.45;
+    box-shadow:0 0 0 1px rgba(217,45,32,.5);vertical-align:1px;}
+  .sched-visit .appt-mark{font-size:11px;padding:0 4.5px;}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
@@ -1001,7 +1026,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.3";
+  const APP_VERSION = "Ver 1.4";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1010,7 +1035,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917b";
+  const APP_BUILD = "20260917c";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2720,7 +2745,7 @@
           <button type="button" class="btn-ghost btn-sm order-btn" data-order-btn data-id="${t.id}" data-dir="1" ${sameDateNext ? "" : "disabled"} title="Μετακίνηση κάτω" aria-label="Μετακίνηση κάτω">▼</button>
         </div>` : "";
       return `
-      <tr data-id="${t.id}" class="${isStaleTicket(t) ? "row-stale" : ""}">
+      <tr data-id="${t.id}" class="${rowStatusClass(t)}${isStaleTicket(t) ? " row-stale" : ""}">
         <td class="mono">${escapeHtml(t.code)}</td>
         <td><strong>${escapeHtml(clientLabel(t.clients) || "—")}</strong><div class="cell-sub">${escapeHtml(t.title)}${staleBadge(t)}${t.status === "waiting" && t.waiting_reason ? ` · <em>${escapeHtml(t.waiting_reason)}</em>` : ""}</div>${orderRow}</td>
         <td><span class="prio-pill prio-${t.priority}">${PRIORITY_LABEL[t.priority] || t.priority}</span></td>
@@ -3505,6 +3530,20 @@
     return (t.status === "new" && t.assigned_to) ? "st-new-assigned" : "st-" + t.status;
   }
 
+  // Κλάση χρώματος για ΟΛΗ τη γραμμή της λίστας Βλαβών — ίδιος κανόνας με το
+  // ημερολόγιο (calStatusClass), απλώς με πρόθεμα "row-" ώστε να μην κληρονομεί το
+  // χρώμα ΚΕΙΜΕΝΟΥ των .st-* (εκείνα βάφουν και τα γράμματα, εδώ θέλουμε μόνο φόντο).
+  function rowStatusClass(t){
+    return "row-" + calStatusClass(t).replace(/^st-/, "");
+  }
+
+  // «Ραντεβού» = η βλάβη έχει ΣΥΓΚΕΚΡΙΜΕΝΗ ΩΡΑ επίσκεψης (scheduled_time), δηλαδή
+  // δέσμευση απέναντι στον πελάτη — σε αντίθεση με μια δουλειά που απλώς έχει μπει
+  // στο πρόγραμμα της ημέρας χωρίς ώρα. Δεν αλλάζει το χρώμα της κατάστασης.
+  function apptMarkHtml(t){
+    return t && t.scheduled_time ? '<span class="appt-mark" title="Ραντεβού με ώρα">!</span>' : "";
+  }
+
   // Ο πελάτης εμφανίζεται ΠΑΝΤΑ με τον διακριτικό του τίτλο — έτσι τον ξέρει ο χρήστης
   // στην πράξη· η επίσημη επωνυμία (name) είναι εφεδρεία όταν δεν έχει οριστεί
   // διακριτικός τίτλος. Ίδια λογική με τη λίστα Βλαβών και τις ειδοποιήσεις (schema_v33).
@@ -3529,7 +3568,7 @@
     return `
       <div class="sched-visit" data-id="${r.id}">
         <div class="sched-time">${r.scheduled_time ? r.scheduled_time.slice(0,5) : "—"}${r.scheduled_end ? "–" + r.scheduled_end.slice(0,5) : ""}</div>
-        <div class="sched-info"><strong>${escapeHtml(clientLabel(r.clients))}</strong> — ${escapeHtml(r.title)}
+        <div class="sched-info">${apptMarkHtml(r)}<strong>${escapeHtml(clientLabel(r.clients))}</strong> — ${escapeHtml(r.title)}
           ${ticketStatusPillHtml(r, "margin-left:6px;")}
           ${r.status === "waiting" && r.waiting_reason ? `<div class="sched-tech">${escapeHtml(r.waiting_reason)}</div>` : ""}
         </div>
@@ -3637,7 +3676,7 @@
       const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
       const shown = items.slice(0, 3).map(i => i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
-        : `<div class="cal-ev ${calStatusClass(i)}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(i.clients) || i.title)}</div>`).join("");
+        : `<div class="cal-ev ${calStatusClass(i)}">${apptMarkHtml(i)}${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(i.clients) || i.title)}</div>`).join("");
       const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
@@ -3695,7 +3734,7 @@
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
       const shown = items.slice(0, 8).map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
-        : `<div class="cal-ev ${calStatusClass(x)}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
+        : `<div class="cal-ev ${calStatusClass(x)}">${apptMarkHtml(x)}${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
       const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
