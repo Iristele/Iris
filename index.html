@@ -61,7 +61,7 @@
     --red:#BC2F2F;    --red-bg:#FDEDED;    --red-dot:#DC4B4B;
     --green:#15784C;  --green-bg:#E6F6ED;  --green-dot:#1FA163;
     --yellow:#8A6D00; --yellow-bg:#FCF4D4; --yellow-dot:#E8BE18;
-    --purple:#6B3FA0; --purple-bg:#F0E9FA;
+    --purple:#6B3FA0; --purple-bg:#F0E9FA; --purple-dot:#8A5CC4;
     --amber:var(--yellow); --amber-bg:var(--yellow-bg);
     --sunday-bg:#FDF3F3; --sunday-bg-hover:#FAE8E8;
 
@@ -111,7 +111,7 @@
     --red:#F09292;    --red-bg:#361C1C;    --red-dot:#E76D6D;
     --green:#63D69C;  --green-bg:#0F2D1F;  --green-dot:#3FBF80;
     --yellow:#E8CE5F; --yellow-bg:#2E2913; --yellow-dot:#DEBE33;
-    --purple:#BFA0EC; --purple-bg:#261D39;
+    --purple:#BFA0EC; --purple-bg:#261D39; --purple-dot:#A481D8;
     --amber:var(--yellow); --amber-bg:var(--yellow-bg);
     --sunday-bg:#291A1C; --sunday-bg-hover:#332124;
 
@@ -439,8 +439,14 @@
     background:var(--surface-2);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* χρώμα βλάβης ανά στάδιο — ίδια χρώματα με τα status-pill αλλού στην εφαρμογή:
      γαλάζιο = Νέο, πορτοκαλί = Σε εξέλιξη, κόκκινο = Αναμονή, πράσινο = Ολοκληρώθηκε,
-     κίτρινο = Άδεια */
+     κίτρινο = Άδεια.
+     ΕΞΑΙΡΕΣΗ (ρητή επιλογή χρήστη, 17/09): μια ΝΕΑ βλάβη σπάει σε δύο χρώματα ανάλογα
+     με το αν έχει ανατεθεί τεχνικός — γαλάζιο = καμία ανάθεση ακόμα (θέλει ενέργεια),
+     μοβ = έχει ανατεθεί σε τεχνικό. Έτσι φαίνεται με μια ματιά στο ημερολόγιο ποιες
+     δουλειές δεν έχουν ακόμα άνθρωπο, εκεί ακριβώς που δεν γράφεται το όνομά του
+     (στην Ημέρα/Λίστα ο τεχνικός φαίνεται ούτως ή άλλως ως κείμενο). */
   .cal-ev.st-new{background:var(--blue-bg);color:var(--blue);}
+  .cal-ev.st-new-assigned{background:var(--purple-bg);color:var(--purple);}
   .cal-ev.st-progress{background:var(--orange-bg);color:var(--orange);}
   .cal-ev.st-waiting{background:var(--red-bg);color:var(--red);}
   .cal-ev.st-done,.cal-ev.st-done_xx{background:var(--green-bg);color:var(--green);}
@@ -449,6 +455,7 @@
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
   .cal-dot.st-new{background:var(--blue-dot);}
+  .cal-dot.st-new-assigned{background:var(--purple-dot);}
   .cal-dot.st-progress{background:var(--orange-dot);}
   .cal-dot.st-waiting{background:var(--red-dot);}
   .cal-dot.st-done,.cal-dot.st-done_xx{background:var(--green-dot);}
@@ -806,7 +813,8 @@
           </select>
           <div class="sched-status-filter" id="sched-filter-status"></div>
           <div class="sched-legend">
-            <span><span class="cal-dot st-new"></span>Νέο</span>
+            <span><span class="cal-dot st-new"></span>Νέο — χωρίς τεχνικό</span>
+            <span><span class="cal-dot st-new-assigned"></span>Νέο — ανατέθηκε</span>
             <span><span class="cal-dot st-progress"></span>Σε εξέλιξη</span>
             <span><span class="cal-dot st-waiting"></span>Αναμονή</span>
             <span><span class="cal-dot st-done"></span>Ολοκληρώθηκε</span>
@@ -974,7 +982,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.1";
+  const APP_VERSION = "Ver 1.2";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -983,7 +991,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917";
+  const APP_BUILD = "20260917a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3459,6 +3467,14 @@
     return !isFieldRole && !!SCHEDULE_TECH_FILTER && SCHEDULE_SHOW_TICKETS;
   }
 
+  // Ποια κλάση χρώματος παίρνει μια βλάβη στο πλέγμα του ημερολογίου (Μήνας/Εβδομάδα
+  // + τελείες κινητού). Κανόνας του χρήστη (17/09): ΜΟΝΟ η κατάσταση «Νέο» σπάει στα
+  // δύο — γαλάζιο όσο δεν έχει ανατεθεί σε κανέναν, μοβ μόλις ανατεθεί σε τεχνικό.
+  // Οι υπόλοιπες καταστάσεις κρατάνε το χρώμα του σταδίου τους όπως πριν.
+  function calStatusClass(t){
+    return (t.status === "new" && t.assigned_to) ? "st-new-assigned" : "st-" + t.status;
+  }
+
   function scheduleEntryHtml(r, opts){
     opts = opts || {};
     if (r.__leave) return `
@@ -3583,8 +3599,8 @@
       const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
       const shown = items.slice(0, 3).map(i => i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
-        : `<div class="cal-ev st-${i.status}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
-      const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot st-${v.status}"></span>`),
+        : `<div class="cal-ev ${calStatusClass(i)}">${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(i.clients ? i.clients.name : i.title)}</div>`).join("");
+      const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
       const closed = closedDayName(key);
@@ -3641,8 +3657,8 @@
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
       const shown = items.slice(0, 8).map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
-        : `<div class="cal-ev st-${x.status}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
-      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot st-${v.status}"></span>`),
+        : `<div class="cal-ev ${calStatusClass(x)}">${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(x.clients ? x.clients.name : x.title)}</div>`).join("");
+      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
       cells += `
