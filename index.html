@@ -862,6 +862,9 @@
         <div class="sched-filters">
           <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
           <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
+          <select id="sched-filter-office" class="hidden" style="font-size:13px;max-width:200px;width:auto;">
+            <option value="">Όλοι οι διαχειριστές</option>
+          </select>
           <select id="sched-filter-tech" class="hidden" style="font-size:13px;max-width:190px;width:auto;">
             <option value="">Όλοι οι τεχνικοί</option>
           </select>
@@ -1040,7 +1043,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.7";
+  const APP_VERSION = "Ver 1.8";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1049,7 +1052,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917f";
+  const APP_BUILD = "20260917g";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2595,6 +2598,9 @@
        <div id="tkf-client-active" class="chip active hidden" style="cursor:default;">Πελάτης: <strong id="tkf-client-active-name"></strong> <span id="tkf-client-clear" style="cursor:pointer;margin-left:6px;" title="Καθαρισμός φίλτρου">✕</span></div>
        <select id="tkf-assignee" class="hidden" style="font-size:13px;max-width:210px;width:auto;">
          <option value="">Ανάθεση σε — Όλοι</option>
+       </select>
+       <select id="tkf-office" class="hidden" style="font-size:13px;max-width:210px;width:auto;">
+         <option value="">Υπεύθυνος — Όλοι</option>
        </select>`;
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
@@ -2653,9 +2659,14 @@
   // τεχνικός, ίδιο μοτίβο με «δικές μου» του schema_v29). Όταν είναι ενεργό,
   // η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (βλ. loadTickets) ώστε
   // να φαίνεται η ΣΕΙΡΑ που θα κάνει τις επισκέψεις εκείνη τη μέρα.
+  let TICKET_OFFICE_FILTER = null;   // υπεύθυνος γραφείου (schema_v35)
   let TICKET_ASSIGNEE_FILTER = null; // staff/tech/owner id, ή null = όλοι
   $("#tkf-assignee").addEventListener("change", () => {
     TICKET_ASSIGNEE_FILTER = $("#tkf-assignee").value || null;
+    loadTickets();
+  });
+  $("#tkf-office").addEventListener("change", () => {
+    TICKET_OFFICE_FILTER = $("#tkf-office").value || null;
     loadTickets();
   });
 
@@ -2734,7 +2745,14 @@
       assigneeSelect.dataset.populated = "1";
       assigneeSelect.value = TICKET_ASSIGNEE_FILTER || "";
     }
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, clients(name, trade_name)");
+    const officeSelect = $("#tkf-office");
+    officeSelect.classList.toggle("hidden", isFieldRole);
+    if (!isFieldRole && officeSelect.dataset.populated !== "1") {
+      officeSelect.innerHTML = officeOwnerOptions("", "Υπεύθυνος — Όλοι");
+      officeSelect.dataset.populated = "1";
+      officeSelect.value = TICKET_OFFICE_FILTER || "";
+    }
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, office_owner, clients(name, trade_name)");
     // Σειρά: όταν βλέπουμε τις βλάβες ΕΝΟΣ τεχνικού (είτε γιατί είσαι εσύ ο
     // τεχνικός, είτε γιατί ο owner/reception διάλεξε κάποιον από το «Ανάθεση
     // σε»), η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (visit_order,
@@ -2749,6 +2767,7 @@
     if (TICKET_STATUS_FILTER === "done") q = q.in("status", ["done", "done_xx"]);
     else if (TICKET_STATUS_FILTER !== "all") q = q.eq("status", TICKET_STATUS_FILTER);
     if (showClientFilter && TICKET_CLIENT_FILTER) q = q.eq("client_id", TICKET_CLIENT_FILTER.id);
+    if (!isFieldRole) q = applyOfficeFilter(q, TICKET_OFFICE_FILTER);
     if (isFieldRole) {
       const extraIds = await myExtraTicketIds();
       q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
@@ -3149,6 +3168,11 @@
           <div class="field"><label>Ώρα λήξης</label><input type="time" id="tk-sched-end" value="${t.scheduled_end || ""}"></div>
         </div>
         <div class="field">
+          <label>Υπεύθυνος γραφείου</label>
+          <select id="tk-office-owner">${officeOwnerOptions(t.office_owner, "— Κανένας (φαίνεται και στους δύο) —")}</select>
+          <span class="cell-sub">Ποιος διαχειριστής την αναλαμβάνει. Χωρίς υπεύθυνο, φαίνεται σε όλα τα φίλτρα.</span>
+        </div>
+        <div class="field">
           <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;">
             <input type="checkbox" id="tk-appointment" ${t.is_appointment ? "checked" : ""}>
             Ραντεβού — κλεισμένο με τον πελάτη
@@ -3432,6 +3456,7 @@
           scheduled_time: $("#tk-sched-time").value || null,
           scheduled_end: $("#tk-sched-end").value || null,
           is_appointment: $("#tk-appointment").checked,
+          office_owner: $("#tk-office-owner").value || null,
           scheduled_tech: assignedName
         };
         // Η βάση κλείνει μόνη της τυχόν ανοιχτή επίσκεψη (schema_v21), αλλά καλό
@@ -3518,11 +3543,30 @@
   let SCHEDULE_MODE = "month";
   let SCHEDULE_CURSOR = new Date();            // οποιαδήποτε μέρα του μήνα που δείχνουμε (προβολή Μήνας)
   let SCHEDULE_SELECTED = isoDay(new Date());  // η επιλεγμένη μέρα (χρησιμοποιείται από Μήνα/Εβδομάδα/Ημέρα)
+  // ---- Υπεύθυνος γραφείου (schema_v35) ----
+  // Με δύο διαχειριστές, ο καθένας ξεχωρίζει το δικό του πρόγραμμα. Οι βλάβες που
+  // καταχώρησε κάποιος ΑΛΛΟΣ (πελάτης/τεχνικός/reception) μένουν χωρίς υπεύθυνο και
+  // φαίνονται ΠΑΝΤΑ, σε όποιον διαχειριστή κι αν φιλτράρεις — ρητή απαίτηση του χρήστη:
+  // «να τις φέρνει και στους 2 διαχειριστές».
+  function officeOwners(){
+    return STAFF_USERS_CACHE.filter(u => u.role === "owner");
+  }
+  function officeOwnerOptions(selectedId, allLabel){
+    return `<option value="">${allLabel}</option>` + officeOwners()
+      .map(u => `<option value="${u.id}" ${selectedId === u.id ? "selected" : ""}>${escapeHtml(u.full_name || u.email)}</option>`)
+      .join("");
+  }
+  // Το φίλτρο στη Supabase: «δικές του» Ή «κοινές».
+  function applyOfficeFilter(q, ownerId){
+    return ownerId ? q.or(`office_owner.eq.${ownerId},office_owner.is.null`) : q;
+  }
+
   // φίλτρα προγράμματος — SCHEDULE_TECH_FILTER έχει νόημα μόνο για owner/reception
   // (οι τεχνικοί/εξωτερικοί βλέπουν έτσι κι αλλιώς μόνο τις δικές τους επισκέψεις/άδειες)
   let SCHEDULE_SHOW_TICKETS = true;
   let SCHEDULE_SHOW_LEAVES = true;
   let SCHEDULE_TECH_FILTER = "";
+  let SCHEDULE_OFFICE_FILTER = "";   // υπεύθυνος γραφείου (schema_v35)
   // Άδειο σύνολο = καμία επιλογή = δείξε τα πάντα (πιο απλό από το να τα τσεκάρεις όλα)
   let SCHEDULE_STATUS_FILTER = new Set();
 
@@ -3564,7 +3608,7 @@
       // που σήμαινε ότι μια δουλειά της Δευτέρας εμφανιζόταν την Πέμπτη μόλις
       // τιμολογούνταν. Το γεμίζει το trigger sync_ticket_calendar_date().
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, is_appointment, clients(name, trade_name)")
+        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, is_appointment, office_owner, clients(name, trade_name)")
         .not("calendar_date", "is", null)
         .order("calendar_date").order("visit_order", { ascending:true, nullsFirst:false }).order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
@@ -3575,6 +3619,7 @@
         q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
       }
       else if (SCHEDULE_TECH_FILTER) q = q.eq("assigned_to", SCHEDULE_TECH_FILTER);
+      q = applyOfficeFilter(q, SCHEDULE_OFFICE_FILTER);
       if (SCHEDULE_STATUS_FILTER.size) q = q.in("status", [...SCHEDULE_STATUS_FILTER]);
       const { data, error } = await q;
       if (error) return { error };
@@ -3725,6 +3770,14 @@
       techSelect.innerHTML = '<option value="">Όλοι οι τεχνικοί</option>' +
         techs.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("");
       techSelect.dataset.populated = "1";
+    }
+    // Υπεύθυνος γραφείου — ίδιο μοτίβο, ορατό μόνο στο γραφείο
+    const officeSelect = $("#sched-filter-office");
+    officeSelect.classList.toggle("hidden", isFieldRole);
+    if (!isFieldRole && officeSelect.dataset.populated !== "1") {
+      officeSelect.innerHTML = officeOwnerOptions("", "Όλοι οι διαχειριστές");
+      officeSelect.dataset.populated = "1";
+      officeSelect.value = SCHEDULE_OFFICE_FILTER || "";
     }
     // φίλτρο κατάστασης βλάβης: κανένα επιλεγμένο = δείξε τα πάντα
     const statusBox = $("#sched-filter-status");
@@ -3944,6 +3997,10 @@
   });
   $("#sched-filter-tech").addEventListener("change", () => {
     SCHEDULE_TECH_FILTER = $("#sched-filter-tech").value;
+    loadSchedule();
+  });
+  $("#sched-filter-office").addEventListener("change", () => {
+    SCHEDULE_OFFICE_FILTER = $("#sched-filter-office").value;
     loadSchedule();
   });
 
@@ -4701,6 +4758,8 @@
       if (techSel) delete techSel.dataset.populated;
       const assigneeSel = $("#tkf-assignee");
       if (assigneeSel) delete assigneeSel.dataset.populated;
+      // ο ρόλος μπορεί να έγινε/έπαψε «Διαχειριστής» — ξαναχτίζουμε τις λίστες υπευθύνων
+      [$("#tkf-office"), $("#sched-filter-office")].forEach(el => { if (el) delete el.dataset.populated; });
       closeDrawer();
       await loadUsers();
     });
