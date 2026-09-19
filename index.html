@@ -892,6 +892,8 @@
             <button type="button" class="btn-ghost btn-sm" id="cal-next" aria-label="Επόμενος μήνας">›</button>
             <button type="button" class="btn-ghost btn-sm" id="cal-today">Σήμερα</button>
           </div>
+          <button type="button" class="btn-ghost btn-sm hidden" id="week-collapse"
+                  title="Κλείσιμο/άνοιγμα του εβδομαδιαίου πλέγματος" aria-expanded="true">▲ Κλείσιμο</button>
           <div class="filterbar" id="schedule-mode" style="padding:0;">
             <div class="chip active" data-mode="month">Μήνας</div>
             <div class="chip" data-mode="week">Εβδομάδα</div>
@@ -1147,7 +1149,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.9";
+  const APP_VERSION = "Ver 2.0";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1156,7 +1158,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260919";
+  const APP_BUILD = "20260919a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1663,6 +1665,36 @@
   // οι επισκέψεις δεν χωράνε, οπότε όσο πιο ψηλά το κάνεις τόσα περισσότερα βλέπεις.
   // Το ύψος θυμάται για την επόμενη φορά. Σε κινητό είναι ανενεργό (εκεί το πλέγμα
   // δείχνει τελείες, δεν έχει νόημα).
+  // Άνοιγμα/κλείσιμο του εβδομαδιαίου πλέγματος (ζήτημα χρήστη, 19/09): όταν δουλεύεις
+  // πάνω στη μέρα, το πλέγμα των 7 ημερών πιάνει χώρο χωρίς λόγο — κλείνει και μένει
+  // ολόκληρη η οθόνη για το πάνελ της ημέρας. Η επιλογή θυμάται για την επόμενη φορά.
+  const WEEK_OPEN_KEY = "iris.schedule.weekOpen";
+  let WEEK_OPEN = true;
+  function applyWeekCollapsed(){
+    const btn = $("#week-collapse");
+    const grid = $("#schedule-week");
+    if (!btn || !grid) return;
+    const onWeek = SCHEDULE_MODE === "week";
+    btn.classList.toggle("hidden", !onWeek);
+    // Το πλέγμα κρύβεται ΜΟΝΟ όταν είμαστε στην Εβδομάδα και ο χρήστης το έχει κλείσει —
+    // στις άλλες προβολές το κρύβει έτσι κι αλλιώς η loadSchedule().
+    if (onWeek) grid.classList.toggle("hidden", !WEEK_OPEN);
+    btn.textContent = WEEK_OPEN ? "▲ Κλείσιμο" : "▼ Άνοιγμα";
+    btn.setAttribute("aria-expanded", WEEK_OPEN ? "true" : "false");
+  }
+  function initWeekCollapsed(){
+    let saved = null;
+    try { saved = localStorage.getItem(WEEK_OPEN_KEY); } catch (e) {}
+    WEEK_OPEN = saved !== "0";
+    const btn = $("#week-collapse");
+    if (btn) btn.addEventListener("click", () => {
+      WEEK_OPEN = !WEEK_OPEN;
+      try { localStorage.setItem(WEEK_OPEN_KEY, WEEK_OPEN ? "1" : "0"); } catch (e) {}
+      applyWeekCollapsed();
+    });
+  }
+  initWeekCollapsed();
+
   const WEEK_H_KEY = "iris.schedule.weekHeight";
   function initWeekResize(){
     const el = $("#schedule-week");
@@ -3954,6 +3986,8 @@
     else if (mode === "week") await renderScheduleWeek();
     else if (mode === "day") await renderScheduleDayOnly();
     else await renderScheduleList();
+    // μετά το render, ώστε το κλειστό πλέγμα να μένει κλειστό και σε αλλαγή εβδομάδας
+    applyWeekCollapsed();
   }
 
   async function renderScheduleCalendar(){
@@ -4169,6 +4203,11 @@
   // Πρόγραμμα εκείνου στον οποίο ανατέθηκε (βλ. fetchScheduleDays) — ο τεχνικός
   // δεν βλέπει ποτέ αυτή την καρτέλα, μόνο τη σημείωσή του μέσα στο πρόγραμμά του.
   const NOTE_COLORS = ["blue","purple","orange","red","green","yellow"];
+  // Πόση ώρα πριν φεύγει η υπενθύμιση (schema_v37)
+  const NOTE_REMIND_CHOICES = [
+    [5,"5 λεπτά πριν"], [15,"15 λεπτά πριν"], [30,"30 λεπτά πριν"],
+    [60,"1 ώρα πριν"], [120,"2 ώρες πριν"], [1440,"1 μέρα πριν"],
+  ];
   const NOTE_COLOR_LABEL = { blue:"Γαλάζιο", purple:"Μοβ", orange:"Πορτοκαλί",
                              red:"Κόκκινο", green:"Πράσινο", yellow:"Κίτρινο" };
   let NOTE_CATS = [];
@@ -4197,7 +4236,7 @@
   // Φέρνει τις σημειώσεις ενός διαστήματος, με τα ενεργά φίλτρα.
   async function fetchNotes(fromISO, toISO){
     let q = sb.from("notes")
-      .select("id, note_date, note_time, title, body, category_id, client_id, assigned_to, done, clients(name, trade_name)")
+      .select("id, note_date, note_time, title, body, category_id, client_id, assigned_to, done, remind_minutes, clients(name, trade_name)")
       .order("note_date").order("note_time", { ascending:true, nullsFirst:true });
     if (fromISO) q = q.gte("note_date", fromISO);
     if (toISO)   q = q.lte("note_date", toISO);
@@ -4334,7 +4373,7 @@
       <div class="note-row ${n.done ? "nt-done" : ""}" data-note-id="${n.id}">
         <div class="note-date">${new Date(n.note_date + "T00:00:00").toLocaleDateString("el-GR",{day:"2-digit",month:"2-digit",year:"2-digit"})}${n.note_time ? "<br>" + n.note_time.slice(0,5) : ""}</div>
         <div class="note-main">
-          <strong>${n.done ? "✓ " : ""}${escapeHtml(n.title)}</strong>
+          <strong>${n.done ? "✓ " : ""}${n.remind_minutes != null ? "🔔 " : ""}${escapeHtml(n.title)}</strong>
           ${client ? `<div class="cell-sub">${escapeHtml(client)}</div>` : ""}
           ${who ? `<div class="cell-sub">Ανατέθηκε: ${escapeHtml(who.full_name || who.email || "—")}</div>` : ""}
         </div>
@@ -4407,7 +4446,7 @@
     if (NOTE_CATS.length === 0) await loadNoteCategories();
 
     let n = { note_date: NOTE_SELECTED, note_time:"", title:"", body:"",
-              category_id:"", client_id:"", assigned_to:"", done:false };
+              category_id:"", client_id:"", assigned_to:"", done:false, remind_minutes:null };
     if (noteId) {
       const { data, error } = await sb.from("notes").select("*").eq("id", noteId).single();
       if (error || !data) { alert("Δεν άνοιξε η σημείωση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
@@ -4467,6 +4506,18 @@
         <button type="button" class="btn-primary btn-sm" id="ntnc-save">Δημιουργία πελάτη</button>
       </div>
 
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;">
+          <input type="checkbox" id="nt-remind" ${n.remind_minutes != null ? "checked" : ""}> Υπενθύμιση με push στο κινητό
+        </label>
+        <div id="nt-remind-when" class="${n.remind_minutes != null ? "" : "hidden"}" style="margin-top:8px;">
+          <select id="nt-remind-mins" style="max-width:220px;width:auto;">
+            ${NOTE_REMIND_CHOICES.map(([v,l]) =>
+              `<option value="${v}" ${String(n.remind_minutes) === String(v) ? "selected" : ""}>${l}</option>`).join("")}
+          </select>
+          <span class="cell-sub">Αν η σημείωση δεν έχει ώρα, μετράει από τις 09:00.</span>
+        </div>
+      </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;">
           <input type="checkbox" id="nt-done" ${n.done ? "checked" : ""}> Έγινε
@@ -4550,6 +4601,10 @@
       clearMsg($("#ntnc-msg"));
     });
 
+    $("#nt-remind").addEventListener("change", () => {
+      $("#nt-remind-when").classList.toggle("hidden", !$("#nt-remind").checked);
+    });
+
     // --- αποθήκευση / διαγραφή ---
     $("#nt-save").addEventListener("click", async () => {
       const title = $("#nt-title").value.trim();
@@ -4566,6 +4621,7 @@
         client_id: $("#nt-client").value || null,
         assigned_to: $("#nt-user").value || null,
         done: $("#nt-done").checked,
+        remind_minutes: $("#nt-remind").checked ? parseInt($("#nt-remind-mins").value, 10) : null,
       };
       const { error } = noteId
         ? await sb.from("notes").update(payload).eq("id", noteId)
