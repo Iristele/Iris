@@ -484,6 +484,45 @@
   /* Γραμμή ΑΦΜ μέσα στην καρτέλα βλάβης — το βλέπει και ο τεχνικός· αν λείπει, το
      συμπληρώνει εκεί και αποθηκεύεται μόνο του στην καρτέλα του πελάτη (17/09). */
   .vat-box{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 10px;}
+  /* ---- Σημειώσεις (schema_v36) ---- */
+  /* Το χρώμα της κατηγορίας. Αποθηκεύουμε ΚΛΕΙΔΙ, όχι hex, ώστε κάθε θέμα να
+     δίνει τη δική του απόχρωση — ίδια tokens με τις καταστάσεις βλάβης. */
+  .nt-blue{background:var(--blue-bg);color:var(--blue);}
+  .nt-purple{background:var(--purple-bg);color:var(--purple);}
+  .nt-orange{background:var(--orange-bg);color:var(--orange);}
+  .nt-red{background:var(--red-bg);color:var(--red);}
+  .nt-green{background:var(--green-bg);color:var(--green);}
+  .nt-yellow{background:var(--yellow-bg);color:var(--yellow);}
+  .cal-dot.nt-blue{background:var(--blue-dot);}
+  .cal-dot.nt-purple{background:var(--purple-dot);}
+  .cal-dot.nt-orange{background:var(--orange-dot);}
+  .cal-dot.nt-red{background:var(--red-dot);}
+  .cal-dot.nt-green{background:var(--green-dot);}
+  .cal-dot.nt-yellow{background:var(--yellow-dot);}
+  /* ολοκληρωμένη σημείωση: ξεθωριασμένη + τσεκ */
+  .cal-ev.nt-done,.note-row.nt-done{opacity:.55;text-decoration:line-through;}
+  .notes-split{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;}
+  @media (max-width:980px){ .notes-split{grid-template-columns:1fr;} }
+  .note-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-md);
+    border:1px solid var(--line);margin-bottom:8px;cursor:pointer;background:var(--surface);}
+  .note-row:hover{border-color:var(--brand);background:var(--surface-2);}
+  .note-date{font-size:12.5px;color:var(--ink-soft);min-width:92px;flex:none;
+    font-variant-numeric:tabular-nums;}
+  .note-main{flex:1;min-width:0;}
+  .note-cat{font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--r-full);flex:none;}
+  .color-picker{display:flex;gap:8px;flex-wrap:wrap;}
+  .color-picker button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;
+    cursor:pointer;padding:0;}
+  /* Στον επιλογέα θέλουμε το ΚΑΘΑΡΟ χρώμα (όχι το ξεθωριασμένο φόντο της ετικέτας),
+     αλλιώς τα έξι δείγματα μοιάζουν όλα υπόλευκα και δεν ξεχωρίζουν. */
+  .color-picker button.nt-blue{background:var(--blue-dot);}
+  .color-picker button.nt-purple{background:var(--purple-dot);}
+  .color-picker button.nt-orange{background:var(--orange-dot);}
+  .color-picker button.nt-red{background:var(--red-dot);}
+  .color-picker button.nt-green{background:var(--green-dot);}
+  .color-picker button.nt-yellow{background:var(--yellow-dot);}
+  .color-picker button[aria-pressed="true"]{border-color:var(--ink);}
+  .ncat-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
@@ -765,6 +804,7 @@
     <div class="nav-item" data-view="tickets" id="nav-tickets"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15l-3.5-2.5L12 19.5 8.5 17 5 19.5z"/><path d="M9 9h6"/><path d="M9 12.5h4"/></svg><span id="nav-tickets-label">Βλάβες</span></div>
     <div class="nav-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.8h17"/><path d="M8 3.5v3M16 3.5v3"/></svg>Πρόγραμμα</div>
     <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><svg viewBox="0 0 24 24"><path d="M14.5 6.2a3.6 3.6 0 1 1-5 5L5 15.7v3.3h3.3l4.5-4.5a3.6 3.6 0 0 0 5-5z"/></svg><span id="nav-technicians-label">Τεχνικοί</span></div>
+    <div class="nav-item hidden" data-view="notes" id="nav-notes"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Σημειώσεις</div>
     <div class="nav-item hidden" data-view="users" id="nav-users"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg>Χρήστες</div>
     <div class="nav-item hidden" data-view="company" id="nav-company"><svg viewBox="0 0 24 24"><path d="M4 20.5V6.5l7-3v17"/><path d="M11 10.5h9v10"/><path d="M4 20.5h17"/><path d="M14.5 14h2M14.5 17h2M7 8.5h1M7 12h1M7 15.5h1"/></svg>Εταιρία</div>
   </div>
@@ -862,6 +902,7 @@
         <div class="sched-filters">
           <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
           <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
+          <label><input type="checkbox" id="sched-filter-notes" checked> Σημειώσεις</label>
           <select id="sched-filter-office" class="hidden" style="font-size:13px;max-width:200px;width:auto;">
             <option value="">Όλοι οι διαχειριστές</option>
           </select>
@@ -892,6 +933,69 @@
       <div class="panel hidden" id="schedule-list-panel">
         <div class="panel-head"><h2>Όλες οι επισκέψεις</h2></div>
         <div class="panel-body"><div id="schedule-list"></div></div>
+      </div>
+    </div>
+
+    <!-- σημειώσεις / προσωπικό ημερολόγιο διαχειριστή (schema_v36) -->
+    <div id="view-notes" class="hidden">
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="cal-head">
+          <div class="cal-nav">
+            <button type="button" class="btn-ghost btn-sm" id="note-prev" aria-label="Προηγούμενο">‹</button>
+            <div class="cal-title" id="note-title">—</div>
+            <button type="button" class="btn-ghost btn-sm" id="note-next" aria-label="Επόμενο">›</button>
+            <button type="button" class="btn-ghost btn-sm" id="note-today">Σήμερα</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="filterbar" id="note-mode" style="padding:0;">
+              <div class="chip active" data-nmode="month">Μήνας</div>
+              <div class="chip" data-nmode="week">Εβδομάδα</div>
+              <div class="chip" data-nmode="list">Λίστα</div>
+            </div>
+            <button type="button" class="btn-primary btn-sm" id="note-new-btn">+ Νέα σημείωση</button>
+          </div>
+        </div>
+        <div class="sched-filters">
+          <select id="note-filter-cat" style="font-size:13px;max-width:200px;width:auto;">
+            <option value="">Όλες οι κατηγορίες</option>
+          </select>
+          <select id="note-filter-user" style="font-size:13px;max-width:200px;width:auto;">
+            <option value="">Όλες οι αναθέσεις</option>
+          </select>
+          <label><input type="checkbox" id="note-filter-done"> Εμφάνιση ολοκληρωμένων</label>
+          <div class="sched-legend" id="note-legend"></div>
+        </div>
+        <div id="notes-msg" style="padding:0 20px 10px;"></div>
+        <div id="notes-calendar"></div>
+        <div id="notes-week" class="hidden"></div>
+      </div>
+
+      <div class="panel" id="notes-day-panel">
+        <div class="panel-head"><h2 id="notes-day-title">—</h2></div>
+        <div class="panel-body" id="notes-day-body" style="padding:6px 0;"></div>
+      </div>
+
+      <!-- Λίστα + δίπλα της η διαχείριση κατηγοριών -->
+      <div class="hidden" id="notes-list-wrap">
+        <div class="notes-split">
+          <div class="panel">
+            <div class="panel-head"><h2>Όλες οι σημειώσεις</h2></div>
+            <div class="panel-body"><div id="note-items-list"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Κατηγορίες</h2></div>
+            <div class="panel-body" style="padding:14px 20px 18px;">
+              <p class="cell-sub" style="margin:0 0 10px;">Κάθε κατηγορία έχει δικό της χρώμα — έτσι ξεχωρίζουν οι σημειώσεις στο ημερολόγιο.</p>
+              <div id="note-cats-msg"></div>
+              <div id="note-cats-list" style="margin-bottom:14px;"></div>
+              <div class="field"><label for="ncat-name">Νέα κατηγορία</label>
+                <input id="ncat-name" placeholder="π.χ. Ραντεβού λογιστή"></div>
+              <div class="field"><label>Χρώμα</label>
+                <div id="ncat-colors" class="color-picker"></div></div>
+              <button type="button" class="btn-primary btn-sm" id="ncat-add">Προσθήκη κατηγορίας</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1043,7 +1147,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 1.8";
+  const APP_VERSION = "Ver 1.9";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1052,7 +1156,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260917g";
+  const APP_BUILD = "20260919";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1594,6 +1698,7 @@
     $("#view-tickets").classList.toggle("hidden", view !== "tickets");
     $("#view-schedule").classList.toggle("hidden", view !== "schedule");
     $("#view-technicians").classList.toggle("hidden", view !== "technicians");
+    $("#view-notes").classList.toggle("hidden", view !== "notes");
     $("#view-users").classList.toggle("hidden", view !== "users");
     $("#view-company").classList.toggle("hidden", view !== "company");
     if (view === "dashboard") loadDashboard();
@@ -1601,6 +1706,7 @@
     if (view === "tickets") loadTickets();
     if (view === "schedule") loadSchedule();
     if (view === "technicians") loadTechnicians();
+    if (view === "notes") loadNotes();
     if (view === "users") loadUsers();
     if (view === "company") loadCompany();
   }
@@ -1719,6 +1825,9 @@
       initNavState();
       $("#nav-users").classList.toggle("hidden", !isOwnerRole);
       $("#nav-company").classList.toggle("hidden", !isOwnerRole);
+      // Σημειώσεις: ΜΟΝΟ διαχειριστής (schema_v36). Ο τεχνικός δεν βλέπει την καρτέλα —
+      // βλέπει μόνο τη σημείωση που του ανατέθηκε, μέσα στο Πρόγραμμά του.
+      $("#nav-notes").classList.toggle("hidden", !isOwnerRole);
       // Η άδεια πρώτα: αν έχει λήξει οριστικά, δεν έχει νόημα να φορτώσει τίποτα άλλο.
       // (προσωρινά απενεργοποιημένο — βλ. σημείωση πάνω από το LICENSE_ENFORCEMENT_ENABLED)
       if (LICENSE_ENFORCEMENT_ENABLED) {
@@ -3567,6 +3676,7 @@
   let SCHEDULE_SHOW_LEAVES = true;
   let SCHEDULE_TECH_FILTER = "";
   let SCHEDULE_OFFICE_FILTER = "";   // υπεύθυνος γραφείου (schema_v35)
+  let SCHEDULE_SHOW_NOTES = true;    // σημειώσεις μέσα στο πρόγραμμα (schema_v36)
   // Άδειο σύνολο = καμία επιλογή = δείξε τα πάντα (πιο απλό από το να τα τσεκάρεις όλα)
   let SCHEDULE_STATUS_FILTER = new Set();
 
@@ -3624,6 +3734,25 @@
       const { data, error } = await q;
       if (error) return { error };
       (data || []).forEach(r => { (byDay[r.calendar_date] = byDay[r.calendar_date] || []).push(r); });
+    }
+
+    // Σημειώσεις (schema_v36): ο διαχειριστής τις βλέπει όλες· ο τεχνικός/συνεργάτης
+    // ΜΟΝΟ όσες του έχουν ανατεθεί — αυτό είναι το «να μπει και στα 2 ημερολόγια».
+    // Η RLS το επιβάλλει ούτως ή άλλως· εδώ απλώς δεν ζητάμε ό,τι δεν θα έρθει.
+    if (SCHEDULE_SHOW_NOTES && PROFILE && PROFILE.role !== "reception") {
+      let nq = sb.from("notes")
+        .select("id, note_date, note_time, title, category_id, assigned_to, done, clients(name, trade_name)")
+        .order("note_date").order("note_time", { ascending:true, nullsFirst:true });
+      if (fromISO) nq = nq.gte("note_date", fromISO);
+      if (toISO)   nq = nq.lte("note_date", toISO);
+      if (isFieldRole) nq = nq.eq("assigned_to", USER.id);
+      else if (SCHEDULE_TECH_FILTER) nq = nq.eq("assigned_to", SCHEDULE_TECH_FILTER);
+      const { data: noteRows, error: noteErr } = await nq;
+      if (noteErr) return { error: noteErr };
+      if (NOTE_CATS.length === 0) await loadNoteCategories();
+      (noteRows || []).forEach(n => {
+        (byDay[n.note_date] = byDay[n.note_date] || []).push({ __note:true, ...n });
+      });
     }
 
     if (SCHEDULE_SHOW_LEAVES) {
@@ -3707,6 +3836,20 @@
 
   function scheduleEntryHtml(r, opts){
     opts = opts || {};
+    // Σημείωση μέσα στο Πρόγραμμα (schema_v36) — γράφει ρητά «Σημείωση», ώστε ο
+    // τεχνικός να ξεχωρίζει ότι δεν είναι βλάβη.
+    if (r.__note) {
+      const cat = noteCat(r.category_id);
+      return `
+      <div class="sched-visit ${r.done ? "nt-done" : ""}">
+        <div class="sched-time">${r.note_time ? r.note_time.slice(0,5) : "📝"}</div>
+        <div class="sched-info"><strong>${r.done ? "✓ " : ""}${escapeHtml(r.title)}</strong>
+          <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Σημείωση${cat ? " · " + escapeHtml(cat.name) : ""}</span>
+          ${r.clients ? `<div class="cell-sub">${escapeHtml(clientLabel(r.clients))}</div>` : ""}
+        </div>
+        <div class="sched-tech">—</div>
+      </div>`;
+    }
     if (r.__leave) return `
       <div class="sched-visit sched-leave">
         <div class="sched-time">🌴</div>
@@ -3837,8 +3980,10 @@
       const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
       const shown = items.slice(0, 3).map(i => i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
+        : i.__note
+        ? `<div class="cal-ev ${noteColorClass(i)}">📝 ${i.note_time ? i.note_time.slice(0,5) + " " : ""}${escapeHtml(i.title)}</div>`
         : `<div class="cal-ev ${calStatusClass(i)}">${apptMarkHtml(i)}${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(i.clients) || i.title)}</div>`).join("");
-      const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
+      const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
       const closed = closedDayName(key);
@@ -3895,8 +4040,10 @@
       const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
       const shown = items.map(x => x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
+        : x.__note
+        ? `<div class="cal-ev ${noteColorClass(x)}">📝 ${x.note_time ? x.note_time.slice(0,5) + " " : ""}${escapeHtml(x.title)}</div>`
         : `<div class="cal-ev ${calStatusClass(x)}">${apptMarkHtml(x)}${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
-      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${calStatusClass(v)}"></span>`),
+      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
       cells += `
@@ -3999,6 +4146,10 @@
     SCHEDULE_TECH_FILTER = $("#sched-filter-tech").value;
     loadSchedule();
   });
+  $("#sched-filter-notes").addEventListener("change", () => {
+    SCHEDULE_SHOW_NOTES = $("#sched-filter-notes").checked;
+    loadSchedule();
+  });
   $("#sched-filter-office").addEventListener("change", () => {
     SCHEDULE_OFFICE_FILTER = $("#sched-filter-office").value;
     loadSchedule();
@@ -4012,6 +4163,468 @@
       .in("role", ["owner","staff","external"]).is("deleted_at", null).order("full_name");
     if (!error) STAFF_USERS_CACHE = data || [];
   }
+
+  // ================= ΣΗΜΕΙΩΣΕΙΣ / ΠΡΟΣΩΠΙΚΟ ΗΜΕΡΟΛΟΓΙΟ (schema_v36) =================
+  // Καρτέλα ΜΟΝΟ για διαχειριστές. Η ανατεθειμένη σημείωση εμφανίζεται ΚΑΙ στο
+  // Πρόγραμμα εκείνου στον οποίο ανατέθηκε (βλ. fetchScheduleDays) — ο τεχνικός
+  // δεν βλέπει ποτέ αυτή την καρτέλα, μόνο τη σημείωσή του μέσα στο πρόγραμμά του.
+  const NOTE_COLORS = ["blue","purple","orange","red","green","yellow"];
+  const NOTE_COLOR_LABEL = { blue:"Γαλάζιο", purple:"Μοβ", orange:"Πορτοκαλί",
+                             red:"Κόκκινο", green:"Πράσινο", yellow:"Κίτρινο" };
+  let NOTE_CATS = [];
+  let NOTE_MODE = "month";
+  let NOTE_CURSOR = new Date();
+  let NOTE_SELECTED = isoDay(new Date());
+  let NOTE_CAT_FILTER = "";
+  let NOTE_USER_FILTER = "";
+  let NOTE_SHOW_DONE = false;
+  let NOTE_NEW_COLOR = "blue";
+
+  // ΠΡΟΣΟΧΗ στο όνομα: υπάρχει ήδη τοπική μεταβλητή isOwnerRole μέσα στη ροή σύνδεσης —
+  // διαφορετικό πράγμα (boolean, όχι συνάρτηση). Ξεχωριστό όνομα για να μην μπερδεύεται.
+  const isNoteAdmin = () => PROFILE && PROFILE.role === "owner";
+  function noteCat(id){ return NOTE_CATS.find(c => c.id === id) || null; }
+  function noteColorClass(n){
+    const c = noteCat(n.category_id);
+    return "nt-" + (c ? c.color : "blue") + (n.done ? " nt-done" : "");
+  }
+
+  async function loadNoteCategories(){
+    const { data } = await sb.from("note_categories").select("*").order("sort_order").order("name");
+    NOTE_CATS = data || [];
+  }
+
+  // Φέρνει τις σημειώσεις ενός διαστήματος, με τα ενεργά φίλτρα.
+  async function fetchNotes(fromISO, toISO){
+    let q = sb.from("notes")
+      .select("id, note_date, note_time, title, body, category_id, client_id, assigned_to, done, clients(name, trade_name)")
+      .order("note_date").order("note_time", { ascending:true, nullsFirst:true });
+    if (fromISO) q = q.gte("note_date", fromISO);
+    if (toISO)   q = q.lte("note_date", toISO);
+    if (NOTE_CAT_FILTER)  q = q.eq("category_id", NOTE_CAT_FILTER);
+    if (NOTE_USER_FILTER) q = q.eq("assigned_to", NOTE_USER_FILTER);
+    if (!NOTE_SHOW_DONE)  q = q.eq("done", false);
+    const { data, error } = await q;
+    return { rows: data || [], error };
+  }
+
+  function noteChipHtml(n){
+    const t = n.note_time ? n.note_time.slice(0,5) + " " : "";
+    return `<div class="cal-ev ${noteColorClass(n)}" data-note-id="${n.id}">${n.done ? "✓ " : ""}${t}${escapeHtml(n.title)}</div>`;
+  }
+
+  async function loadNotes(){
+    if (!isNoteAdmin()) return;
+    clearMsg($("#notes-msg"));
+    if (NOTE_CATS.length === 0) await loadNoteCategories();
+    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
+
+    // φίλτρα (χτίζονται μία φορά)
+    const catSel = $("#note-filter-cat");
+    if (catSel.dataset.populated !== "1") {
+      catSel.innerHTML = '<option value="">Όλες οι κατηγορίες</option>' +
+        NOTE_CATS.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      catSel.dataset.populated = "1";
+      catSel.value = NOTE_CAT_FILTER;
+    }
+    const userSel = $("#note-filter-user");
+    if (userSel.dataset.populated !== "1") {
+      userSel.innerHTML = '<option value="">Όλες οι αναθέσεις</option>' +
+        STAFF_USERS_CACHE.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("");
+      userSel.dataset.populated = "1";
+      userSel.value = NOTE_USER_FILTER;
+    }
+    $("#note-legend").innerHTML = NOTE_CATS
+      .map(c => `<span><span class="cal-dot nt-${c.color}"></span>${escapeHtml(c.name)}</span>`).join("");
+
+    $("#notes-calendar").classList.toggle("hidden", NOTE_MODE !== "month");
+    $("#notes-week").classList.toggle("hidden", NOTE_MODE !== "week");
+    $("#notes-day-panel").classList.toggle("hidden", NOTE_MODE === "list");
+    $("#notes-list-wrap").classList.toggle("hidden", NOTE_MODE !== "list");
+
+    if (NOTE_MODE === "month") await renderNotesMonth();
+    else if (NOTE_MODE === "week") await renderNotesWeek();
+    else await renderNotesList();
+  }
+
+  function groupNotesByDay(rows){
+    const byDay = {};
+    rows.forEach(n => { (byDay[n.note_date] = byDay[n.note_date] || []).push(n); });
+    return byDay;
+  }
+
+  async function renderNotesMonth(){
+    const cur = NOTE_CURSOR;
+    const first = new Date(cur.getFullYear(), cur.getMonth(), 1);
+    const last = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+    const startOffset = (first.getDay() + 6) % 7;
+    const gridStart = new Date(first); gridStart.setDate(first.getDate() - startOffset);
+    const endOffset = (7 - ((last.getDay() + 6) % 7) - 1);
+    const gridEnd = new Date(last); gridEnd.setDate(last.getDate() + endOffset);
+    $("#note-title").textContent = first.toLocaleDateString("el-GR", { month:"long", year:"numeric" });
+
+    const { rows, error } = await fetchNotes(isoDay(gridStart), isoDay(gridEnd));
+    if (error) { showMsg($("#notes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+    const byDay = groupNotesByDay(rows);
+    const today = isoDay(new Date());
+    const dows = ["Δε","Τρ","Τε","Πε","Πα","Σα","Κυ"];
+    let cells = "";
+    for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
+      const key = isoDay(d);
+      const items = byDay[key] || [];
+      const other = d.getMonth() !== cur.getMonth();
+      cells += `
+        <div class="cal-cell ${other ? "other" : ""} ${key === today ? "today" : ""} ${key === NOTE_SELECTED ? "selected" : ""} ${d.getDay() === 0 ? "sunday" : ""}" data-nday="${key}">
+          <div class="cal-daynum">${d.getDate()}</div>
+          ${items.slice(0,3).map(noteChipHtml).join("")}
+          ${items.length > 3 ? `<div class="cal-more">+${items.length - 3} ακόμα</div>` : ""}
+          <div class="cal-dots">${items.slice(0,5).map(n => `<span class="cal-dot ${noteColorClass(n)}"></span>`).join("")}</div>
+        </div>`;
+    }
+    $("#notes-calendar").innerHTML =
+      `<div class="cal-grid">${dows.map(x => `<div class="cal-dow">${x}</div>`).join("")}</div>` +
+      `<div class="cal-grid">${cells}</div>`;
+    bindNoteDayCells("#notes-calendar");
+    renderNotesDay(byDay[NOTE_SELECTED] || []);
+  }
+
+  async function renderNotesWeek(){
+    const weekStart = startOfWeek(new Date(NOTE_SELECTED + "T00:00:00"));
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    $("#note-title").textContent =
+      `${weekStart.toLocaleDateString("el-GR",{day:"numeric",month:"short"})} – ${weekEnd.toLocaleDateString("el-GR",{day:"numeric",month:"short",year:"numeric"})}`;
+
+    const { rows, error } = await fetchNotes(isoDay(weekStart), isoDay(weekEnd));
+    if (error) { showMsg($("#notes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+    const byDay = groupNotesByDay(rows);
+    const today = isoDay(new Date());
+    const dows = ["Δε","Τρ","Τε","Πε","Πα","Σα","Κυ"];
+    let cells = "";
+    for (let d = new Date(weekStart), i = 0; i < 7; d.setDate(d.getDate()+1), i++) {
+      const key = isoDay(d);
+      const items = byDay[key] || [];
+      cells += `
+        <div class="cal-cell week-cell ${key === today ? "today" : ""} ${key === NOTE_SELECTED ? "selected" : ""} ${i === 6 ? "sunday" : ""}" data-nday="${key}">
+          <div class="cal-daynum">${dows[i]} ${d.getDate()}</div>
+          ${items.map(noteChipHtml).join("")}
+          <div class="cal-dots">${items.slice(0,6).map(n => `<span class="cal-dot ${noteColorClass(n)}"></span>`).join("")}</div>
+        </div>`;
+    }
+    $("#notes-week").innerHTML = `<div class="cal-grid">${cells}</div>`;
+    bindNoteDayCells("#notes-week");
+    renderNotesDay(byDay[NOTE_SELECTED] || []);
+  }
+
+  function bindNoteDayCells(sel){
+    $$(`${sel} [data-nday]`).forEach(el => {
+      el.addEventListener("click", (e) => {
+        const chip = e.target.closest("[data-note-id]");
+        if (chip) { openNoteDrawer(chip.dataset.noteId); return; }
+        NOTE_SELECTED = el.dataset.nday;
+        loadNotes();
+      });
+    });
+  }
+
+  function noteRowHtml(n){
+    const c = noteCat(n.category_id);
+    const who = n.assigned_to ? (STAFF_USERS_CACHE.find(u => u.id === n.assigned_to) || {}) : null;
+    const client = n.clients ? (clientLabel(n.clients)) : "";
+    return `
+      <div class="note-row ${n.done ? "nt-done" : ""}" data-note-id="${n.id}">
+        <div class="note-date">${new Date(n.note_date + "T00:00:00").toLocaleDateString("el-GR",{day:"2-digit",month:"2-digit",year:"2-digit"})}${n.note_time ? "<br>" + n.note_time.slice(0,5) : ""}</div>
+        <div class="note-main">
+          <strong>${n.done ? "✓ " : ""}${escapeHtml(n.title)}</strong>
+          ${client ? `<div class="cell-sub">${escapeHtml(client)}</div>` : ""}
+          ${who ? `<div class="cell-sub">Ανατέθηκε: ${escapeHtml(who.full_name || who.email || "—")}</div>` : ""}
+        </div>
+        ${c ? `<span class="note-cat nt-${c.color}">${escapeHtml(c.name)}</span>` : ""}
+      </div>`;
+  }
+
+  function renderNotesDay(items){
+    const d = new Date(NOTE_SELECTED + "T00:00:00");
+    $("#notes-day-title").textContent = d.toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long" });
+    const body = $("#notes-day-body");
+    body.innerHTML = items.length
+      ? `<div style="padding:0 20px;">${items.map(noteRowHtml).join("")}</div>`
+      : '<div class="empty-state">Καμία σημείωση αυτή τη μέρα.</div>';
+    bindNoteRows(body);
+  }
+
+  async function renderNotesList(){
+    $("#note-title").textContent = "Όλες οι σημειώσεις";
+    const { rows, error } = await fetchNotes(null, null);
+    if (error) { showMsg($("#notes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+    const box = $("#note-items-list");
+    box.innerHTML = rows.length
+      ? rows.map(noteRowHtml).join("")
+      : '<div class="empty-state">Καμία σημείωση ακόμα.</div>';
+    bindNoteRows(box);
+    renderNoteCats();
+  }
+
+  function bindNoteRows(root){
+    root.querySelectorAll("[data-note-id]").forEach(el => {
+      el.addEventListener("click", () => openNoteDrawer(el.dataset.noteId));
+    });
+  }
+
+  // ---- Διαχείριση κατηγοριών (δίπλα από τη λίστα) ----
+  function renderNoteCats(){
+    const box = $("#note-cats-list");
+    box.innerHTML = NOTE_CATS.length
+      ? NOTE_CATS.map(c => `
+          <div class="ncat-item">
+            <span class="note-cat nt-${c.color}">${escapeHtml(c.name)}</span>
+            <span class="cell-sub" style="flex:1;">${NOTE_COLOR_LABEL[c.color] || c.color}</span>
+            <button type="button" class="btn-ghost btn-sm" data-ncat-del="${c.id}" title="Διαγραφή">✕</button>
+          </div>`).join("")
+      : '<div class="cell-sub">Καμία κατηγορία ακόμα.</div>';
+    box.querySelectorAll("[data-ncat-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Να διαγραφεί η κατηγορία; Οι σημειώσεις της παραμένουν, απλώς μένουν χωρίς κατηγορία.")) return;
+        const { error } = await sb.from("note_categories").delete().eq("id", btn.dataset.ncatDel);
+        if (error) { showMsg($("#note-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
+        await loadNoteCategories();
+        delete $("#note-filter-cat").dataset.populated;
+        await loadNotes();
+      });
+    });
+    const picker = $("#ncat-colors");
+    picker.innerHTML = NOTE_COLORS.map(c =>
+      `<button type="button" class="nt-${c}" data-ncolor="${c}" aria-pressed="${c === NOTE_NEW_COLOR}" title="${NOTE_COLOR_LABEL[c]}" aria-label="${NOTE_COLOR_LABEL[c]}"></button>`).join("");
+    picker.querySelectorAll("[data-ncolor]").forEach(b => {
+      b.addEventListener("click", () => { NOTE_NEW_COLOR = b.dataset.ncolor; renderNoteCats(); });
+    });
+  }
+
+  // ---- Η καρτέλα της σημείωσης ----
+  async function openNoteDrawer(noteId){
+    if (!isNoteAdmin()) return;
+    if (CLIENTS_CACHE.length === 0) await loadClients();
+    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
+    if (NOTE_CATS.length === 0) await loadNoteCategories();
+
+    let n = { note_date: NOTE_SELECTED, note_time:"", title:"", body:"",
+              category_id:"", client_id:"", assigned_to:"", done:false };
+    if (noteId) {
+      const { data, error } = await sb.from("notes").select("*").eq("id", noteId).single();
+      if (error || !data) { alert("Δεν άνοιξε η σημείωση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
+      n = data;
+    }
+
+    const clientOptions = `<option value="">— Χωρίς πελάτη —</option>` +
+      CLIENTS_CACHE.map(c => `<option value="${c.id}" ${n.client_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
+
+    openDrawer(noteId ? "Σημείωση" : "Νέα σημείωση", `
+      <div id="note-msg"></div>
+      <div class="form-row">
+        <div class="field"><label>Ημερομηνία *</label><input type="date" id="nt-date" value="${n.note_date || ""}" required></div>
+        <div class="field"><label>Ώρα</label><input type="time" id="nt-time" value="${n.note_time ? n.note_time.slice(0,5) : ""}"></div>
+      </div>
+      <div class="field"><label>Τίτλος *</label><input id="nt-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Πέρασε από τον προμηθευτή" required></div>
+      <div class="field"><label>Σημείωση</label><textarea id="nt-body" style="min-height:80px;">${escapeHtml(n.body || "")}</textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Κατηγορία</label>
+          <select id="nt-cat"><option value="">— Χωρίς κατηγορία —</option>
+            ${NOTE_CATS.map(c => `<option value="${c.id}" ${n.category_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+          </select></div>
+        <div class="field"><label>Ανάθεση σε</label>
+          <select id="nt-user"><option value="">— Κανέναν (δική μου) —</option>
+            ${STAFF_USERS_CACHE.map(u => `<option value="${u.id}" ${n.assigned_to === u.id ? "selected" : ""}>${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})</option>`).join("")}
+          </select>
+          <span class="cell-sub">Αν την αναθέσεις, θα φαίνεται και στο Πρόγραμμά του.</span></div>
+      </div>
+
+      <div class="field"><label>Πελάτης</label>
+        <div style="display:flex;gap:8px;">
+          <select id="nt-client" style="flex:1;">${clientOptions}</select>
+          <button type="button" class="btn-ghost btn-sm" id="nt-client-search-btn" style="flex:none;" title="Αναζήτηση πελάτη" aria-label="Αναζήτηση πελάτη">🔍</button>
+          <button type="button" class="btn-ghost btn-sm" id="nt-client-new-btn" style="flex:none;" title="Νέος πελάτης" aria-label="Νέος πελάτης">➕</button>
+        </div>
+      </div>
+      <div id="nt-client-search-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
+        <p class="cell-sub" style="margin:0 0 8px;">Γράψε σε ένα ή περισσότερα πεδία — τα κριτήρια συνδυάζονται.</p>
+        <div class="form-row">
+          <div class="field"><label>ΑΦΜ</label><input id="nts-vat" inputmode="numeric" maxlength="12"></div>
+          <div class="field"><label>Επωνυμία</label><input id="nts-name"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Διακριτικός τίτλος</label><input id="nts-trade"></div>
+          <div class="field"><label>Τηλέφωνο</label><input id="nts-phone"></div>
+        </div>
+        <div id="nt-client-search-results"></div>
+      </div>
+      <div id="nt-client-new-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
+        <p class="cell-sub" style="margin:0 0 8px;">Γρήγορη καταχώρηση — τα υπόλοιπα στοιχεία συμπληρώνονται μετά από τους Πελάτες.</p>
+        <div id="ntnc-msg"></div>
+        <div class="field"><label>Επωνυμία *</label><input id="ntnc-name"></div>
+        <div class="form-row">
+          <div class="field"><label>Τηλέφωνο</label><input id="ntnc-phone"></div>
+          <div class="field"><label>Πόλη</label><input id="ntnc-city"></div>
+        </div>
+        <button type="button" class="btn-primary btn-sm" id="ntnc-save">Δημιουργία πελάτη</button>
+      </div>
+
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;">
+          <input type="checkbox" id="nt-done" ${n.done ? "checked" : ""}> Έγινε
+        </label>
+      </div>
+      <div class="form-row" style="margin-top:8px;">
+        ${noteId ? '<button type="button" class="btn-danger btn-sm" id="nt-delete">Διαγραφή</button>' : "<span></span>"}
+        <button type="button" class="btn-primary" id="nt-save">Αποθήκευση</button>
+      </div>
+    `);
+
+    // --- αναζήτηση πελάτη (ίδιο μοτίβο με τη «Νέα βλάβη») ---
+    function renderNoteClientSearch(){
+      const vat = $("#nts-vat").value.trim().toLowerCase();
+      const name = $("#nts-name").value.trim().toLowerCase();
+      const trade = $("#nts-trade").value.trim().toLowerCase();
+      const phone = $("#nts-phone").value.trim().toLowerCase();
+      const box = $("#nt-client-search-results");
+      if (!vat && !name && !trade && !phone) {
+        box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Πληκτρολόγησε σε κάποιο πεδίο για να δεις αποτελέσματα.</div>';
+        return;
+      }
+      const matches = CLIENTS_CACHE.filter(c =>
+        (!vat || (c.vat_number || "").toLowerCase().includes(vat)) &&
+        (!name || (c.name || "").toLowerCase().includes(name)) &&
+        (!trade || (c.trade_name || "").toLowerCase().includes(trade)) &&
+        (!phone || (c.phone || "").toLowerCase().includes(phone)));
+      if (matches.length === 0) {
+        box.innerHTML = '<div class="cell-sub" style="padding:6px 0;">Δεν βρέθηκε πελάτης με αυτά τα κριτήρια.</div>';
+        return;
+      }
+      const shown = matches.slice(0, 25);
+      box.innerHTML = shown.map(c => `
+        <div class="vlog-row" data-nclient-id="${c.id}" style="cursor:pointer;">
+          <strong>${escapeHtml(c.name)}</strong>
+          <div class="vlog-who">${[c.trade_name, c.vat_number, c.phone].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+        </div>`).join("") +
+        (matches.length > shown.length ? `<div class="cell-sub" style="padding:6px 0;">…και ${matches.length - shown.length} ακόμα.</div>` : "");
+      box.querySelectorAll("[data-nclient-id]").forEach(el => {
+        el.addEventListener("click", () => {
+          $("#nt-client").value = el.dataset.nclientId;
+          $("#nt-client-search-panel").classList.add("hidden");
+        });
+      });
+    }
+    $("#nt-client-search-btn").addEventListener("click", () => {
+      $("#nt-client-new-panel").classList.add("hidden");
+      const panel = $("#nt-client-search-panel");
+      panel.classList.toggle("hidden");
+      if (!panel.classList.contains("hidden")) renderNoteClientSearch();
+    });
+    ["#nts-vat","#nts-name","#nts-trade","#nts-phone"].forEach(sel =>
+      $(sel).addEventListener("input", renderNoteClientSearch));
+
+    $("#nt-client-new-btn").addEventListener("click", () => {
+      $("#nt-client-search-panel").classList.add("hidden");
+      $("#nt-client-new-panel").classList.toggle("hidden");
+    });
+    $("#ntnc-save").addEventListener("click", async () => {
+      const name = $("#ntnc-name").value.trim();
+      if (!name) { showMsg($("#ntnc-msg"), "Συμπλήρωσε επωνυμία.", "error"); return; }
+      const btn = $("#ntnc-save");
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
+      const { data, error } = await sb.from("clients").insert({
+        name, entity_type:"individual", type:"Άλλο",
+        phone: $("#ntnc-phone").value.trim() || null,
+        city: $("#ntnc-city").value.trim() || null,
+      }).select("id").single();
+      if (error) {
+        btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
+        showMsg($("#ntnc-msg"), "Σφάλμα: " + error.message, "error"); return;
+      }
+      await loadClients();
+      const sel = $("#nt-client");
+      sel.innerHTML = '<option value="">— Χωρίς πελάτη —</option>' +
+        CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      sel.value = data.id;
+      btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
+      $("#nt-client-new-panel").classList.add("hidden");
+      ["#ntnc-name","#ntnc-phone","#ntnc-city"].forEach(x => { $(x).value = ""; });
+      clearMsg($("#ntnc-msg"));
+    });
+
+    // --- αποθήκευση / διαγραφή ---
+    $("#nt-save").addEventListener("click", async () => {
+      const title = $("#nt-title").value.trim();
+      const date = $("#nt-date").value;
+      if (!title || !date) { showMsg($("#note-msg"), "Συμπλήρωσε ημερομηνία και τίτλο.", "error"); return; }
+      const btn = $("#nt-save");
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
+      const payload = {
+        note_date: date,
+        note_time: $("#nt-time").value || null,
+        title,
+        body: $("#nt-body").value.trim() || null,
+        category_id: $("#nt-cat").value || null,
+        client_id: $("#nt-client").value || null,
+        assigned_to: $("#nt-user").value || null,
+        done: $("#nt-done").checked,
+      };
+      const { error } = noteId
+        ? await sb.from("notes").update(payload).eq("id", noteId)
+        : await sb.from("notes").insert(payload);
+      btn.disabled = false; btn.textContent = "Αποθήκευση";
+      if (error) { showMsg($("#note-msg"), "Σφάλμα: " + error.message, "error"); return; }
+      NOTE_SELECTED = date;
+      closeDrawer();
+      await loadNotes();
+    });
+
+    const delBtn = $("#nt-delete");
+    if (delBtn) delBtn.addEventListener("click", async () => {
+      if (!confirm("Να διαγραφεί η σημείωση;")) return;
+      const { error } = await sb.from("notes").delete().eq("id", noteId);
+      if (error) { showMsg($("#note-msg"), "Σφάλμα: " + error.message, "error"); return; }
+      closeDrawer();
+      await loadNotes();
+    });
+  }
+
+  // ---- χειριστές οθόνης ----
+  $("#note-new-btn").addEventListener("click", () => openNoteDrawer(null));
+  $("#note-mode").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-nmode]");
+    if (!chip) return;
+    $$("#note-mode .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    NOTE_MODE = chip.dataset.nmode;
+    loadNotes();
+  });
+  $("#note-prev").addEventListener("click", () => {
+    if (NOTE_MODE === "week") { const d = new Date(NOTE_SELECTED + "T00:00:00"); d.setDate(d.getDate()-7); NOTE_SELECTED = isoDay(d); }
+    else { NOTE_CURSOR = new Date(NOTE_CURSOR.getFullYear(), NOTE_CURSOR.getMonth()-1, 1); NOTE_SELECTED = isoDay(NOTE_CURSOR); }
+    loadNotes();
+  });
+  $("#note-next").addEventListener("click", () => {
+    if (NOTE_MODE === "week") { const d = new Date(NOTE_SELECTED + "T00:00:00"); d.setDate(d.getDate()+7); NOTE_SELECTED = isoDay(d); }
+    else { NOTE_CURSOR = new Date(NOTE_CURSOR.getFullYear(), NOTE_CURSOR.getMonth()+1, 1); NOTE_SELECTED = isoDay(NOTE_CURSOR); }
+    loadNotes();
+  });
+  $("#note-today").addEventListener("click", () => {
+    NOTE_CURSOR = new Date(); NOTE_SELECTED = isoDay(new Date()); loadNotes();
+  });
+  $("#note-filter-cat").addEventListener("change", () => { NOTE_CAT_FILTER = $("#note-filter-cat").value; loadNotes(); });
+  $("#note-filter-user").addEventListener("change", () => { NOTE_USER_FILTER = $("#note-filter-user").value; loadNotes(); });
+  $("#note-filter-done").addEventListener("change", () => { NOTE_SHOW_DONE = $("#note-filter-done").checked; loadNotes(); });
+  $("#ncat-add").addEventListener("click", async () => {
+    const name = $("#ncat-name").value.trim();
+    if (!name) { showMsg($("#note-cats-msg"), "Γράψε όνομα κατηγορίας.", "error"); return; }
+    const { error } = await sb.from("note_categories")
+      .insert({ name, color: NOTE_NEW_COLOR, sort_order: NOTE_CATS.length + 1 });
+    if (error) { showMsg($("#note-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
+    $("#ncat-name").value = "";
+    clearMsg($("#note-cats-msg"));
+    await loadNoteCategories();
+    delete $("#note-filter-cat").dataset.populated;
+    await loadNotes();
+  });
 
   // ================= ΤΕΧΝΙΚΟΙ & ΑΔΕΙΕΣ =================
   const LEAVE_KIND = { annual:"Κανονική άδεια", sick:"Ασθένεια", unpaid:"Άνευ αποδοχών", other:"Άλλο" };
