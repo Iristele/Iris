@@ -431,6 +431,7 @@
   .vlog-row:last-child{border-bottom:none;}
   .vlog-row .vlog-who{color:var(--ink-soft);font-size:11.5px;}
   .btn-checkin{width:100%;padding:12px;font-size:14.5px;margin-bottom:6px;}
+  .vlog-co-form{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;background:var(--surface);}
   .geo-link{font-size:11.5px;}
 
   .ledger-row-charge{color:var(--ink);}
@@ -1149,7 +1150,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.0";
+  const APP_VERSION = "Ver 2.1";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1158,7 +1159,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260919a";
+  const APP_BUILD = "20260921a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3456,23 +3457,72 @@
           }
           if (pos) clearMsg($("#vlog-msg"));
           else showMsg($("#vlog-msg"), "Η άφιξη καταγράφηκε, αλλά χωρίς τοποθεσία — δεν δόθηκε άδεια GPS στη συσκευή.", "ok");
-          // ένα αίτημα που ήταν «Νέο» περνάει αυτόματα «Σε εξέλιξη» μόλις φτάσει ο τεχνικός
+          // ένα αίτημα που ήταν «Νέο» ή σε «Αναμονή» περνάει αυτόματα «Σε εξέλιξη»
+          // μόλις φτάσει ο τεχνικός (Ver 2.1: και η Αναμονή — ξαναπήγαμε, άρα
+          // δουλεύεται πάλι). Ο λόγος αναμονής καθαρίζει, όπως και στην αποθήκευση.
           const statusSel = $("#tk-status-sel");
-          if (statusSel && statusSel.value === "new") {
-            const { error: stErr } = await sb.from("tickets").update({ status: "progress" }).eq("id", ticketId);
-            // πριν, αν αποτύγχανε, η οθόνη έδειχνε «Σε εξέλιξη» ενώ η βάση έλεγε «Νέο»
+          if (statusSel && (statusSel.value === "new" || statusSel.value === "waiting")) {
+            const { error: stErr } = await sb.from("tickets")
+              .update({ status: "progress", waiting_reason: null }).eq("id", ticketId);
+            // πριν, αν αποτύγχανε, η οθόνη έδειχνε «Σε εξέλιξη» ενώ η βάση έλεγε άλλο
             if (stErr) showMsg($("#vlog-msg"), "Η άφιξη καταγράφηκε, αλλά η κατάσταση δεν άλλαξε σε «Σε εξέλιξη»: " + stErr.message, "error");
-            else statusSel.value = "progress";
+            else {
+              statusSel.value = "progress";
+              t.status = "progress"; t.waiting_reason = null;
+              const wr = $("#tk-waiting-reason"); if (wr) wr.value = "";
+              $("#tk-waiting-wrap").classList.add("hidden");
+            }
           }
           await refreshVlogBox();
         });
+        // Ver 2.1: το check-out ΔΕΝ γίνεται χωρίς να δηλωθεί σε τι κατάσταση μένει η
+        // βλάβη. Το κουμπί ανοίγει μια μικρή φόρμα με επιλογή κατάστασης ΧΩΡΙΣ
+        // προεπιλογή· η «Αποθήκευση αναχώρησης» μένει κλειδωμένη μέχρι να διαλέξεις.
         const outBtn = $("#vlog-checkout");
-        if (outBtn) outBtn.addEventListener("click", async () => {
+        if (outBtn) outBtn.addEventListener("click", () => {
+          if ($("#vlog-co-form")) { $("#vlog-co-status").focus(); return; }
+          const opts = Object.entries(STATUS_LABEL)
+            .filter(([k]) => k !== "new")
+            .filter(([k]) => k !== "done_xx" || isOwner)
+            .map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+          outBtn.insertAdjacentHTML("afterend", `
+            <div id="vlog-co-form" class="vlog-co-form">
+              <div class="field"><label for="vlog-co-status">Σε τι κατάσταση αφήνεις τη βλάβη; <span style="color:var(--red);">*</span></label>
+                <select id="vlog-co-status"><option value="" selected disabled>— Επίλεξε κατάσταση —</option>${opts}</select>
+              </div>
+              <div class="field hidden" id="vlog-co-waiting-wrap">
+                <label for="vlog-co-waiting">Γιατί είναι σε αναμονή;</label>
+                <input id="vlog-co-waiting" placeholder="π.χ. περιμένουμε ανταλλακτικό, απάντηση πελάτη">
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn-primary btn-sm" id="vlog-co-save" disabled>Αποθήκευση αναχώρησης</button>
+                <button type="button" class="btn-sm btn-ghost" id="vlog-co-cancel">Άκυρο</button>
+              </div>
+            </div>`);
+          outBtn.classList.add("hidden");
+          const sel = $("#vlog-co-status");
+          const saveBtn = $("#vlog-co-save");
+          sel.addEventListener("change", () => {
+            saveBtn.disabled = !sel.value;
+            $("#vlog-co-waiting-wrap").classList.toggle("hidden", sel.value !== "waiting");
+          });
+          $("#vlog-co-cancel").addEventListener("click", () => {
+            $("#vlog-co-form").remove();
+            outBtn.classList.remove("hidden");
+            clearMsg($("#vlog-msg"));
+          });
+          saveBtn.addEventListener("click", () => doCheckOut(sel.value, ($("#vlog-co-waiting").value || "").trim() || null));
+          sel.focus();
+        });
+        async function doCheckOut(newStatus, waitingReason){
+          const saveBtn = $("#vlog-co-save");
+          if (!newStatus) { showMsg($("#vlog-msg"), "Διάλεξε πρώτα την κατάσταση της βλάβης.", "error"); return; }
           const open = VLOGS.find(v => !v.checkout_at);
           if (!open) { await refreshVlogBox(); return; }
           const mine = USER && open.tech_id === USER.id;
-          const label = outBtn.textContent;
-          outBtn.disabled = true; outBtn.innerHTML = '<span class="spinner"></span>Καταγραφή...';
+          const label = saveBtn.textContent;
+          saveBtn.disabled = true; saveBtn.innerHTML = '<span class="spinner"></span>Καταγραφή...';
+          const outBtn = saveBtn;
           // τοποθεσία αναχώρησης μόνο όταν κλείνει ο ίδιος ο τεχνικός την επίσκεψή του —
           // αν την κλείνει ο διαχειριστής, το σημείο του δεν σημαίνει τίποτα
           const pos = mine ? await getGeoPosition() : null;
@@ -3487,9 +3537,28 @@
             showMsg($("#vlog-msg"), "Σφάλμα: " + coErr.message, "error");
             return;
           }
-          clearMsg($("#vlog-msg"));
+          // ΠΡΩΤΑ το check-out (για να κρατηθεί το σημείο αναχώρησης), ΜΕΤΑ η
+          // κατάσταση — αν πήγαινε πρώτα σε «Προς τιμολόγηση», η βάση θα έκλεινε
+          // μόνη της την επίσκεψη χωρίς τοποθεσία.
+          const { error: stErr } = await sb.from("tickets").update({
+            status: newStatus,
+            waiting_reason: newStatus === "waiting" ? waitingReason : null
+          }).eq("id", ticketId);
           await refreshVlogBox();
-        });
+          if (stErr) {
+            showMsg($("#vlog-msg"), "Η αναχώρηση καταγράφηκε, αλλά η κατάσταση ΔΕΝ άλλαξε: " + stErr.message + " — άλλαξέ την από το πεδίο «Κατάσταση» και πάτα Αποθήκευση.", "error");
+            return;
+          }
+          // η φόρμα από κάτω πρέπει να δείχνει ό,τι γράφτηκε — αλλιώς μια επόμενη
+          // «Αποθήκευση» θα ξαναέγραφε την παλιά κατάσταση
+          t.status = newStatus;
+          t.waiting_reason = newStatus === "waiting" ? waitingReason : null;
+          const mainSel = $("#tk-status-sel");
+          if (mainSel) mainSel.value = newStatus;
+          const wr = $("#tk-waiting-reason"); if (wr) wr.value = t.waiting_reason || "";
+          $("#tk-waiting-wrap").classList.toggle("hidden", newStatus !== "waiting");
+          showMsg($("#vlog-msg"), "✓ Αναχώρηση καταγράφηκε — κατάσταση: " + (STATUS_LABEL[newStatus] || newStatus) + ".", "ok");
+        }
 
         // --- χειροκίνητη καταχώρηση επίσκεψης που ξεχάστηκε εντελώς (χωρίς check-in) ---
         const manualLink = $("#vlog-manual-add-link");
