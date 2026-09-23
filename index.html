@@ -1153,7 +1153,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.2";
+  const APP_VERSION = "Ver 2.3";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1162,7 +1162,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923b";
+  const APP_BUILD = "20260923c";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3872,7 +3872,7 @@
       // που σήμαινε ότι μια δουλειά της Δευτέρας εμφανιζόταν την Πέμπτη μόλις
       // τιμολογούνταν. Το γεμίζει το trigger sync_ticket_calendar_date().
       let q = sb.from("tickets_view")
-        .select("id, code, title, status, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, is_appointment, office_owner, clients(name, trade_name)")
+        .select("id, code, title, status, priority, waiting_reason, calendar_date, scheduled_date, scheduled_time, scheduled_end, tech, assigned_to, visit_order, is_appointment, office_owner, clients(name, trade_name)")
         .not("calendar_date", "is", null)
         .order("calendar_date").order("visit_order", { ascending:true, nullsFirst:false }).order("scheduled_time");
       if (fromISO) q = q.gte("calendar_date", fromISO);
@@ -4024,6 +4024,7 @@
         <div class="sched-time">${r.scheduled_time ? r.scheduled_time.slice(0,5) : "—"}${r.scheduled_end ? "–" + r.scheduled_end.slice(0,5) : ""}</div>
         <div class="sched-info">${apptMarkHtml(r)}<strong>${escapeHtml(clientLabel(r.clients))}</strong> — ${escapeHtml(r.title)}
           ${ticketStatusPillHtml(r, "margin-left:6px;")}
+          ${r.priority ? `<span class="prio-pill prio-${r.priority}" style="margin-left:4px;">${PRIORITY_LABEL[r.priority] || r.priority}</span>` : ""}
           ${r.status === "waiting" && r.waiting_reason ? `<div class="sched-tech">${escapeHtml(r.waiting_reason)}</div>` : ""}
         </div>
         <div class="sched-tech">${escapeHtml(r.tech || "—")}</div>
