@@ -416,6 +416,15 @@
   .hist-dot.st-waiting{color:var(--red-dot);} .hist-dot.st-done,.hist-dot.st-done_xx{color:var(--green-dot);}
   .hist-dot.st-cancelled{color:var(--muted-fg);}
   .hist-meta{color:var(--ink-soft);font-size:11.5px;margin-top:1px;}
+  /* Ver 2.4: εσωτερικός αριθμός επίσκεψης (schema_v40) */
+  .visit-tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:700;
+    background:var(--brand-soft);color:var(--brand);font-variant-numeric:tabular-nums;}
+  .hist-group{border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:8px;background:var(--surface);}
+  .hist-group>summary{cursor:pointer;padding:9px 12px;font-size:12.5px;list-style:none;}
+  .hist-group>summary::-webkit-details-marker{display:none;}
+  .hist-group>summary::before{content:"▸";display:inline-block;margin-right:7px;color:var(--ink-soft);}
+  .hist-group[open]>summary::before{content:"▾";}
+  .hist-group .hist{margin:0 12px 10px 17px;}
   .note-item{padding:11px 0;border-bottom:1px solid var(--line-soft);}
   .note-item:last-child{border-bottom:none;}
   .note-meta{font-size:11.5px;color:var(--ink-faint);margin-bottom:3px;}
@@ -1153,7 +1162,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.3";
+  const APP_VERSION = "Ver 2.4";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1162,7 +1171,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923c";
+  const APP_BUILD = "20260923d";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1950,6 +1959,22 @@
     if (h === 0) return `${m}′`;
     return m === 0 ? `${h}ώ` : `${h}ώ ${m}′`;
   }
+  // Εσωτερικός αριθμός επίσκεψης (schema_v40): σε ποια επίσκεψη «πέφτει» μια
+  // χρονική στιγμή — έτσι δένουν το ιστορικό και η Συνομιλία με την επίσκεψη.
+  // Η ανοιχτή επίσκεψη μετράει μέχρι ΤΩΡΑ.
+  function visitNoAt(vlogs, iso){
+    if (!iso || !vlogs || !vlogs.length) return null;
+    const t = new Date(iso).getTime();
+    const hit = vlogs.find(v => {
+      const from = new Date(v.checkin_at).getTime();
+      const to = v.checkout_at ? new Date(v.checkout_at).getTime() : Date.now();
+      return t >= from && t <= to;
+    });
+    return (hit && hit.visit_no) ? hit.visit_no : null;
+  }
+  function visitTag(no){
+    return no ? `<span class="visit-tag" title="Επίσκεψη #${no}">#${no}</span>` : "";
+  }
   function geoLink(lat, lng, label){
     if (lat == null || lng == null) return '<span class="cell-sub">χωρίς τοποθεσία</span>';
     return `<a class="geo-link" href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">${label}</a>`;
@@ -1999,7 +2024,7 @@
       const who = open.profiles ? (open.profiles.full_name || open.profiles.email) : "—";
       html += `
         <div class="vlog-open ${stale ? "stale" : ""}">
-          <strong>${mine ? "Είσαι σε επίσκεψη" : escapeHtml(who) + " σε επίσκεψη"}</strong> — άφιξη ${fmtTime(open.checkin_at)}${latenessLabel(ticket, open.checkin_at)}<br>
+          ${visitTag(open.visit_no)} <strong>${mine ? "Είσαι σε επίσκεψη" : escapeHtml(who) + " σε επίσκεψη"}</strong> — άφιξη ${fmtTime(open.checkin_at)}${latenessLabel(ticket, open.checkin_at)}<br>
           Διάρκεια μέχρι τώρα: <span class="vlog-dur" id="vlog-open-elapsed" data-since="${open.checkin_at}">${formatDuration(elapsed)}</span> · ${geoLink(open.checkin_lat, open.checkin_lng, "σημείο άφιξης")}
           · <a href="#" class="add-link" data-vlog-edit-open="${open.id}" style="font-size:12px;">✎ διόρθωση ώρας άφιξης</a>
         </div>
@@ -2031,7 +2056,7 @@
         const who = v.profiles ? (v.profiles.full_name || v.profiles.email) : "—";
         return `
           <div class="vlog-row">
-            <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · <span class="vlog-dur">⏱ ${formatDuration(dur)}</span>${latenessLabel(ticket, v.checkin_at)}
+            ${visitTag(v.visit_no)} <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · <span class="vlog-dur">⏱ ${formatDuration(dur)}</span>${latenessLabel(ticket, v.checkin_at)}
             · <a href="#" class="add-link" data-vlog-edit-done="${v.id}" style="font-size:12px;">✎ διόρθωση</a>
             <div class="vlog-who">${escapeHtml(who)} · ${geoLink(v.checkin_lat, v.checkin_lng, "άφιξη")} · ${geoLink(v.checkout_lat, v.checkout_lng, "αναχώρηση")}</div>
             <div id="vlog-edit-done-form-${v.id}" class="hidden" style="margin-top:8px;">
@@ -3293,23 +3318,44 @@
 
     // Ιστορικό: πότε δημιουργήθηκε, πότε μπήκε σε εξέλιξη, ποιος την έκλεισε.
     // Γεμίζει από trigger στη βάση (schema_v21) — κανείς δεν μπορεί να το πειράξει.
-    const historyHtml = (history && history.length)
+    // Ver 2.4: το ιστορικό ομαδοποιείται ΑΝΑ ΕΠΙΣΚΕΨΗ (schema_v40). Κάθε αλλαγή
+    // κατάστασης «πέφτει» μέσα στο χρονικό παράθυρο μιας επίσκεψης· ό,τι έγινε
+    // εκτός επίσκεψης (από το γραφείο) πάει σε δική του ομάδα. Μία γραμμή ανά
+    // ομάδα, και με κλικ ανοίγει αναλυτικά — αντί για δεκάδες γραμμές μαζί.
+    function histRowHtml(h){
+      const who = h.profiles ? (h.profiles.full_name || h.profiles.email) : "—";
+      const when = new Date(h.changed_at).toLocaleString("el-GR", {
+        day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+      const label = h.from_status
+        ? `${statusLabel(h.from_status)} → ${statusLabel(h.to_status)}`
+        : `Καταχωρήθηκε (${statusLabel(h.to_status)})`;
+      return `<div class="hist-row">
+        <span class="hist-dot st-${h.to_status}"></span>
+        <div class="hist-main"><strong>${escapeHtml(label)}</strong>
+          <div class="hist-meta">${escapeHtml(when)} · ${escapeHtml(who)}</div></div>
+      </div>`;
+    }
+    const histGroups = [];
+    (history || []).forEach(h => {
+      const no = visitNoAt(VLOGS, h.changed_at);
+      const last = histGroups[histGroups.length - 1];
+      if (last && last.no === no) last.rows.push(h);
+      else histGroups.push({ no, rows: [h] });
+    });
+    const historyHtml = histGroups.length
       ? `<div class="section-title">Ιστορικό</div>
-         <div class="hist">
-           ${history.map(h => {
-             const who = h.profiles ? (h.profiles.full_name || h.profiles.email) : "—";
-             const when = new Date(h.changed_at).toLocaleString("el-GR", {
-               day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-             const label = h.from_status
-               ? `${statusLabel(h.from_status)} → ${statusLabel(h.to_status)}`
-               : `Καταχωρήθηκε (${statusLabel(h.to_status)})`;
-             return `<div class="hist-row">
-               <span class="hist-dot st-${h.to_status}"></span>
-               <div class="hist-main"><strong>${escapeHtml(label)}</strong>
-                 <div class="hist-meta">${escapeHtml(when)} · ${escapeHtml(who)}</div></div>
-             </div>`;
-           }).join("")}
-         </div>`
+         ${histGroups.map((g, gi) => {
+           const first = g.rows[0], lastRow = g.rows[g.rows.length - 1];
+           const day = new Date(first.changed_at).toLocaleDateString("el-GR", { day:"2-digit", month:"2-digit", year:"numeric" });
+           const span = fmtTime(first.changed_at) + (g.rows.length > 1 ? " → " + fmtTime(lastRow.changed_at) : "");
+           const count = g.rows.length === 1 ? "1 αλλαγή" : g.rows.length + " αλλαγές";
+           const head = g.no ? `<strong>Επίσκεψη</strong> ${visitTag(g.no)}` : `<strong>Από το γραφείο</strong>`;
+           // ανοιχτή από μόνη της η τελευταία ομάδα — εκεί κοιτάει κανείς πρώτα
+           return `<details class="hist-group" ${gi === histGroups.length - 1 ? "open" : ""}>
+             <summary>${head} · ${day} ${span} · ${count} · κατέληξε: ${escapeHtml(statusLabel(lastRow.to_status))}</summary>
+             <div class="hist">${g.rows.map(histRowHtml).join("")}</div>
+           </details>`;
+         }).join("")}`
       : "";
 
     function assignedOptionsHtml(selectedId){
@@ -3430,7 +3476,7 @@
       <div id="notes-list">
         ${(notes||[]).map(n => `
           <div class="note-item">
-            <div class="note-meta">${escapeHtml(n.author_name)} · ${n.role === 'client' ? 'πελάτης' : 'προσωπικό'} · ${new Date(n.created_at).toLocaleString('el-GR')}</div>
+            <div class="note-meta">${escapeHtml(n.author_name)} · ${n.role === 'client' ? 'πελάτης' : 'προσωπικό'} · ${new Date(n.created_at).toLocaleString('el-GR')}${visitNoAt(VLOGS, n.created_at) ? ' · ' + visitTag(visitNoAt(VLOGS, n.created_at)) : ''}</div>
             <div class="note-body">${escapeHtml(n.body)}</div>
           </div>`).join("") || '<div class="cell-sub" style="padding:8px 0;">Δεν υπάρχουν ακόμα σημειώσεις.</div>'}
       </div>
