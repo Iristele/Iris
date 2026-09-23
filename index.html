@@ -432,6 +432,9 @@
   .vlog-row .vlog-who{color:var(--ink-soft);font-size:11.5px;}
   .btn-checkin{width:100%;padding:12px;font-size:14.5px;margin-bottom:6px;}
   .vlog-co-form{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;background:var(--surface);}
+  .vlog-dur{font-weight:600;font-variant-numeric:tabular-nums;}
+  .vlog-total{margin-top:8px;padding:9px 12px;border-radius:var(--r-md);background:var(--surface-2);
+    font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums;}
   .geo-link{font-size:11.5px;}
 
   .ledger-row-charge{color:var(--ink);}
@@ -1150,7 +1153,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.1";
+  const APP_VERSION = "Ver 2.2";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1159,7 +1162,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923a";
+  const APP_BUILD = "20260923b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1997,7 +2000,7 @@
       html += `
         <div class="vlog-open ${stale ? "stale" : ""}">
           <strong>${mine ? "Είσαι σε επίσκεψη" : escapeHtml(who) + " σε επίσκεψη"}</strong> — άφιξη ${fmtTime(open.checkin_at)}${latenessLabel(ticket, open.checkin_at)}<br>
-          Διάρκεια μέχρι τώρα: ${formatDuration(elapsed)} · ${geoLink(open.checkin_lat, open.checkin_lng, "σημείο άφιξης")}
+          Διάρκεια μέχρι τώρα: <span class="vlog-dur" id="vlog-open-elapsed" data-since="${open.checkin_at}">${formatDuration(elapsed)}</span> · ${geoLink(open.checkin_lat, open.checkin_lng, "σημείο άφιξης")}
           · <a href="#" class="add-link" data-vlog-edit-open="${open.id}" style="font-size:12px;">✎ διόρθωση ώρας άφιξης</a>
         </div>
         <div id="vlog-edit-open-form" class="hidden" style="margin:0 0 10px;">
@@ -2028,7 +2031,7 @@
         const who = v.profiles ? (v.profiles.full_name || v.profiles.email) : "—";
         return `
           <div class="vlog-row">
-            <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · ${formatDuration(dur)}${latenessLabel(ticket, v.checkin_at)}
+            <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · <span class="vlog-dur">⏱ ${formatDuration(dur)}</span>${latenessLabel(ticket, v.checkin_at)}
             · <a href="#" class="add-link" data-vlog-edit-done="${v.id}" style="font-size:12px;">✎ διόρθωση</a>
             <div class="vlog-who">${escapeHtml(who)} · ${geoLink(v.checkin_lat, v.checkin_lng, "άφιξη")} · ${geoLink(v.checkout_lat, v.checkout_lng, "αναχώρηση")}</div>
             <div id="vlog-edit-done-form-${v.id}" class="hidden" style="margin-top:8px;">
@@ -2046,8 +2049,41 @@
     } else if (!open) {
       html += '<div class="cell-sub" style="padding:8px 2px;">Δεν έχει καταγραφεί ακόμα επίσκεψη σε αυτή τη βλάβη.</div>';
     }
+    // Ver 2.2: σύνολο ωρών της βλάβης — άθροισμα των κλεισμένων επισκέψεων, και
+    // όσο τρέχει επίσκεψη προστίθεται και η ώρα της, ζωντανά (vlogTotalHtml).
+    if (vlogs.length > 0) {
+      const base = done.reduce((s, v) => s + (new Date(v.checkout_at) - new Date(v.checkin_at)), 0);
+      html += vlogTotalHtml(base, done.length, open ? open.checkin_at : null);
+    }
     return html;
   }
+
+  // Το υποσέλιδο «Σύνολο» — ξεχωριστή συνάρτηση γιατί το ξαναγράφει και το ρολόι
+  // κάθε 30 δευτερόλεπτα, χωρίς να ξαναχτυπήσει τη βάση.
+  function vlogTotalHtml(baseMs, doneCount, openSince){
+    const running = openSince ? (Date.now() - new Date(openSince).getTime()) : 0;
+    const visits = doneCount + (openSince ? 1 : 0);
+    const label = visits === 1 ? "1 επίσκεψη" : visits + " επισκέψεις";
+    const extra = openSince
+      ? ` <span class="cell-sub">(${formatDuration(baseMs)} κλεισμένες + ${formatDuration(running)} σε εξέλιξη)</span>`
+      : "";
+    return `<div class="vlog-total" id="vlog-total" data-base="${baseMs}" data-done="${doneCount}" data-open="${openSince || ""}">
+      Σύνολο: <strong>${formatDuration(baseMs + running)}</strong> σε ${label}${extra}
+    </div>`;
+  }
+
+  // Ζωντανή ανανέωση της τρέχουσας επίσκεψης και του συνόλου, όσο η καρτέλα είναι
+  // ανοιχτή. Αν δεν υπάρχουν τα στοιχεία στην οθόνη, δεν κάνει τίποτα.
+  setInterval(function vlogClock(){
+    const el = document.getElementById("vlog-open-elapsed");
+    if (el && el.dataset.since) el.textContent = formatDuration(Date.now() - new Date(el.dataset.since).getTime());
+    const tot = document.getElementById("vlog-total");
+    if (tot) {
+      const base = parseInt(tot.dataset.base, 10) || 0;
+      const doneCount = parseInt(tot.dataset.done, 10) || 0;
+      tot.outerHTML = vlogTotalHtml(base, doneCount, tot.dataset.open || null);
+    }
+  }, 30000);
 
   // Ανοιχτές επισκέψεις (άφιξη χωρίς αναχώρηση) — «ποιος είναι πού τώρα».
   async function loadOnsiteNow(){
@@ -2949,7 +2985,9 @@
     // Κουμπάκια ▲▼ σειράς: ΜΟΝΟ owner/reception, ΜΟΝΟ όταν έχει επιλεγεί
     // συγκεκριμένος τεχνικός στο «Ανάθεση σε» (αλλιώς δεν έχει νόημα ομαδοποίηση
     // ανά μέρα, αφού θα αναμιγνύονταν βλάβες πολλών διαφορετικών τεχνικών).
-    const canReorder = !isFieldRole && !!TICKET_ASSIGNEE_FILTER;
+    // Ver 2.2: δεν απαιτείται πια φίλτρο «Ανάθεση σε» — η σειρά αλλάζει μέσα στην
+    // ίδια ΗΜΕΡΟΜΗΝΙΑ επίσκεψης, όπως ακριβώς φαίνεται η λίστα.
+    const canReorder = !isFieldRole;
     tbody.innerHTML = data.map((t, i) => {
       const sameDatePrev = canReorder && i > 0 && t.scheduled_date && data[i-1].scheduled_date === t.scheduled_date;
       const sameDateNext = canReorder && i < data.length - 1 && t.scheduled_date && data[i+1].scheduled_date === t.scheduled_date;
@@ -3905,9 +3943,13 @@
   // owner/reception, και ΜΟΝΟ όταν έχει επιλεγεί συγκεκριμένος τεχνικός στο
   // φίλτρο «Τεχνικός» του Προγράμματος (αλλιώς μπερδεύονται επισκέψεις πολλών
   // διαφορετικών τεχνικών μέσα στην ίδια μέρα, χωρίς σαφή ομαδοποίηση).
+  // Ver 2.2: τα ▲▼ έβγαιναν ΜΟΝΟ αν είχες διαλέξει συγκεκριμένο τεχνικό στο φίλτρο —
+  // γι' αυτό «χάθηκε» η αλλαγή σειράς. Τώρα βγαίνουν πάντα στο γραφείο (owner/
+  // reception), και η σειρά αλλάζει μέσα στη ΜΕΡΑ, όπως φαίνεται στην οθόνη.
+  // (Ο τεχνικός δεν αλλάζει σειρά — το μπλοκάρει και η βάση, guard_ticket_fields.)
   function canReorderSchedule(){
     const isFieldRole = PROFILE && FIELD_ROLES.has(PROFILE.role);
-    return !isFieldRole && !!SCHEDULE_TECH_FILTER && SCHEDULE_SHOW_TICKETS;
+    return !isFieldRole && SCHEDULE_SHOW_TICKETS;
   }
 
   // Ποια κλάση χρώματος παίρνει μια βλάβη στο πλέγμα του ημερολογίου (Μήνας/Εβδομάδα
@@ -4007,7 +4049,10 @@
     container.querySelectorAll("[data-order-btn]").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        const container2 = btn.closest("[data-id]").parentElement;
+        // ΠΡΟΣΟΧΗ (διόρθωση 23/09): το ίδιο το κουμπί έχει data-id, οπότε το
+        // closest("[data-id]") επέστρεφε ΤΟ ΚΟΥΜΠΙ — και η ομάδα των βλαβών της
+        // μέρας έβγαινε άδεια, δηλαδή η μετακίνηση δεν γινόταν ποτέ.
+        const container2 = btn.closest(".sched-visit").parentElement;
         const visitIds = [...container2.querySelectorAll(".sched-visit[data-id]")].map(el => el.dataset.id);
         btn.disabled = true;
         await moveVisitOrder(visitIds, btn.dataset.id, parseInt(btn.dataset.dir, 10));
@@ -4135,7 +4180,9 @@
     body.innerHTML = closedNote + (items.length === 0
       ? '<div class="empty-state">Καμία επίσκεψη αυτή τη μέρα.</div>'
       : `<div style="padding:0 20px;">${dayEntriesHtml(items)}</div>`);
-    body.querySelectorAll("[data-id]").forEach(el => {
+    // ΜΟΝΟ οι γραμμές των επισκέψεων ανοίγουν βλάβη — ΟΧΙ τα κουμπιά ▲▼, που
+    // έχουν κι αυτά data-id (διόρθωση 23/09: το κλικ στο βελάκι άνοιγε τη βλάβη).
+    body.querySelectorAll(".sched-visit[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
     bindScheduleOrderButtons(body);
@@ -4203,7 +4250,7 @@
         <div class="sched-day-title">${new Date(day + "T00:00:00").toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long" })}</div>
         ${dayEntriesHtml(byDay[day])}
       </div>`).join("");
-    list.querySelectorAll("[data-id]").forEach(el => {
+    list.querySelectorAll(".sched-visit[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
     bindScheduleOrderButtons(list);
