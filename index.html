@@ -1099,6 +1099,18 @@
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h2>Πόλεις</h2></div>
+        <div class="panel-body" style="padding:0 20px 20px;">
+          <p class="sub" style="margin-top:-4px;">Οι πόλεις που δουλεύεις. Τις ορίζεις εδώ μία φορά και στην καρτέλα του πελάτη τις διαλέγεις από λίστα — έτσι γράφονται πάντα με τον ίδιο τρόπο και δουλεύει σωστά το φίλτρο πόλης στις Βλάβες.</p>
+          <div class="ra-row">
+            <input id="city-name" placeholder="π.χ. Θεσσαλονίκη, Κατερίνη, Βέροια">
+            <button type="button" class="btn-primary btn-sm" id="city-add">+ Προσθήκη</button>
+          </div>
+          <div id="cities-list" style="margin-top:14px;"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head"><h2>Κλειστές μέρες (αργίες, γιορτές)</h2></div>
         <div class="panel-body" style="padding:0 20px 20px;">
@@ -1162,7 +1174,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.4";
+  const APP_VERSION = "Ver 2.5";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1171,7 +1183,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923d";
+  const APP_BUILD = "20260923e";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2490,7 +2502,7 @@
         </div>
         <div class="form-row">
           <div class="field"><label>Διεύθυνση</label><input id="cl-address" value="${escapeHtml(client.address || "")}"></div>
-          <div class="field"><label>Πόλη</label><input id="cl-city" value="${escapeHtml(client.city || "")}"></div>
+          <div class="field"><label>Πόλη</label><select id="cl-city">${cityOptionsHtml(client.city)}</select></div>
         </div>
         <div class="form-row">
           <div class="field"><label>Υπεύθυνος επικοινωνίας</label><input id="cl-contact" value="${escapeHtml(client.contact || "")}"></div>
@@ -2605,7 +2617,7 @@
         $("#cl-vat").value = u.signup_vat_number || "";
         $("#cl-tax-office").value = u.signup_tax_office || "";
         $("#cl-address").value = u.signup_address || "";
-        $("#cl-city").value = u.signup_city || "";
+        setCitySelect($("#cl-city"), u.signup_city);
         $("#cl-phone").value = u.signup_phone || "";
         $("#cl-email").value = u.email || "";
       }
@@ -2804,6 +2816,9 @@
        </select>
        <select id="tkf-office" class="hidden" style="font-size:13px;max-width:210px;width:auto;">
          <option value="">Υπεύθυνος — Όλοι</option>
+       </select>
+       <select id="tkf-city" style="font-size:13px;max-width:200px;width:auto;">
+         <option value="">Πόλη — Όλες</option>
        </select>`;
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
@@ -2868,6 +2883,12 @@
     TICKET_ASSIGNEE_FILTER = $("#tkf-assignee").value || null;
     loadTickets();
   });
+  let TICKET_CITY_FILTER = null;
+  $("#tkf-city").addEventListener("change", () => {
+    TICKET_CITY_FILTER = $("#tkf-city").value || null;
+    loadTickets();
+  });
+
   $("#tkf-office").addEventListener("change", () => {
     TICKET_OFFICE_FILTER = $("#tkf-office").value || null;
     loadTickets();
@@ -2968,7 +2989,21 @@
       officeSelect.dataset.populated = "1";
       officeSelect.value = TICKET_OFFICE_FILTER || "";
     }
-    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, office_owner, clients(name, trade_name)");
+    // Φίλτρο πόλης (schema_v41): οι πόλεις είναι σταθερή λίστα, οπότε το φίλτρο
+    // βγάζει σωστά αποτελέσματα. Το «!inner» χρειάζεται για να φιλτράρει πάνω
+    // στον πελάτη — χωρίς αυτό, το embed δεν περιορίζει τις γραμμές.
+    if (CITIES.length === 0) await loadCities();
+    const citySelect = $("#tkf-city");
+    citySelect.classList.toggle("hidden", CITIES.length === 0);
+    if (citySelect.dataset.cityCount !== String(CITIES.length)) {
+      citySelect.innerHTML = '<option value="">Πόλη — Όλες</option>' +
+        CITIES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+      citySelect.dataset.cityCount = String(CITIES.length);
+      citySelect.value = TICKET_CITY_FILTER || "";
+    }
+    const clientEmbed = TICKET_CITY_FILTER ? "clients!inner(name, trade_name, city)" : "clients(name, trade_name, city)";
+    let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, office_owner, " + clientEmbed);
+    if (TICKET_CITY_FILTER) q = q.eq("clients.city", TICKET_CITY_FILTER);
     // Σειρά: όταν βλέπουμε τις βλάβες ΕΝΟΣ τεχνικού (είτε γιατί είσαι εσύ ο
     // τεχνικός, είτε γιατί ο owner/reception διάλεξε κάποιον από το «Ανάθεση
     // σε»), η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (visit_order,
@@ -3087,7 +3122,7 @@
         <div class="field"><label>Επωνυμία *</label><input id="tknc-name"></div>
         <div class="form-row">
           <div class="field"><label>Τηλέφωνο</label><input id="tknc-phone"></div>
-          <div class="field"><label>Πόλη</label><input id="tknc-city"></div>
+          <div class="field"><label>Πόλη</label><select id="tknc-city">${cityOptionsHtml("")}</select></div>
         </div>
         <div class="field"><label>Email</label><input type="email" id="tknc-email"></div>
         <div class="form-row" style="margin-top:4px;">
@@ -4679,7 +4714,7 @@
         <div class="field"><label>Επωνυμία *</label><input id="ntnc-name"></div>
         <div class="form-row">
           <div class="field"><label>Τηλέφωνο</label><input id="ntnc-phone"></div>
-          <div class="field"><label>Πόλη</label><input id="ntnc-city"></div>
+          <div class="field"><label>Πόλη</label><select id="ntnc-city">${cityOptionsHtml("")}</select></div>
         </div>
         <button type="button" class="btn-primary btn-sm" id="ntnc-save">Δημιουργία πελάτη</button>
       </div>
@@ -4871,6 +4906,9 @@
   let COMPANY_CLOSURES = [];
   let CLOSED_DAYS = new Map();   // "YYYY-MM-DD" -> όνομα αργίας
   let CONTRACT_TYPES = [];       // τους διαλέγεις μέσα στην καρτέλα πελάτη
+  // Ver 2.5 (schema_v41): σταθερή λίστα πόλεων — ορίζεται στην «Εταιρία» και
+  // διαλέγεται παντού αλλού, ώστε να δουλεύει το φίλτρο πόλης στις Βλάβες.
+  let CITIES = [];
 
   // ================= ΑΔΕΙΑ ΧΡΗΣΗΣ / ΣΥΝΔΡΟΜΗ =================
   // Ό,τι έχει σημασία επιβάλλεται στη ΒΑΣΗ (schema_v23): μετά τη λήξη και τις 15
@@ -4987,6 +5025,29 @@
       ${LICENSE.activated_at ? `<div class="cell-sub" style="margin-top:10px;">Τελευταία ενεργοποίηση: ${new Date(LICENSE.activated_at).toLocaleString("el-GR")}</div>` : ""}`;
   }
 
+  async function loadCities(){
+    const { data, error } = await sb.from("cities").select("*").order("sort_order").order("name");
+    if (!error) CITIES = data || [];
+  }
+  // Οι επιλογές πόλης. Αν ο πελάτης έχει ήδη γραμμένη πόλη που ΔΕΝ είναι στη
+  // λίστα (παλιά ελεύθερη καταχώρηση), μπαίνει κι αυτή ως επιλογή — αλλιώς θα
+  // «έσβηνε» μόνη της με την πρώτη αποθήκευση.
+  function cityOptionsHtml(selected, placeholder){
+    const names = CITIES.map(c => c.name);
+    const cur = (selected || "").trim();
+    if (cur && !names.includes(cur)) names.unshift(cur);
+    return `<option value="">${placeholder || "— Επίλεξε πόλη —"}</option>` +
+      names.map(n => `<option value="${escapeHtml(n)}" ${n === cur ? "selected" : ""}>${escapeHtml(n)}</option>`).join("");
+  }
+  // Βάζει τιμή σε select πόλης προσθέτοντάς τη ως επιλογή αν λείπει.
+  function setCitySelect(sel, value){
+    if (!sel) return;
+    const v = (value || "").trim();
+    if (!v) { sel.value = ""; return; }
+    if (![...sel.options].some(o => o.value === v)) sel.add(new Option(v, v), 1);
+    sel.value = v;
+  }
+
   async function loadContractTypes(){
     const { data, error } = await sb.from("contract_types").select("*").order("sort_order").order("name");
     if (!error) CONTRACT_TYPES = data || [];
@@ -5016,6 +5077,48 @@
       });
     });
   }
+
+  function renderCities(){
+    const box = $("#cities-list");
+    if (!box) return;
+    if (CITIES.length === 0) {
+      box.innerHTML = '<div class="cell-sub">Δεν έχουν οριστεί πόλεις ακόμα.</div>';
+      return;
+    }
+    box.innerHTML = CITIES.map(c => `
+      <div class="sched-visit" style="cursor:default;">
+        <div class="sched-info"><strong>${escapeHtml(c.name)}</strong></div>
+        <button type="button" class="remove-x" data-city-del="${c.id}" title="Διαγραφή">✕</button>
+      </div>`).join("");
+    box.querySelectorAll("[data-city-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        clearMsg($("#company-msg"));
+        const { error } = await sb.from("cities").delete().eq("id", btn.dataset.cityDel);
+        if (error) { showMsg($("#company-msg"), "Δεν διαγράφηκε: " + error.message, "error"); return; }
+        await loadCities();
+        renderCities();
+        // Η πόλη που έχει ήδη γραφτεί σε πελάτες ΔΕΝ σβήνεται — απλώς δεν
+        // προσφέρεται πια ως επιλογή σε νέες καταχωρήσεις.
+        showMsg($("#company-msg"), "Διαγράφηκε. Όσοι πελάτες την έχουν ήδη, την κρατάνε.", "ok");
+      });
+    });
+  }
+
+  $("#city-add").addEventListener("click", async () => {
+    clearMsg($("#company-msg"));
+    const name = $("#city-name").value.trim();
+    if (!name) { showMsg($("#company-msg"), "Γράψε όνομα πόλης.", "error"); return; }
+    const { error } = await sb.from("cities").insert({ name, sort_order: CITIES.length + 1 });
+    if (error) {
+      const dup = /duplicate|unique/i.test(error.message);
+      showMsg($("#company-msg"), dup ? "Υπάρχει ήδη πόλη με αυτό το όνομα." : "Δεν αποθηκεύτηκε: " + error.message, "error");
+      return;
+    }
+    $("#city-name").value = "";
+    await loadCities();
+    renderCities();
+    showMsg($("#company-msg"), "Προστέθηκε.", "ok");
+  });
 
   $("#ctype-add").addEventListener("click", async () => {
     clearMsg($("#company-msg"));
@@ -5051,7 +5154,8 @@
     const [infoRes] = await Promise.all([
       sb.from("company_settings").select("*").eq("id", 1).maybeSingle(),
       loadClosures(),
-      loadContractTypes()
+      loadContractTypes(),
+      loadCities()
     ]);
     if (!infoRes.error) COMPANY_INFO = infoRes.data || null;
   }
@@ -5074,6 +5178,7 @@
       renderLicense();
     }
     renderContractTypes();
+    renderCities();
     renderClosures();
     updateClosurePreview();
   }
