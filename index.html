@@ -1174,7 +1174,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.5";
+  const APP_VERSION = "Ver 2.6";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1183,7 +1183,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923e";
+  const APP_BUILD = "20260923f";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3402,6 +3402,10 @@
     // Reception συνεχίζουν να βλέπουν το πλήρες drawer ακριβώς όπως σήμερα
     // (προγραμματισμός/ανάθεση, προτεραιότητα, παραστατικό).
     const isFieldRole = !portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role);
+    // Ver 2.6: το όνομα του πελάτη μέσα στη βλάβη ανοίγει την καρτέλα του.
+    // Μόνο για το γραφείο (owner/reception): η καρτέλα πελάτη διαβάζει χρήστες,
+    // συμβάσεις και απομακρυσμένες προσβάσεις, που ο τεχνικός δεν τα βλέπει.
+    const canOpenClient = !portalMode && !isFieldRole && !!t.client_id;
 
     const staffControls = portalMode ? "" : `
       <div class="section-title">Άφιξη / Αναχώρηση</div>
@@ -3475,7 +3479,10 @@
 
     openDrawer(t.code, `
       <div id="tk-msg"></div>
-      <p class="sub" style="margin-bottom:4px;"><strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
+      <p class="sub" style="margin-bottom:4px;">${canOpenClient
+          ? `<a href="#" id="tk-client-link" class="add-link" title="Άνοιγμα καρτέλας πελάτη"><strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong></a>`
+          : `<strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>`
+        }${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
       ${(!portalMode && t.client_id) ? `
         <div class="vat-box">
@@ -3523,6 +3530,14 @@
 
       ${!portalMode ? `<div class="drawer-foot" style="margin:22px -22px -20px;"><button type="button" class="btn-primary" id="tk-save" style="width:100%;">Αποθήκευση αλλαγών</button></div>` : ""}
     `);
+
+    if (canOpenClient) {
+      const clientLink = $("#tk-client-link");
+      if (clientLink) clientLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        openClientDrawer(t.client_id);
+      });
+    }
 
     if (!portalMode) {
       // ---- ΑΦΜ πελάτη: συμπλήρωση επί τόπου, με αυτόματη αποθήκευση ----
