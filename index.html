@@ -1159,7 +1159,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260921a";
+  const APP_BUILD = "20260923a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2866,6 +2866,19 @@
     return new Date(dateStr + "T00:00:00").toLocaleDateString("el-GR", { day:"numeric", month:"short" });
   }
 
+  // Ver 2.1: όταν αλλάζει κατάσταση από το check-in/check-out (και ΟΧΙ από το
+  // κουμπί «Αποθήκευση», που ούτως ή άλλως ξαναφορτώνει), οι λίστες από πίσω
+  // έμεναν με την παλιά κατάσταση/χρώμα μέχρι την επόμενη ανανέωση. Ανανεώνουμε
+  // ό,τι είναι ανοιχτό — best-effort, ένα σφάλμα εδώ δεν χαλάει τίποτα.
+  function refreshOpenLists(){
+    try {
+      const vis = (id) => { const el = document.getElementById(id); return el && !el.classList.contains("hidden"); };
+      if (vis("view-tickets")) loadTickets();
+      if (vis("view-schedule")) loadSchedule();
+      if (vis("view-dashboard")) loadDashboard();
+    } catch (e) { /* αδιάφορο */ }
+  }
+
   async function loadTickets(){
     if (CLIENTS_CACHE.length === 0) await loadClients();
     if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
@@ -3471,6 +3484,7 @@
               t.status = "progress"; t.waiting_reason = null;
               const wr = $("#tk-waiting-reason"); if (wr) wr.value = "";
               $("#tk-waiting-wrap").classList.add("hidden");
+              refreshOpenLists();
             }
           }
           await refreshVlogBox();
@@ -3558,6 +3572,7 @@
           const wr = $("#tk-waiting-reason"); if (wr) wr.value = t.waiting_reason || "";
           $("#tk-waiting-wrap").classList.toggle("hidden", newStatus !== "waiting");
           showMsg($("#vlog-msg"), "✓ Αναχώρηση καταγράφηκε — κατάσταση: " + (STATUS_LABEL[newStatus] || newStatus) + ".", "ok");
+          refreshOpenLists();
         }
 
         // --- χειροκίνητη καταχώρηση επίσκεψης που ξεχάστηκε εντελώς (χωρίς check-in) ---
