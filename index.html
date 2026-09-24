@@ -368,6 +368,15 @@
     cursor:pointer;transition:background var(--t),color var(--t),border-color var(--t);}
   .chip:hover{background:var(--surface-2);color:var(--ink);}
   .chip.active{background:var(--brand);color:var(--on-brand);border-color:var(--brand);}
+  /* Ver 2.8: πολλαπλή επιλογή πόλης στο φίλτρο των Βλαβών */
+  /* position:fixed — το .panel γύρω γύρω έχει overflow:hidden και θα έκοβε το
+     αναδυόμενο πάνελ· τη θέση την υπολογίζουμε από το κουμπί όταν ανοίγει. */
+  .city-panel{position:fixed;z-index:60;min-width:220px;max-height:min(320px, 60vh);
+    overflow:auto;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);
+    background:var(--surface);box-shadow:0 10px 30px rgba(0,0,0,.18);}
+  .city-panel label{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;cursor:pointer;}
+  .city-panel label input{width:auto;margin:0;}
+  .city-panel .city-panel-foot{display:flex;gap:8px;margin-top:8px;border-top:1px solid var(--line-soft);padding-top:8px;}
 
   /* ---- πλακίδια στατιστικών ---- */
   .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
@@ -1174,7 +1183,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.7";
+  const APP_VERSION = "Ver 2.8";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1183,7 +1192,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260924a";
+  const APP_BUILD = "20260924b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2892,9 +2901,10 @@
        <select id="tkf-office" class="hidden" style="font-size:13px;max-width:210px;width:auto;">
          <option value="">Υπεύθυνος — Όλοι</option>
        </select>
-       <select id="tkf-city" style="font-size:13px;max-width:200px;width:auto;">
-         <option value="">Πόλη — Όλες</option>
-       </select>`;
+       <div id="tkf-city-wrap" style="position:relative;">
+         <button type="button" class="chip" id="tkf-city-btn">Πόλη — Όλες ▾</button>
+         <div id="tkf-city-panel" class="hidden city-panel"></div>
+       </div>`;
   $("#ticket-filters").addEventListener("click", (e) => {
     const chip = e.target.closest("[data-f]");
     if (!chip) return;
@@ -2958,10 +2968,64 @@
     TICKET_ASSIGNEE_FILTER = $("#tkf-assignee").value || null;
     loadTickets();
   });
-  let TICKET_CITY_FILTER = null;
-  $("#tkf-city").addEventListener("change", () => {
-    TICKET_CITY_FILTER = $("#tkf-city").value || null;
-    loadTickets();
+  // Ver 2.8: πολλές πόλεις μαζί. Το φίλτρο είναι σύνολο ονομάτων — άδειο = όλες.
+  let TICKET_CITY_FILTER = new Set();
+  function cityFilterLabel(){
+    const n = TICKET_CITY_FILTER.size;
+    if (n === 0) return "Πόλη — Όλες ▾";
+    const first = [...TICKET_CITY_FILTER][0];
+    return n === 1 ? `Πόλη: ${first} ▾` : `Πόλη: ${first} +${n - 1} ▾`;
+  }
+  function renderCityFilterPanel(){
+    const panel = $("#tkf-city-panel");
+    panel.innerHTML = CITIES.map(c => `
+      <label><input type="checkbox" value="${escapeHtml(c.name)}" ${TICKET_CITY_FILTER.has(c.name) ? "checked" : ""}>${escapeHtml(c.name)}</label>`).join("")
+      + `<div class="city-panel-foot">
+           <button type="button" class="btn-sm btn-ghost" id="tkf-city-clear">Καθαρισμός</button>
+           <button type="button" class="btn-primary btn-sm" id="tkf-city-close">Κλείσιμο</button>
+         </div>`;
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener("change", () => {
+        if (cb.checked) TICKET_CITY_FILTER.add(cb.value); else TICKET_CITY_FILTER.delete(cb.value);
+        $("#tkf-city-btn").textContent = cityFilterLabel();
+        $("#tkf-city-btn").classList.toggle("active", TICKET_CITY_FILTER.size > 0);
+        loadTickets();
+      });
+    });
+    $("#tkf-city-clear").addEventListener("click", () => {
+      TICKET_CITY_FILTER.clear();
+      renderCityFilterPanel();
+      $("#tkf-city-btn").textContent = cityFilterLabel();
+      $("#tkf-city-btn").classList.remove("active");
+      loadTickets();
+    });
+    $("#tkf-city-close").addEventListener("click", () => $("#tkf-city-panel").classList.add("hidden"));
+  }
+  function placeCityPanel(){
+    const btn = $("#tkf-city-btn"), panel = $("#tkf-city-panel");
+    const r = btn.getBoundingClientRect();
+    panel.style.top = (r.bottom + 6) + "px";
+    panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 240)) + "px";
+  }
+  $("#tkf-city-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const panel = $("#tkf-city-panel");
+    if (panel.classList.contains("hidden")) { renderCityFilterPanel(); placeCityPanel(); }
+    panel.classList.toggle("hidden");
+  });
+  window.addEventListener("resize", () => {
+    const panel = $("#tkf-city-panel");
+    if (panel && !panel.classList.contains("hidden")) placeCityPanel();
+  });
+  window.addEventListener("scroll", () => {
+    const panel = $("#tkf-city-panel");
+    if (panel && !panel.classList.contains("hidden")) placeCityPanel();
+  }, true);
+  // κλικ εκτός πάνελ το κλείνει — αλλιώς μένει ανοιχτό πάνω από τη λίστα
+  document.addEventListener("click", (e) => {
+    const panel = $("#tkf-city-panel");
+    if (!panel || panel.classList.contains("hidden")) return;
+    if (!e.target.closest("#tkf-city-wrap")) panel.classList.add("hidden");
   });
 
   $("#tkf-office").addEventListener("change", () => {
@@ -3068,17 +3132,16 @@
     // βγάζει σωστά αποτελέσματα. Το «!inner» χρειάζεται για να φιλτράρει πάνω
     // στον πελάτη — χωρίς αυτό, το embed δεν περιορίζει τις γραμμές.
     if (CITIES.length === 0) await loadCities();
-    const citySelect = $("#tkf-city");
-    citySelect.classList.toggle("hidden", CITIES.length === 0);
-    if (citySelect.dataset.cityCount !== String(CITIES.length)) {
-      citySelect.innerHTML = '<option value="">Πόλη — Όλες</option>' +
-        CITIES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
-      citySelect.dataset.cityCount = String(CITIES.length);
-      citySelect.value = TICKET_CITY_FILTER || "";
-    }
-    const clientEmbed = TICKET_CITY_FILTER ? "clients!inner(name, trade_name, city)" : "clients(name, trade_name, city)";
+    $("#tkf-city-wrap").classList.toggle("hidden", CITIES.length === 0);
+    $("#tkf-city-btn").textContent = cityFilterLabel();
+    $("#tkf-city-btn").classList.toggle("active", TICKET_CITY_FILTER.size > 0);
+    const cityList = [...TICKET_CITY_FILTER];
+    const clientEmbed = cityList.length ? "clients!inner(name, trade_name, city)" : "clients(name, trade_name, city)";
     let q = sb.from("tickets_view").select("id, code, title, status, priority, client_id, created_at, waiting_reason, scheduled_date, visit_order, assigned_to, office_owner, " + clientEmbed);
-    if (TICKET_CITY_FILTER) q = q.eq("clients.city", TICKET_CITY_FILTER);
+    // μία πόλη → eq, πολλές → in. Και στις δύο περιπτώσεις με !inner, αλλιώς το
+    // embed δεν περιορίζει τις γραμμές.
+    if (cityList.length === 1) q = q.eq("clients.city", cityList[0]);
+    else if (cityList.length > 1) q = q.in("clients.city", cityList);
     // Σειρά: όταν βλέπουμε τις βλάβες ΕΝΟΣ τεχνικού (είτε γιατί είσαι εσύ ο
     // τεχνικός, είτε γιατί ο owner/reception διάλεξε κάποιον από το «Ανάθεση
     // σε»), η λίστα ταξινομείται ανά ημερομηνία επίσκεψης + σειρά (visit_order,
