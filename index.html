@@ -1174,7 +1174,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.6";
+  const APP_VERSION = "Ver 2.7";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1183,7 +1183,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260923f";
+  const APP_BUILD = "20260924a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2341,6 +2341,81 @@
 
   $("#new-client-btn").addEventListener("click", () => openClientDrawer(null));
 
+  // Ver 2.7: ΚΑΡΤΕΛΑ ΠΕΛΑΤΗ ΓΙΑ ΤΟΝ ΤΕΧΝΙΚΟ — μόνο για ανάγνωση.
+  // Η βάση ήδη του επιτρέπει να διαβάσει τον πελάτη (πολιτική «staff read
+  // clients»), τις απομακρυσμένες προσβάσεις και τις συμβάσεις ΜΟΝΟ των πελατών
+  // που έχει δουλειά (is_assigned_to_client) — οπότε δεν χρειάστηκε καμία αλλαγή
+  // δικαιωμάτων. Αυτό που έλειπε ήταν η οθόνη: η κανονική καρτέλα πελάτη είναι
+  // φόρμα του γραφείου (επεξεργασία, σύνδεση χρήστη, διαγραφή) και θα του
+  // έβγαζε κουμπιά που η βάση θα απέρριπτε. Εδώ βλέπει μόνο ό,τι χρειάζεται
+  // στο χέρι: στοιχεία, τηλέφωνα, διεύθυνση, προσβάσεις, συμβάσεις, ιστορικό.
+  async function openClientInfoDrawer(clientId){
+    const { data: client, error } = await sb.from("clients").select("*").eq("id", clientId).single();
+    if (error || !client) { alert("Δεν άνοιξε η καρτέλα πελάτη: " + (error ? error.message : "δεν βρέθηκε.")); return; }
+    const [{ data: ra }, { data: cts }, { data: tks }] = await Promise.all([
+      sb.from("remote_access").select("*").eq("client_id", clientId),
+      sb.from("client_contracts").select("*").eq("client_id", clientId).order("until_date", { ascending:true, nullsFirst:false }),
+      sb.from("tickets_view").select("id, code, title, status, created_at").eq("client_id", clientId).order("created_at", { ascending:false })
+    ]);
+    const rows = [
+      ["Επωνυμία", client.name],
+      ["Διακριτικός τίτλος", client.trade_name],
+      ["Τύπος", client.type],
+      ["ΑΦΜ", client.vat_number],
+      ["ΔΟΥ", client.tax_office],
+      ["Διεύθυνση", [client.address, client.city].filter(Boolean).join(", ")],
+      ["Υπεύθυνος επικοινωνίας", client.contact],
+      ["Τηλέφωνο", client.phone],
+      ["Email", client.email],
+      ["Σημειώσεις", client.notes]
+    ].filter(([, v]) => v && String(v).trim());
+
+    const telHtml = client.phone
+      ? `<a class="btn-primary btn-sm" href="tel:${escapeHtml(String(client.phone).replace(/\s+/g, ""))}" style="text-decoration:none;">📞 Κλήση</a>` : "";
+    const mapQuery = [client.address, client.city].filter(Boolean).join(" ");
+    const mapHtml = mapQuery
+      ? `<a class="btn-sm btn-ghost" href="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}" target="_blank" rel="noopener" style="text-decoration:none;">🗺 Χάρτης</a>` : "";
+
+    const raHtml = (ra || []).length
+      ? (ra || []).map(r => `<div class="vlog-row"><strong>${escapeHtml(r.label || "—")}</strong>
+           <div class="vlog-who mono" style="user-select:all;">${escapeHtml(r.value || "")}</div></div>`).join("")
+      : '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν καταχωρημένες προσβάσεις.</div>';
+
+    const ctsHtml = (cts || []).length
+      ? (cts || []).map(c => {
+          const tname = (CONTRACT_TYPES.find(x => x.id === c.type_id) || {}).name || c.name || "Σύμβαση";
+          return `<div class="vlog-row"><strong>${escapeHtml(tname)}</strong>
+            <div class="vlog-who">${c.until_date ? "λήγει " + new Date(c.until_date + "T00:00:00").toLocaleDateString("el-GR") : "χωρίς ημερομηνία λήξης"}</div></div>`;
+        }).join("")
+      : "";
+
+    const tkHtml = (tks || []).length
+      ? (tks || []).slice(0, 15).map(t => `<div class="vlog-row" data-ci-ticket="${t.id}" style="cursor:pointer;">
+          <strong>${escapeHtml(t.code)}</strong> — ${escapeHtml(t.title)}
+          <div class="vlog-who">${escapeHtml(statusLabel(t.status))} · ${new Date(t.created_at).toLocaleDateString("el-GR")}</div>
+        </div>`).join("")
+      : '<div class="cell-sub" style="padding:6px 0;">Δεν υπάρχουν άλλες βλάβες.</div>';
+
+    openDrawer("Καρτέλα πελάτη", `
+      <h3 style="margin:0 0 2px;">${escapeHtml(clientLabel(client) || client.name || "")}</h3>
+      ${client.trade_name && client.name && client.trade_name !== client.name
+        ? `<p class="cell-sub" style="margin:0 0 10px;">${escapeHtml(client.name)}</p>` : '<div style="height:8px;"></div>'}
+      ${(telHtml || mapHtml) ? `<div style="display:flex;gap:8px;margin-bottom:12px;">${telHtml}${mapHtml}</div>` : ""}
+      <div class="section-title">Στοιχεία</div>
+      ${rows.map(([k, v]) => `<div class="note-item"><div class="note-meta">${escapeHtml(k)}</div>
+        <div style="font-size:13.5px;">${escapeHtml(String(v))}</div></div>`).join("")}
+      <div class="section-title">Απομακρυσμένη πρόσβαση</div>
+      ${raHtml}
+      ${ctsHtml ? `<div class="section-title">Συμβάσεις</div>${ctsHtml}` : ""}
+      <div class="section-title">Βλάβες του πελάτη</div>
+      ${tkHtml}
+      <p class="cell-sub" style="margin-top:14px;">Μόνο για ανάγνωση — οι αλλαγές στα στοιχεία πελάτη γίνονται από το γραφείο.</p>
+    `);
+    $$("[data-ci-ticket]").forEach(el => {
+      el.addEventListener("click", () => openTicketDrawer(el.dataset.ciTicket, false));
+    });
+  }
+
   async function openClientDrawer(clientId){
     let client = { name:"", type:"Άλλο", city:"", contact:"", phone:"", email:"" };
     let remoteAccess = [];
@@ -3402,10 +3477,10 @@
     // Reception συνεχίζουν να βλέπουν το πλήρες drawer ακριβώς όπως σήμερα
     // (προγραμματισμός/ανάθεση, προτεραιότητα, παραστατικό).
     const isFieldRole = !portalMode && PROFILE && FIELD_ROLES.has(PROFILE.role);
-    // Ver 2.6: το όνομα του πελάτη μέσα στη βλάβη ανοίγει την καρτέλα του.
-    // Μόνο για το γραφείο (owner/reception): η καρτέλα πελάτη διαβάζει χρήστες,
-    // συμβάσεις και απομακρυσμένες προσβάσεις, που ο τεχνικός δεν τα βλέπει.
-    const canOpenClient = !portalMode && !isFieldRole && !!t.client_id;
+    // Ver 2.6/2.7: το όνομα του πελάτη μέσα στη βλάβη ανοίγει την καρτέλα του.
+    // Το γραφείο βλέπει την κανονική καρτέλα (με επεξεργασία), ο τεχνικός/
+    // συνεργάτης μια καρτέλα ΜΟΝΟ για ανάγνωση (openClientInfoDrawer).
+    const canOpenClient = !portalMode && !!t.client_id;
 
     const staffControls = portalMode ? "" : `
       <div class="section-title">Άφιξη / Αναχώρηση</div>
@@ -3535,7 +3610,8 @@
       const clientLink = $("#tk-client-link");
       if (clientLink) clientLink.addEventListener("click", (e) => {
         e.preventDefault();
-        openClientDrawer(t.client_id);
+        if (isFieldRole) openClientInfoDrawer(t.client_id);
+        else openClientDrawer(t.client_id);
       });
     }
 
