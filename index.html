@@ -1183,7 +1183,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.8";
+  const APP_VERSION = "Ver 2.9";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1192,7 +1192,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260924b";
+  const APP_BUILD = "20260924c";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2295,7 +2295,7 @@
     if (CLIENT_STATUS_FILTER === "contracts") {
       thead.innerHTML = "<tr><th>Σύμβαση</th><th>Πελάτης</th><th>Λήξη</th></tr>";
       const { data: cdata, error: cerr } = await sb.from("client_contracts")
-        .select("*, clients(name)").order("until_date", { ascending:true, nullsFirst:false });
+        .select("*, clients(name, trade_name)").order("until_date", { ascending:true, nullsFirst:false });
       if (cerr) { showMsg($("#clients-msg"), "Σφάλμα φόρτωσης συμβάσεων: " + cerr.message, "error"); return; }
       const allContracts = cdata || [];
       const names = Array.from(new Set(allContracts.map(c => c.name))).sort((a,b) => a.localeCompare(b, "el"));
@@ -2310,7 +2310,7 @@
       tbody.innerHTML = rows.map(c => `
         <tr data-client-id="${c.client_id}">
           <td><strong>${escapeHtml(c.name)}</strong>${contractStatusPill(c.until_date)}</td>
-          <td>${escapeHtml(c.clients ? c.clients.name : "—")}</td>
+          <td>${escapeHtml(c.clients ? clientLabel(c.clients) : "—")}</td>
           <td>${c.until_date ? new Date(c.until_date + "T00:00:00").toLocaleDateString("el-GR") : "— χωρίς ημερομηνία —"}</td>
         </tr>`).join("");
       tbody.querySelectorAll("tr[data-client-id]").forEach(tr => {
@@ -2337,12 +2337,20 @@
           : "Κανένας πελάτης σε αυτή την κατηγορία.")}</div></td></tr>`;
       return;
     }
-    tbody.innerHTML = searchedRows.map(c => `
+    // Ver 2.9: με ΕΝΤΟΝΑ ο διακριτικός τίτλος (έτσι ξέρουμε τον πελάτη), από κάτω
+    // η επίσημη επωνυμία. Αν δεν έχει διακριτικό τίτλο, έντονη μένει η επωνυμία.
+    // Ταξινόμηση αλφαβητικά με ό,τι φαίνεται με έντονα.
+    const sortedRows = searchedRows.slice().sort((a, b) => clientLabel(a).localeCompare(clientLabel(b), "el"));
+    tbody.innerHTML = sortedRows.map(c => {
+      const hasTrade = c.trade_name && c.trade_name.trim();
+      const showName = hasTrade && c.name && c.name.trim() !== c.trade_name.trim();
+      return `
       <tr data-id="${c.id}">
-        <td><strong>${escapeHtml(c.name)}</strong>${c.trade_name ? `<br><strong style="color:var(--ink-soft);">${escapeHtml(c.trade_name)}</strong>` : ""}${clientStatusPill(c.status)}${c.email ? `<div class="cell-sub">${escapeHtml(c.email)}</div>` : ""}</td>
+        <td><strong>${escapeHtml(clientLabel(c))}</strong>${showName ? `<div class="cell-sub" style="font-size:12.5px;">${escapeHtml(c.name)}</div>` : ""}${clientStatusPill(c.status)}${c.email ? `<div class="cell-sub">${escapeHtml(c.email)}</div>` : ""}</td>
         <td>${escapeHtml(c.type || "—")}${c.city ? ` · ${escapeHtml(c.city)}` : ""}${c.vat_number ? `<div class="cell-sub">ΑΦΜ ${escapeHtml(c.vat_number)}</div>` : ""}</td>
         <td>${escapeHtml(c.contact || "—")}${c.phone ? `<div class="cell-sub">${escapeHtml(c.phone)}</div>` : ""}</td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
     tbody.querySelectorAll("tr[data-id]").forEach(tr => {
       tr.addEventListener("click", () => openClientDrawer(tr.dataset.id));
     });
@@ -3236,7 +3244,7 @@
         <div style="display:flex;gap:8px;">
           <select id="tk-client" required style="flex:1;">
             <option value="">— Επιλογή πελάτη —</option>
-            ${CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+            ${clientSelectOptionsHtml()}
           </select>
           <button type="button" class="btn-ghost btn-sm" id="tk-client-search-btn" style="flex:none;" title="Αναζήτηση πελάτη (ΑΦΜ/επωνυμία/διακριτικός τίτλος/τηλέφωνο)" aria-label="Αναζήτηση πελάτη">🔍</button>
           <button type="button" class="btn-ghost btn-sm" id="tk-client-new-btn" style="flex:none;" title="Προσθήκη νέου πελάτη" aria-label="Νέος πελάτης">➕</button>
@@ -3257,7 +3265,10 @@
       <div id="tk-client-new-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
         <p class="cell-sub" style="margin:0 0 8px;">Γρήγορη καταχώρηση νέου πελάτη — τα υπόλοιπα στοιχεία (ΑΦΜ, διεύθυνση, συμβάσεις κ.λπ.) τα συμπληρώνεις μετά, από την καρτέλα του στους Πελάτες.</p>
         <div id="tknc-msg"></div>
-        <div class="field"><label>Επωνυμία *</label><input id="tknc-name"></div>
+        <div class="form-row">
+          <div class="field"><label>Διακριτικός τίτλος *</label><input id="tknc-trade" placeholder="π.χ. Ξενοδοχείο Ήλιος"></div>
+          <div class="field"><label>Επωνυμία</label><input id="tknc-name" placeholder="αν λείπει, μπαίνει ο διακριτικός τίτλος"></div>
+        </div>
         <div class="form-row">
           <div class="field"><label>Τηλέφωνο</label><input id="tknc-phone"></div>
           <div class="field"><label>Πόλη</label><select id="tknc-city">${cityOptionsHtml("")}</select></div>
@@ -3354,12 +3365,18 @@
         $("#tk-client-new-panel").classList.toggle("hidden");
       });
       $("#tknc-save").addEventListener("click", async () => {
-        const name = $("#tknc-name").value.trim();
-        if (!name) { showMsg($("#tknc-msg"), "Συμπλήρωσε επωνυμία.", "error"); return; }
+        // Ver 2.9: υποχρεωτικός είναι ο ΔΙΑΚΡΙΤΙΚΟΣ ΤΙΤΛΟΣ — έτσι ξέρουμε τον πελάτη
+        // στην πράξη. Η επωνυμία είναι προαιρετική εδώ· αν λείπει, γράφεται ο
+        // διακριτικός τίτλος και στις δύο (η βάση θέλει πάντα name), και τη
+        // διορθώνεις αργότερα από την πλήρη καρτέλα όταν μάθεις την επίσημη.
+        const trade = $("#tknc-trade").value.trim();
+        if (!trade) { showMsg($("#tknc-msg"), "Συμπλήρωσε διακριτικό τίτλο.", "error"); $("#tknc-trade").focus(); return; }
+        const name = $("#tknc-name").value.trim() || trade;
         const btn = $("#tknc-save");
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
         const payload = {
           name,
+          trade_name: trade,
           entity_type: "individual",
           type: "Άλλο",
           phone: $("#tknc-phone").value.trim() || null,
@@ -3374,12 +3391,11 @@
         }
         await loadClients();
         const sel = $("#tk-client");
-        sel.innerHTML = `<option value="">— Επιλογή πελάτη —</option>` +
-          CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+        sel.innerHTML = `<option value="">— Επιλογή πελάτη —</option>` + clientSelectOptionsHtml();
         sel.value = data.id;
         btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
         $("#tk-client-new-panel").classList.add("hidden");
-        ["#tknc-name", "#tknc-phone", "#tknc-city", "#tknc-email"].forEach(s => { $(s).value = ""; });
+        ["#tknc-trade", "#tknc-name", "#tknc-phone", "#tknc-city", "#tknc-email"].forEach(s => { $(s).value = ""; });
         clearMsg($("#tknc-msg"));
       });
     }
@@ -3544,6 +3560,9 @@
     // Το γραφείο βλέπει την κανονική καρτέλα (με επεξεργασία), ο τεχνικός/
     // συνεργάτης μια καρτέλα ΜΟΝΟ για ανάγνωση (openClientInfoDrawer).
     const canOpenClient = !portalMode && !!t.client_id;
+    // Ver 2.9: η περιγραφή της βλάβης διορθώνεται και ΜΕΤΑ την καταχώρηση — από το
+    // γραφείο (owner/reception). Ο τεχνικός γράφει ό,τι βρήκε στη Συνομιλία.
+    const canEditDesc = !portalMode && !isFieldRole;
 
     const staffControls = portalMode ? "" : `
       <div class="section-title">Άφιξη / Αναχώρηση</div>
@@ -3632,7 +3651,20 @@
                <span id="tk-vat-note" class="cell-sub"></span>`}
         </div>` : ""}
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
-      ${t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : ""}
+      ${canEditDesc ? `
+        <div id="tk-desc-view" style="margin:0 0 14px;">
+          <p id="tk-desc-text" style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 4px;${t.description ? "" : "display:none;"}">${escapeHtml(t.description || "")}</p>
+          <button type="button" class="add-link" id="tk-desc-edit" style="font-size:12.5px;">${t.description ? "✎ Επεξεργασία περιγραφής" : "+ Προσθήκη περιγραφής"}</button>
+        </div>
+        <div id="tk-desc-form" class="hidden" style="margin:0 0 14px;">
+          <textarea id="tk-desc-input" style="min-height:90px;">${escapeHtml(t.description || "")}</textarea>
+          <div id="tk-desc-msg"></div>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button type="button" class="btn-primary btn-sm" id="tk-desc-save">Αποθήκευση περιγραφής</button>
+            <button type="button" class="btn-sm btn-ghost" id="tk-desc-cancel">Άκυρο</button>
+          </div>
+        </div>`
+      : (t.description ? `<p style="font-size:13.5px;white-space:pre-wrap;color:var(--ink-soft);margin:0 0 14px;">${escapeHtml(t.description)}</p>` : "")}
       ${t.opening_note ? `<div style="font-size:13px;white-space:pre-wrap;background:var(--tile-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px;">
         <div class="cell-sub" style="margin-bottom:4px;">Σημείωση ανοίγματος — ${escapeHtml(t.profiles ? (t.profiles.full_name || t.profiles.email) : "—")}</div>
         ${escapeHtml(t.opening_note)}
@@ -3668,6 +3700,37 @@
 
       ${!portalMode ? `<div class="drawer-foot" style="margin:22px -22px -20px;"><button type="button" class="btn-primary" id="tk-save" style="width:100%;">Αποθήκευση αλλαγών</button></div>` : ""}
     `);
+
+    if (canEditDesc) {
+      const showDescForm = (on) => {
+        $("#tk-desc-view").classList.toggle("hidden", on);
+        $("#tk-desc-form").classList.toggle("hidden", !on);
+        if (on) { const ta = $("#tk-desc-input"); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      };
+      $("#tk-desc-edit").addEventListener("click", () => showDescForm(true));
+      $("#tk-desc-cancel").addEventListener("click", () => {
+        $("#tk-desc-input").value = t.description || "";
+        clearMsg($("#tk-desc-msg"));
+        showDescForm(false);
+      });
+      $("#tk-desc-save").addEventListener("click", async () => {
+        const btn = $("#tk-desc-save");
+        const val = $("#tk-desc-input").value.trim() || null;
+        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
+        // Ξεχωριστή αποθήκευση από το «Αποθήκευση αλλαγών» — η περιγραφή γράφεται
+        // αμέσως, χωρίς να πειράζει κατάσταση/ανάθεση που μπορεί να αλλάζεις παράλληλα.
+        const { error: dErr } = await sb.from("tickets").update({ description: val }).eq("id", ticketId);
+        btn.disabled = false; btn.textContent = "Αποθήκευση περιγραφής";
+        if (dErr) { showMsg($("#tk-desc-msg"), "Δεν αποθηκεύτηκε: " + dErr.message, "error"); return; }
+        t.description = val;
+        const p = $("#tk-desc-text");
+        p.textContent = val || "";
+        p.style.display = val ? "" : "none";
+        $("#tk-desc-edit").textContent = val ? "✎ Επεξεργασία περιγραφής" : "+ Προσθήκη περιγραφής";
+        clearMsg($("#tk-desc-msg"));
+        showDescForm(false);
+      });
+    }
 
     if (canOpenClient) {
       const clientLink = $("#tk-client-link");
@@ -4222,6 +4285,19 @@
   // Ο πελάτης εμφανίζεται ΠΑΝΤΑ με τον διακριτικό του τίτλο — έτσι τον ξέρει ο χρήστης
   // στην πράξη· η επίσημη επωνυμία (name) είναι εφεδρεία όταν δεν έχει οριστεί
   // διακριτικός τίτλος. Ίδια λογική με τη λίστα Βλαβών και τις ειδοποιήσεις (schema_v33).
+  // Ver 2.9: στις λίστες επιλογής πελάτη, ο διακριτικός τίτλος πρώτα (και η
+  // επωνυμία σε παρένθεση, αν διαφέρει), ταξινομημένα αλφαβητικά με αυτόν.
+  function clientSelectOptionsHtml(){
+    return CLIENTS_CACHE
+      .slice()
+      .sort((a, b) => clientLabel(a).localeCompare(clientLabel(b), "el"))
+      .map(c => {
+        const lbl = clientLabel(c);
+        const extra = (c.trade_name && c.name && c.trade_name.trim() !== c.name.trim()) ? ` (${c.name})` : "";
+        return `<option value="${c.id}">${escapeHtml(lbl + extra)}</option>`;
+      }).join("");
+  }
+
   function clientLabel(c){
     if (!c) return "";
     return (c.trade_name && c.trade_name.trim()) || c.name || "";
@@ -4865,7 +4941,10 @@
       <div id="nt-client-new-panel" class="hidden" style="margin:-6px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--tile-bg);">
         <p class="cell-sub" style="margin:0 0 8px;">Γρήγορη καταχώρηση — τα υπόλοιπα στοιχεία συμπληρώνονται μετά από τους Πελάτες.</p>
         <div id="ntnc-msg"></div>
-        <div class="field"><label>Επωνυμία *</label><input id="ntnc-name"></div>
+        <div class="form-row">
+          <div class="field"><label>Διακριτικός τίτλος *</label><input id="ntnc-trade" placeholder="π.χ. Ξενοδοχείο Ήλιος"></div>
+          <div class="field"><label>Επωνυμία</label><input id="ntnc-name" placeholder="αν λείπει, μπαίνει ο διακριτικός τίτλος"></div>
+        </div>
         <div class="form-row">
           <div class="field"><label>Τηλέφωνο</label><input id="ntnc-phone"></div>
           <div class="field"><label>Πόλη</label><select id="ntnc-city">${cityOptionsHtml("")}</select></div>
@@ -4944,12 +5023,14 @@
       $("#nt-client-new-panel").classList.toggle("hidden");
     });
     $("#ntnc-save").addEventListener("click", async () => {
-      const name = $("#ntnc-name").value.trim();
-      if (!name) { showMsg($("#ntnc-msg"), "Συμπλήρωσε επωνυμία.", "error"); return; }
+      // Ver 2.9: ίδιος κανόνας με τη νέα βλάβη — υποχρεωτικός ο διακριτικός τίτλος.
+      const trade = $("#ntnc-trade").value.trim();
+      if (!trade) { showMsg($("#ntnc-msg"), "Συμπλήρωσε διακριτικό τίτλο.", "error"); $("#ntnc-trade").focus(); return; }
+      const name = $("#ntnc-name").value.trim() || trade;
       const btn = $("#ntnc-save");
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
       const { data, error } = await sb.from("clients").insert({
-        name, entity_type:"individual", type:"Άλλο",
+        name, trade_name: trade, entity_type:"individual", type:"Άλλο",
         phone: $("#ntnc-phone").value.trim() || null,
         city: $("#ntnc-city").value.trim() || null,
       }).select("id").single();
@@ -4959,12 +5040,11 @@
       }
       await loadClients();
       const sel = $("#nt-client");
-      sel.innerHTML = '<option value="">— Χωρίς πελάτη —</option>' +
-        CLIENTS_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      sel.innerHTML = '<option value="">— Χωρίς πελάτη —</option>' + clientSelectOptionsHtml();
       sel.value = data.id;
       btn.disabled = false; btn.textContent = "Δημιουργία πελάτη";
       $("#nt-client-new-panel").classList.add("hidden");
-      ["#ntnc-name","#ntnc-phone","#ntnc-city"].forEach(x => { $(x).value = ""; });
+      ["#ntnc-trade","#ntnc-name","#ntnc-phone","#ntnc-city"].forEach(x => { $(x).value = ""; });
       clearMsg($("#ntnc-msg"));
     });
 
