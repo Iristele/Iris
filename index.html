@@ -573,6 +573,12 @@
   .vault-modal.hidden{display:none;}
   .vault-modal-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;width:min(420px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35);}
   .vault-body{font-family:"IBM Plex Mono", ui-monospace, monospace;font-size:13px;min-height:200px;}
+  .vault-lock{display:flex;justify-content:center;padding:40px 16px;}
+  .vault-lock.hidden{display:none;}
+  .vault-lock-box{width:min(340px,100%);text-align:center;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:26px 22px;}
+  .pin-input{font-size:26px !important;letter-spacing:.6em;text-align:center;font-variant-numeric:tabular-nums;
+    padding:10px 12px 10px calc(12px + .6em) !important;}
   .cal-more{font-size:10.5px;color:var(--ink-faint);padding-left:3px;}
   .cal-dots{display:none;gap:3px;flex-wrap:wrap;justify-content:center;}
   .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);}
@@ -1054,7 +1060,18 @@
 
     <!-- ΣΗΜΕΙΩΣΕΙΣ — θησαυροφυλάκιο διαχειριστών (schema_v43) -->
     <div id="view-vault" class="hidden">
-      <div class="vault-split">
+      <div id="vault-lockscreen" class="vault-lock">
+        <div class="vault-lock-box">
+          <div style="font-size:34px;line-height:1;margin-bottom:8px;">🔒</div>
+          <h2 id="vault-lock-title" style="margin:0 0 6px;font-size:18px;">Σημειώσεις</h2>
+          <p id="vault-lock-text" class="cell-sub" style="margin:0 0 14px;">Έλεγχος…</p>
+          <input id="vault-pin" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" aria-label="PIN 4 ψηφίων">
+          <div id="vault-lock-msg" style="margin-top:10px;"></div>
+          <button type="button" class="btn-primary" id="vault-pin-ok" style="width:100%;margin-top:12px;">Άνοιγμα</button>
+          <button type="button" class="add-link" id="vault-pin-forgot" style="margin-top:10px;font-size:12.5px;">Ξέχασα το PIN</button>
+        </div>
+      </div>
+      <div class="vault-split hidden" id="vault-split">
         <div class="panel">
           <div class="panel-head"><h2>Κατηγορίες</h2></div>
           <div class="panel-body" style="padding:10px 16px 16px;">
@@ -1070,7 +1087,8 @@
           <div class="panel-head">
             <h2 id="vault-title">Σημειώσεις</h2>
             <div style="display:flex;gap:8px;align-items:center;">
-              <button type="button" class="btn-ghost btn-sm hidden" id="vault-lock-now" title="Κλείδωσε ξανά τις κρυπτογραφημένες σημειώσεις">🔒 Κλείδωμα τώρα</button>
+              <button type="button" class="btn-ghost btn-sm" id="vault-change-pin" title="Αλλαγή του PIN σου">🔑 Αλλαγή PIN</button>
+              <button type="button" class="btn-ghost btn-sm" id="vault-lock-now" title="Κλείδωσε ξανά τις Σημειώσεις">🔒 Κλείδωμα τώρα</button>
               <button type="button" class="btn-primary btn-sm" id="vault-new-btn">+ Νέα σημείωση</button>
             </div>
           </div>
@@ -1078,7 +1096,7 @@
           <div class="panel-body" style="padding:12px 16px 16px;">
             <div id="vault-msg"></div>
             <div id="vault-list"></div>
-            <p class="cell-sub" style="margin:14px 0 0;">🔒 Οι κλειδωμένες σημειώσεις κρυπτογραφούνται στη συσκευή σου με τον κωδικό σύνδεσής σου και τις βλέπεις μόνο εσύ. Οι ανοιχτές φαίνονται σε όλους τους διαχειριστές.</p>
+            <p class="cell-sub" style="margin:14px 0 0;">🔒 Όλες οι σημειώσεις αποθηκεύονται κρυπτογραφημένες και ανοίγουν μόνο με PIN. Οι «προσωπικές» φαίνονται μόνο σε σένα· οι υπόλοιπες σε όλους τους διαχειριστές. Κλειδώνει μόνο του όταν φύγεις από την καρτέλα ή μετά από 5 λεπτά αδράνειας.</p>
           </div>
         </div>
       </div>
@@ -1259,7 +1277,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.1";
+  const APP_VERSION = "Ver 3.2";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1268,7 +1286,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260926b";
+  const APP_BUILD = "20260926d";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1843,6 +1861,8 @@
     $("#view-technicians").classList.toggle("hidden", view !== "technicians");
     $("#view-notes").classList.toggle("hidden", view !== "notes");
     $("#view-vault").classList.toggle("hidden", view !== "vault");
+    // φεύγοντας από τις Σημειώσεις ξανακλειδώνουν — ξαναμπαίνεις με PIN
+    if (view !== "vault" && typeof vaultLockNow === "function") vaultLockNow();
     $("#view-users").classList.toggle("hidden", view !== "users");
     $("#view-company").classList.toggle("hidden", view !== "company");
     if (view === "dashboard") loadDashboard();
@@ -5252,25 +5272,24 @@
     await loadNotes();
   });
 
-  // ================= ΣΗΜΕΙΩΣΕΙΣ — ΘΗΣΑΥΡΟΦΥΛΑΚΙΟ ΔΙΑΧΕΙΡΙΣΤΩΝ (schema_v43) =================
-  // Κοινές σημειώσεις των διαχειριστών σε χρωματιστές κατηγορίες. Μια σημείωση
-  // μπορεί να ΚΛΕΙΔΩΘΕΙ: τότε κρυπτογραφείται ΕΔΩ, στη συσκευή, με AES-256-GCM
-  // (WebCrypto) και στη βάση φτάνει μόνο κρυπτογράφημα. Το κλειδί των σημειώσεων
-  // είναι τυχαίο (256-bit) και φυλάσσεται «τυλιγμένο» με κλειδί από τον κωδικό
-  // σύνδεσης (PBKDF2-SHA256, 310.000 επαναλήψεις) — βλ. schema_v43 για τα γιατί.
-  // Μετά το ξεκλείδωμα, το κλειδί μένει ΜΟΝΟ στη μνήμη της καρτέλας για λίγα
-  // λεπτά (VAULT_UNLOCK_MINUTES) και σβήνει σε «Κλείδωμα τώρα» / αποσύνδεση.
-  const VAULT_UNLOCK_MINUTES = 5;
-  const VAULT_PBKDF2_ITER = 310000;
+  // ================= ΣΗΜΕΙΩΣΕΙΣ — ΘΗΣΑΥΡΟΦΥΛΑΚΙΟ ΔΙΑΧΕΙΡΙΣΤΩΝ (schema_v43 + v44) =================
+  // Ver 3.2: η καρτέλα ανοίγει ΜΟΝΟ με PIN 4 ψηφίων, κάθε φορά που μπαίνεις.
+  // Την πρώτη φορά σου ζητά να ορίσεις PIN. Μετά από σωστό PIN η βάση δίνει δύο
+  // κλειδιά AES-256: το ΚΟΙΝΟ (σημειώσεις όλων των διαχειριστών) και το ΠΡΟΣΩΠΙΚΟ
+  // σου (σημειώσεις που βλέπεις μόνο εσύ). ΟΛΕΣ οι σημειώσεις — τίτλος και κείμενο —
+  // αποθηκεύονται κρυπτογραφημένες· αποκρυπτογραφούνται μόνο εδώ, στη μνήμη.
+  // Κλειδώνει ξανά: όταν φύγεις από την καρτέλα, μετά από 5' αδράνειας, με
+  // «Κλείδωμα τώρα» και στην αποσύνδεση. 5 λάθος PIN ⇒ 15' κλείδωμα (στη βάση).
+  const VAULT_IDLE_MINUTES = 5;
   let VAULT_CATS = [];
-  let VAULT_NOTES = [];
-  let VAULT_FILTER_CAT = "";        // "" = όλες, "none" = χωρίς κατηγορία, αλλιώς id
+  let VAULT_NOTES = [];               // ήδη αποκρυπτογραφημένες: {..., title, body}
+  let VAULT_FILTER_CAT = "";          // "" = όλες, "none" = χωρίς κατηγορία, αλλιώς id
   let VAULT_SEARCH = "";
   let VAULT_NEW_COLOR = "blue";
-  let VAULT_KEY = null;             // CryptoKey (μη εξαγώγιμο) όσο είναι ξεκλείδωτο
-  let VAULT_KEY_TIMER = null;
+  let VAULT_KEYS = null;              // { shared: CryptoKey, personal: CryptoKey }
+  let VAULT_IDLE_TIMER = null;
 
-  // ---- βοηθητικά base64 <-> bytes (σε κομμάτια, για μεγάλα κείμενα) ----
+  // ---- βοηθητικά base64 <-> bytes ----
   function vB64(buf){
     const bytes = new Uint8Array(buf); let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
@@ -5281,193 +5300,316 @@
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-  function vRandom(n){ const b = new Uint8Array(n); crypto.getRandomValues(b); return b; }
-
-  async function vDeriveKek(password, saltBytes, iterations){
-    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey(
-      { name:"PBKDF2", salt:saltBytes, iterations, hash:"SHA-256" },
-      base, { name:"AES-GCM", length:256 }, false, ["encrypt","decrypt"]);
+  function vImportKey(b64){
+    return crypto.subtle.importKey("raw", vUnB64(b64), { name:"AES-GCM" }, false, ["encrypt","decrypt"]);
   }
-  // Τυλίγει τα raw bytes του κλειδιού σημειώσεων με τον κωδικό → γραμμή vault_keys
-  async function vWrapRawKey(rawKey, password){
-    const salt = vRandom(16), iv = vRandom(12);
-    const kek = await vDeriveKek(password, salt, VAULT_PBKDF2_ITER);
-    const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, kek, rawKey);
-    return { salt: vB64(salt), wrapped_key: vB64(ct), wrap_iv: vB64(iv), iterations: VAULT_PBKDF2_ITER };
-  }
-  // Ξετυλίγει → raw bytes. Με λάθος κωδικό το AES-GCM αποτυγχάνει (null).
-  async function vUnwrapRawKey(row, password){
-    try {
-      const kek = await vDeriveKek(password, vUnB64(row.salt), row.iterations || VAULT_PBKDF2_ITER);
-      const raw = await crypto.subtle.decrypt({ name:"AES-GCM", iv: vUnB64(row.wrap_iv) }, kek, vUnB64(row.wrapped_key));
-      return new Uint8Array(raw);
-    } catch (e) { return null; }
-  }
-  function vImportNoteKey(rawKey){
-    return crypto.subtle.importKey("raw", rawKey, { name:"AES-GCM" }, false, ["encrypt","decrypt"]);
-  }
-  async function vEncrypt(key, text){
-    const iv = vRandom(12);
-    const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, new TextEncoder().encode(text));
+  async function vEncrypt(key, obj){
+    const iv = new Uint8Array(12); crypto.getRandomValues(iv);
+    const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
     return { cipher: vB64(ct), iv: vB64(iv) };
   }
   async function vDecrypt(key, cipher, iv){
     try {
       const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv: vUnB64(iv) }, key, vUnB64(cipher));
-      return new TextDecoder().decode(pt);
+      return JSON.parse(new TextDecoder().decode(pt));
     } catch (e) { return null; }
   }
+  function vKeyFor(isPersonal){ return VAULT_KEYS ? (isPersonal ? VAULT_KEYS.personal : VAULT_KEYS.shared) : null; }
 
-  // Έλεγχος ότι αυτό που γράφτηκε είναι ΟΝΤΩΣ ο κωδικός σύνδεσης — με ξεχωριστό,
-  // «μιας χρήσης» client, ώστε να μην πειράξει την τρέχουσα σύνδεση της εφαρμογής.
-  async function vVerifyLoginPassword(password){
-    if (!USER || !USER.email) return false;
-    try {
-      const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false, storageKey:"iris-vault-verify" }
-      });
-      const { error } = await tmp.auth.signInWithPassword({ email: USER.email, password });
-      return !error;
-    } catch (e) { return false; }
-  }
-
+  // ---- κλείδωμα / αδράνεια ----
   function vaultLockNow(){
-    VAULT_KEY = null;
-    if (VAULT_KEY_TIMER) { clearTimeout(VAULT_KEY_TIMER); VAULT_KEY_TIMER = null; }
-    const b = document.getElementById("vault-lock-now");
-    if (b) b.classList.add("hidden");
+    VAULT_KEYS = null;
+    VAULT_NOTES = [];                  // σβήνει και το αποκρυπτογραφημένο κείμενο από τη μνήμη
+    if (VAULT_IDLE_TIMER) { clearTimeout(VAULT_IDLE_TIMER); VAULT_IDLE_TIMER = null; }
+    const list = document.getElementById("vault-list");
+    if (list) list.innerHTML = "";
+    // αν είναι ανοιχτή σημείωση του θησαυροφυλακίου, κλείνει κι αυτή
+    if (document.getElementById("vn-open")) closeDrawer();
+    const split = document.getElementById("vault-split");
+    if (split) split.classList.add("hidden");
   }
-  function vaultArmTimer(){
-    if (VAULT_KEY_TIMER) clearTimeout(VAULT_KEY_TIMER);
-    VAULT_KEY_TIMER = setTimeout(() => {
+  function vaultTouch(){
+    if (!VAULT_KEYS) return;
+    if (VAULT_IDLE_TIMER) clearTimeout(VAULT_IDLE_TIMER);
+    VAULT_IDLE_TIMER = setTimeout(() => {
       vaultLockNow();
-      // αν είναι ανοιχτή κλειδωμένη σημείωση, κλείνει κι αυτή — δεν μένει κείμενο στην οθόνη
-      if (document.getElementById("vn-locked-open")) closeDrawer();
-    }, VAULT_UNLOCK_MINUTES * 60000);
-    $("#vault-lock-now").classList.remove("hidden");
+      if (!$("#view-vault").classList.contains("hidden")) showVaultLock();
+    }, VAULT_IDLE_MINUTES * 60000);
   }
+  ["click","keydown","input"].forEach(ev => document.addEventListener(ev, (e) => {
+    if (!VAULT_KEYS) return;
+    if (e.target.closest && (e.target.closest("#view-vault") || e.target.closest("#drawer"))) vaultTouch();
+  }, true));
 
-  // Παράθυρο κωδικού. Επιστρέφει τον κωδικό ή null (Άκυρο). Το onExtra είναι
-  // προαιρετικό δεύτερο κουμπί (π.χ. «Δεν τον θυμάμαι»).
-  function vaultAskPassword(title, text, okLabel, extra){
+  // ---- παράθυρο ερώτησης (κωδικός σύνδεσης ή PIN) ----
+  function vaultAsk(title, text, okLabel, opts){
+    opts = opts || {};
     return new Promise(resolve => {
       const modal = $("#vault-modal"), pw = $("#vault-modal-pw");
       $("#vault-modal-title").textContent = title;
       $("#vault-modal-text").textContent = text;
-      $("#vault-modal-ok").textContent = okLabel || "Ξεκλείδωμα";
+      $("#vault-modal-ok").textContent = okLabel || "OK";
+      $("#vault-modal-extra").classList.add("hidden");
       clearMsg($("#vault-modal-msg"));
-      const extraBtn = $("#vault-modal-extra");
-      extraBtn.classList.toggle("hidden", !extra);
-      if (extra) extraBtn.textContent = extra.label;
+      if (opts.pin) {
+        pw.setAttribute("inputmode", "numeric"); pw.setAttribute("maxlength", "4");
+        pw.placeholder = "••••"; pw.autocomplete = "off"; pw.classList.add("pin-input");
+      } else {
+        pw.removeAttribute("inputmode"); pw.removeAttribute("maxlength");
+        pw.placeholder = "Κωδικός σύνδεσης"; pw.autocomplete = "current-password"; pw.classList.remove("pin-input");
+      }
       pw.value = "";
       modal.classList.remove("hidden");
       setTimeout(() => pw.focus(), 30);
+      const valid = () => opts.pin ? /^[0-9]{4}$/.test(pw.value) : !!pw.value;
       const done = (val) => {
-        modal.classList.add("hidden");
-        pw.value = "";
-        $("#vault-modal-ok").onclick = $("#vault-modal-cancel").onclick = extraBtn.onclick = pw.onkeydown = null;
+        modal.classList.add("hidden"); pw.value = "";
+        $("#vault-modal-ok").onclick = $("#vault-modal-cancel").onclick = pw.onkeydown = pw.oninput = null;
         resolve(val);
       };
-      $("#vault-modal-ok").onclick = () => { if (pw.value) done(pw.value); };
+      $("#vault-modal-ok").onclick = () => { if (valid()) done(pw.value); };
       $("#vault-modal-cancel").onclick = () => done(null);
-      extraBtn.onclick = () => done({ extra: true });
+      pw.oninput = () => { if (opts.pin) pw.value = pw.value.replace(/\D/g, "").slice(0, 4); };
       pw.onkeydown = (e) => {
-        if (e.key === "Enter" && pw.value) { e.preventDefault(); done(pw.value); }
+        if (e.key === "Enter" && valid()) { e.preventDefault(); done(pw.value); }
         if (e.key === "Escape") done(null);
       };
     });
   }
-  function vaultModalError(msg){
-    // δείχνεται στην ΕΠΟΜΕΝΗ ερώτηση — εδώ απλώς κρατάμε το κείμενο
-    VAULT_PENDING_ERR = msg;
+
+  // ---- οθόνη PIN ----
+  let VAULT_LOCK_MODE = "unlock";     // "unlock" | "setup1" | "setup2" | "reset1" | "reset2"
+  let VAULT_FIRST_PIN = "";
+  function setVaultLockUi(mode, text, err){
+    VAULT_LOCK_MODE = mode;
+    $("#vault-lockscreen").classList.remove("hidden");
+    $("#vault-split").classList.add("hidden");
+    const titles = { unlock:"Σημειώσεις", setup1:"Όρισε PIN", setup2:"Επιβεβαίωση PIN", reset1:"Νέο PIN", reset2:"Επιβεβαίωση νέου PIN" };
+    $("#vault-lock-title").textContent = titles[mode] || "Σημειώσεις";
+    $("#vault-lock-text").textContent = text;
+    $("#vault-pin-ok").textContent = mode === "unlock" ? "Άνοιγμα" : "Συνέχεια";
+    $("#vault-pin-forgot").classList.toggle("hidden", mode !== "unlock");
+    const m = $("#vault-lock-msg");
+    if (err) showMsg(m, err, "error"); else clearMsg(m);
+    const pin = $("#vault-pin"); pin.value = ""; pin.disabled = false;
+    setTimeout(() => pin.focus(), 30);
   }
-  let VAULT_PENDING_ERR = "";
-
-  // Δίνει το κλειδί σημειώσεων — ζητά κωδικό αν χρειάζεται. null = ακυρώθηκε.
-  async function getVaultKey(reason){
-    if (VAULT_KEY) { vaultArmTimer(); return VAULT_KEY; }
-    const { data: row, error } = await sb.from("vault_keys").select("*").eq("user_id", USER.id).maybeSingle();
-    if (error) { alert("Δεν διαβάστηκε το κλειδί: " + error.message); return null; }
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const text = (VAULT_PENDING_ERR ? VAULT_PENDING_ERR + " " : "") +
-        (row ? (reason || "Γράψε τον κωδικό σύνδεσής σου για να ανοίξει.")
-             : "Πρώτη φορά: γράψε τον κωδικό σύνδεσής σου. Με αυτόν θα κλειδώνουν και θα ανοίγουν οι σημειώσεις σου.");
-      VAULT_PENDING_ERR = "";
-      const pw = await vaultAskPassword("🔒 Κωδικός σύνδεσης", text, row ? "Ξεκλείδωμα" : "Ενεργοποίηση");
-      if (!pw) return null;
-
-      // --- πρώτη φορά: δημιουργία κλειδιού ---
-      if (!row) {
-        if (!(await vVerifyLoginPassword(pw))) { vaultModalError("✕ Δεν είναι ο κωδικός σύνδεσής σου."); continue; }
-        const raw = vRandom(32);
-        const wrapped = await vWrapRawKey(raw, pw);
-        const { error: insErr } = await sb.from("vault_keys").insert({ user_id: USER.id, ...wrapped });
-        if (insErr) { alert("Δεν αποθηκεύτηκε το κλειδί: " + insErr.message); return null; }
-        VAULT_KEY = await vImportNoteKey(raw); raw.fill(0);
-        vaultArmTimer();
-        return VAULT_KEY;
-      }
-
-      // --- κανονικό ξεκλείδωμα ---
-      const raw = await vUnwrapRawKey(row, pw);
-      if (raw) {
-        VAULT_KEY = await vImportNoteKey(raw); raw.fill(0);
-        vaultArmTimer();
-        return VAULT_KEY;
-      }
-
-      // Δεν ταιριάζει. Είναι ο ΤΩΡΙΝΟΣ κωδικός σύνδεσης; Τότε άλλαξε κωδικό —
-      // ζητάμε μία φορά τον παλιό και ξανατυλίγουμε το ίδιο κλειδί με τον νέο.
-      if (!(await vVerifyLoginPassword(pw))) { vaultModalError("✕ Λάθος κωδικός."); continue; }
-      const newPw = pw;
-      for (let a2 = 0; a2 < 5; a2++) {
-        const old = await vaultAskPassword("🔑 Άλλαξες κωδικό σύνδεσης",
-          (VAULT_PENDING_ERR ? VAULT_PENDING_ERR + " " : "") +
-          "Οι κλειδωμένες σημειώσεις σου είναι κλειδωμένες με τον ΠΑΛΙΟ κωδικό. Γράψε τον μία φορά για να μεταφερθούν στον νέο.",
-          "Μεταφορά", { label: "Δεν τον θυμάμαι" });
-        VAULT_PENDING_ERR = "";
-        if (!old) return null;
-        if (old.extra) {
-          if (!confirm("Χωρίς τον παλιό κωδικό, οι ΗΔΗ κλειδωμένες σημειώσεις σου δεν μπορούν να ανοίξουν ποτέ ξανά — ούτε από εμάς. Θα φτιαχτεί νέο κλειδί για τις επόμενες. Συνέχεια;")) continue;
-          const raw2 = vRandom(32);
-          const wrapped2 = await vWrapRawKey(raw2, newPw);
-          const { error: upErr } = await sb.from("vault_keys").update({ ...wrapped2, updated_at: new Date().toISOString() }).eq("user_id", USER.id);
-          if (upErr) { alert("Δεν αποθηκεύτηκε το νέο κλειδί: " + upErr.message); return null; }
-          VAULT_KEY = await vImportNoteKey(raw2); raw2.fill(0);
-          vaultArmTimer();
-          return VAULT_KEY;
-        }
-        const rawOld = await vUnwrapRawKey(row, old);
-        if (!rawOld) { vaultModalError("✕ Ούτε αυτός ταιριάζει."); continue; }
-        const rewrapped = await vWrapRawKey(rawOld, newPw);
-        const { error: upErr } = await sb.from("vault_keys").update({ ...rewrapped, updated_at: new Date().toISOString() }).eq("user_id", USER.id);
-        if (upErr) { alert("Δεν αποθηκεύτηκε η μεταφορά: " + upErr.message); return null; }
-        VAULT_KEY = await vImportNoteKey(rawOld); rawOld.fill(0);
-        vaultArmTimer();
-        return VAULT_KEY;
-      }
-      return null;
+  async function showVaultLock(){
+    $("#vault-split").classList.add("hidden");
+    $("#vault-lockscreen").classList.remove("hidden");
+    $("#vault-lock-text").textContent = "Έλεγχος…";
+    const { data, error } = await sb.rpc("vault_pin_status");
+    if (error) {
+      setVaultLockUi("unlock", "", "Σφάλμα: " + error.message + " — έχει τρέξει το schema_v44.sql;");
+      return;
     }
-    return null;
+    if (!data.has_pin) {
+      setVaultLockUi("setup1", "Πρώτη φορά εδώ: όρισε ένα PIN 4 ψηφίων. Θα το ζητάει κάθε φορά που μπαίνεις στις Σημειώσεις.");
+      return;
+    }
+    const lockedMsg = data.locked_until
+      ? "Πολλές λάθος προσπάθειες — ξανά μετά τις " + new Date(data.locked_until).toLocaleTimeString("el-GR", { hour:"2-digit", minute:"2-digit" }) + "."
+      : "";
+    setVaultLockUi("unlock", "Γράψε το PIN σου.", lockedMsg);
   }
+  async function vaultOpenWithKeys(keysJson){
+    VAULT_KEYS = { shared: await vImportKey(keysJson.shared), personal: await vImportKey(keysJson.personal) };
+    $("#vault-lockscreen").classList.add("hidden");
+    clearMsg($("#vault-lock-msg"));
+    $("#vault-split").classList.remove("hidden");
+    vaultTouch();
+    await loadVaultData();
+  }
+  async function vaultPinSubmit(){
+    const pinEl = $("#vault-pin");
+    const pin = pinEl.value;
+    if (!/^[0-9]{4}$/.test(pin)) { showMsg($("#vault-lock-msg"), "Το PIN είναι 4 ψηφία.", "error"); return; }
+    pinEl.disabled = true;
+    const mode = VAULT_LOCK_MODE;
 
-  // ---- φόρτωση + εμφάνιση ----
+    if (mode === "setup1") { VAULT_FIRST_PIN = pin; setVaultLockUi("setup2", "Γράψε το ίδιο PIN ξανά."); return; }
+    if (mode === "setup2") {
+      if (pin !== VAULT_FIRST_PIN) { setVaultLockUi("setup1", "Όρισε ένα PIN 4 ψηφίων.", "Δεν ταίριαξαν — ξεκίνα από την αρχή."); return; }
+      const { data, error } = await sb.rpc("vault_pin_setup", { p_pin: pin });
+      VAULT_FIRST_PIN = "";
+      if (error) { setVaultLockUi("setup1", "Όρισε ένα PIN 4 ψηφίων.", error.message); return; }
+      await vaultOpenWithKeys(data);
+      return;
+    }
+    if (mode === "reset1") { VAULT_FIRST_PIN = pin; setVaultLockUi("reset2", "Γράψε το νέο PIN ξανά."); return; }
+    if (mode === "reset2") {
+      if (pin !== VAULT_FIRST_PIN) { setVaultLockUi("reset1", "Γράψε νέο PIN 4 ψηφίων.", "Δεν ταίριαξαν — ξεκίνα από την αρχή."); return; }
+      const newPin = VAULT_FIRST_PIN; VAULT_FIRST_PIN = "";
+      // Τώρα ο κωδικός σύνδεσης — ΑΜΕΣΩΣ πριν από την επαναφορά, γιατί η βάση
+      // δέχεται επαναφορά μόνο με σύνδεση που έγινε τα τελευταία 2 λεπτά.
+      const pw = await vaultAsk("🔑 Κωδικός σύνδεσης", "Για να αλλάξει το PIN χωρίς το παλιό, γράψε τον κωδικό με τον οποίο μπαίνεις στο Iris.", "Αλλαγή PIN");
+      if (!pw) { showVaultLock(); return; }
+      try {
+        const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false, storageKey:"iris-vault-reset" }
+        });
+        const { error: sErr } = await tmp.auth.signInWithPassword({ email: USER.email, password: pw });
+        if (sErr) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Λάθος κωδικός σύνδεσης — το PIN δεν άλλαξε."); return; }
+        const { error: rErr } = await tmp.rpc("vault_pin_reset", { p_new: newPin });
+        if (rErr) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Δεν άλλαξε: " + rErr.message); return; }
+      } catch (e) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Δεν άλλαξε: " + e.message); return; }
+      const { data, error } = await sb.rpc("vault_pin_unlock", { p_pin: newPin });
+      if (error || !data || !data.ok) { setVaultLockUi("unlock", "Το PIN άλλαξε — γράψε το νέο σου PIN.", error ? error.message : ""); return; }
+      await vaultOpenWithKeys(data);
+      showMsg($("#vault-msg"), "✓ Νέο PIN ορίστηκε. Οι σημειώσεις σου είναι όλες εδώ.", "ok");
+      return;
+    }
+    // unlock
+    const { data, error } = await sb.rpc("vault_pin_unlock", { p_pin: pin });
+    if (error) { setVaultLockUi("unlock", "Γράψε το PIN σου.", error.message); return; }
+    if (!data.ok) {
+      const extra = (data.tries_left != null) ? ` Απομένουν ${data.tries_left} προσπάθειες.` : "";
+      setVaultLockUi("unlock", "Γράψε το PIN σου.", data.error + extra);
+      return;
+    }
+    await vaultOpenWithKeys(data);
+  }
+  $("#vault-pin").addEventListener("input", () => {
+    const el = $("#vault-pin");
+    el.value = el.value.replace(/\D/g, "").slice(0, 4);
+    if (el.value.length === 4) vaultPinSubmit();    // 4ο ψηφίο ⇒ αυτόματα
+  });
+  $("#vault-pin").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); vaultPinSubmit(); } });
+  $("#vault-pin-ok").addEventListener("click", vaultPinSubmit);
+  $("#vault-pin-forgot").addEventListener("click", (e) => {
+    e.preventDefault();
+    setVaultLockUi("reset1", "Γράψε νέο PIN 4 ψηφίων. Μετά θα σου ζητηθεί ο κωδικός σύνδεσης. Οι σημειώσεις σου ΔΕΝ χάνονται.");
+  });
+  $("#vault-lock-now").addEventListener("click", () => { vaultLockNow(); showVaultLock(); });
+  $("#vault-change-pin").addEventListener("click", async () => {
+    const oldPin = await vaultAsk("🔑 Αλλαγή PIN", "Γράψε το τωρινό σου PIN.", "Συνέχεια", { pin:true });
+    if (!oldPin) return;
+    const n1 = await vaultAsk("🔑 Αλλαγή PIN", "Γράψε το νέο PIN (4 ψηφία).", "Συνέχεια", { pin:true });
+    if (!n1) return;
+    const n2 = await vaultAsk("🔑 Αλλαγή PIN", "Γράψε το νέο PIN ξανά.", "Αλλαγή", { pin:true });
+    if (!n2) return;
+    if (n1 !== n2) { showMsg($("#vault-msg"), "Τα δύο νέα PIN δεν ταίριαξαν — δεν άλλαξε τίποτα.", "error"); return; }
+    const { data, error } = await sb.rpc("vault_pin_change", { p_old: oldPin, p_new: n1 });
+    if (error) { showMsg($("#vault-msg"), "Δεν άλλαξε: " + error.message, "error"); return; }
+    if (!data.ok) {
+      showMsg($("#vault-msg"), data.error + (data.tries_left != null ? ` Απομένουν ${data.tries_left} προσπάθειες.` : ""), "error");
+      return;
+    }
+    showMsg($("#vault-msg"), "✓ Το PIN άλλαξε.", "ok");
+  });
+
+  // ---- είσοδος στην καρτέλα: ΠΑΝΤΑ από την οθόνη PIN ----
   async function loadVault(){
     if (!isNoteAdmin()) return;
+    vaultLockNow();
     clearMsg($("#vault-msg"));
+    await showVaultLock();
+  }
+
+  // ---- ΜΕΤΑΦΟΡΑ από την προηγούμενη έκδοση (v43 → v44) ----
+  // Το schema_v44 κράτησε τις παλιές σημειώσεις στο vault_notes_v43. Εδώ, με
+  // ανοιχτό PIN, τις ξανακρυπτογραφούμε στη νέα μορφή και τις σβήνουμε από τον
+  // παλιό πίνακα. Οι παλιές ΚΟΙΝΕΣ ήταν καθαρό κείμενο → πάνε με το κοινό κλειδί.
+  // Οι παλιές ΚΛΕΙΔΩΜΕΝΕΣ ήταν κρυπτογραφημένες με κλειδί από τον κωδικό
+  // σύνδεσης (PBKDF2) → ζητάμε ΜΙΑ φορά τον κωδικό σύνδεσης, τις ανοίγουμε και
+  // τις ξαναγράφουμε ως «προσωπικές» με το νέο προσωπικό κλειδί.
+  async function vLegacyUnwrap(row, password){
+    try {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      const kek = await crypto.subtle.deriveKey(
+        { name:"PBKDF2", salt: vUnB64(row.salt), iterations: row.iterations || 310000, hash:"SHA-256" },
+        base, { name:"AES-GCM", length:256 }, false, ["decrypt"]);
+      const raw = await crypto.subtle.decrypt({ name:"AES-GCM", iv: vUnB64(row.wrap_iv) }, kek, vUnB64(row.wrapped_key));
+      return crypto.subtle.importKey("raw", raw, { name:"AES-GCM" }, false, ["decrypt"]);
+    } catch (e) { return null; }
+  }
+  async function vLegacyDecryptText(key, cipher, iv){
+    try {
+      const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv: vUnB64(iv) }, key, vUnB64(cipher));
+      return new TextDecoder().decode(pt);
+    } catch (e) { return null; }
+  }
+  let VAULT_MIGRATION_SKIPPED = false;   // «Άκυρο» στον κωδικό ⇒ δεν ξαναρωτάμε σε αυτή τη σύνδεση
+  async function vaultMigrateV43(){
+    const { data: legacy, error } = await sb.from("vault_notes_v43").select("*");
+    if (error || !legacy || legacy.length === 0) return;        // δεν υπάρχει / άδειος
+    let moved = 0, pendingLocked = 0, failed = 0;
+    const copyRow = async (r, payloadObj, personal) => {
+      const enc = await vEncrypt(vKeyFor(personal), payloadObj);
+      const { error: iErr } = await sb.from("vault_notes").insert({
+        category_id: r.category_id || null, pinned: !!r.pinned, is_locked: personal,
+        cipher: enc.cipher, iv: enc.iv, enc_v: 2
+      });
+      if (iErr) { failed++; return; }
+      const { error: dErr } = await sb.from("vault_notes_v43").delete().eq("id", r.id);
+      if (dErr) { failed++; return; }
+      moved++;
+    };
+    // 1) κοινές (καθαρό κείμενο) — χωρίς ερώτηση
+    for (const r of legacy.filter(x => !x.is_locked)) {
+      await copyRow(r, { t: r.title || "", b: r.body || "" }, false);
+    }
+    // 2) οι ΔΙΚΕΣ μου κλειδωμένες — θέλουν τον κωδικό σύνδεσης
+    const mineLocked = legacy.filter(x => x.is_locked && x.created_by === USER.id);
+    if (mineLocked.length && !VAULT_MIGRATION_SKIPPED) {
+      const { data: krow } = await sb.from("vault_keys_v43").select("*").eq("user_id", USER.id).maybeSingle();
+      if (!krow) {
+        failed += mineLocked.length;
+      } else {
+        let legacyKey = null;
+        for (let i = 0; i < 3 && !legacyKey; i++) {
+          const pw = await vaultAsk("🔑 Μεταφορά παλιών σημειώσεων",
+            (i ? "✕ Λάθος κωδικός. " : "") +
+            (mineLocked.length === 1 ? "Έχεις 1 κλειδωμένη σημείωση" : `Έχεις ${mineLocked.length} κλειδωμένες σημειώσεις`) +
+            " από την προηγούμενη έκδοση. Γράψε ΜΙΑ φορά τον κωδικό σύνδεσης (αυτόν με τον οποίο κλειδώθηκαν) για να μεταφερθούν.",
+            "Μεταφορά");
+          if (!pw) { VAULT_MIGRATION_SKIPPED = true; break; }
+          legacyKey = await vLegacyUnwrap(krow, pw);
+        }
+        if (legacyKey) {
+          for (const r of mineLocked) {
+            const text = await vLegacyDecryptText(legacyKey, r.cipher, r.iv);
+            if (text === null) { failed++; continue; }
+            await copyRow(r, { t: r.title || "", b: text }, true);
+          }
+          // όταν δεν έμεινε καμία δική μου παλιά κλειδωμένη, το παλιό κλειδί δεν χρειάζεται πια
+          const { data: left } = await sb.from("vault_notes_v43").select("id").eq("created_by", USER.id).eq("is_locked", true);
+          if (!left || left.length === 0) await sb.from("vault_keys_v43").delete().eq("user_id", USER.id);
+        } else {
+          pendingLocked = mineLocked.length;
+        }
+      }
+    } else if (mineLocked.length) {
+      pendingLocked = mineLocked.length;
+    }
+    const parts = [];
+    if (moved) parts.push(moved === 1 ? "✓ Μεταφέρθηκε 1 σημείωση από την προηγούμενη έκδοση."
+                                      : `✓ Μεταφέρθηκαν ${moved} σημειώσεις από την προηγούμενη έκδοση.`);
+    if (pendingLocked) parts.push((pendingLocked === 1 ? "1 κλειδωμένη σημείωση περιμένει" : `${pendingLocked} κλειδωμένες σημειώσεις περιμένουν`) +
+      " — ο κωδικός σύνδεσης θα ξαναζητηθεί την επόμενη φορά που θα ανοίξεις το Iris.");
+    if (failed) parts.push((failed === 1 ? "1 σημείωση δεν μεταφέρθηκε" : `${failed} σημειώσεις δεν μεταφέρθηκαν`) + " — στείλε μήνυμα.");
+    if (parts.length) showMsg($("#vault-msg"), parts.join(" "), failed || pendingLocked ? "error" : "ok");
+  }
+
+  async function loadVaultData(){
+    if (!VAULT_KEYS) return;
+    clearMsg($("#vault-msg"));
+    await vaultMigrateV43();
     const [cRes, nRes] = await Promise.all([
       sb.from("vault_categories").select("*").order("sort_order").order("name"),
-      sb.from("vault_notes").select("id, title, category_id, is_locked, body, pinned, created_by, updated_at").order("pinned", { ascending:false }).order("updated_at", { ascending:false })
+      sb.from("vault_notes").select("id, category_id, is_locked, cipher, iv, pinned, created_by, updated_at")
+        .order("pinned", { ascending:false }).order("updated_at", { ascending:false })
     ]);
     if (cRes.error || nRes.error) {
-      showMsg($("#vault-msg"), "Σφάλμα φόρτωσης: " + (cRes.error || nRes.error).message + " — έχει τρέξει το schema_v43.sql;", "error");
+      showMsg($("#vault-msg"), "Σφάλμα φόρτωσης: " + (cRes.error || nRes.error).message, "error");
       return;
     }
     VAULT_CATS = cRes.data || [];
-    VAULT_NOTES = nRes.data || [];
-    if (VAULT_KEY) $("#vault-lock-now").classList.remove("hidden");
+    const rows = nRes.data || [];
+    VAULT_NOTES = await Promise.all(rows.map(async r => {
+      const dec = await vDecrypt(vKeyFor(r.is_locked), r.cipher, r.iv);
+      return { ...r, title: dec ? (dec.t || "") : "⚠ Δεν ανοίγει", body: dec ? (dec.b || "") : "", broken: !dec };
+    }));
     renderVaultCats();
     renderVaultList();
   }
@@ -5496,7 +5638,7 @@
       const { error } = await sb.from("vault_categories").delete().eq("id", btn.dataset.vcatDel);
       if (error) { showMsg($("#vault-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
       if (VAULT_FILTER_CAT === btn.dataset.vcatDel) VAULT_FILTER_CAT = "";
-      await loadVault();
+      await loadVaultData();
     }));
     const picker = $("#vcat-colors");
     picker.innerHTML = NOTE_COLORS.map(c =>
@@ -5513,18 +5655,17 @@
       if (VAULT_FILTER_CAT && VAULT_FILTER_CAT !== "none" && n.category_id !== VAULT_FILTER_CAT) return false;
       if (!q) return true;
       const cat = vaultCat(n.category_id);
-      // στις κλειδωμένες ψάχνει μόνο τίτλο — το κείμενο δεν υπάρχει καν εδώ
-      return [n.title, n.is_locked ? "" : n.body, cat ? cat.name : ""].filter(Boolean).join(" ").toLowerCase().includes(q);
+      return [n.title, n.body, cat ? cat.name : ""].filter(Boolean).join(" ").toLowerCase().includes(q);
     });
     const cur = VAULT_FILTER_CAT === "" ? "Σημειώσεις" : VAULT_FILTER_CAT === "none" ? "Χωρίς κατηγορία" : ((vaultCat(VAULT_FILTER_CAT) || {}).name || "Σημειώσεις");
     $("#vault-title").textContent = cur;
     $("#vault-list").innerHTML = list.length ? list.map(n => {
       const cat = vaultCat(n.category_id);
-      const prev = n.is_locked ? "🔒 Κλειδωμένη — ανοίγει με τον κωδικό σου" : (n.body || "").replace(/\s+/g, " ").slice(0, 140);
+      const prev = (n.body || "").replace(/\s+/g, " ").slice(0, 140);
       return `
         <div class="vnote ${cat ? "bl-" + cat.color : ""}" data-vnote="${n.id}">
           <div class="vnote-main">
-            <div class="vnote-title">${n.pinned ? "📌 " : ""}${n.is_locked ? "🔒 " : ""}${escapeHtml(n.title)}</div>
+            <div class="vnote-title">${n.pinned ? "📌 " : ""}${escapeHtml(n.title)}${n.is_locked ? ' <span class="note-cat" style="background:var(--surface-2);color:var(--ink-soft);">🔒 προσωπική</span>' : ""}</div>
             <div class="vnote-prev">${escapeHtml(prev) || "&nbsp;"}</div>
           </div>
           <div class="vnote-meta">
@@ -5538,7 +5679,6 @@
 
   $("#vault-search").addEventListener("input", () => { VAULT_SEARCH = $("#vault-search").value.trim(); renderVaultList(); });
   $("#vault-new-btn").addEventListener("click", () => openVaultNote(null));
-  $("#vault-lock-now").addEventListener("click", () => { vaultLockNow(); if (document.getElementById("vn-locked-open")) closeDrawer(); });
   $("#vcat-add").addEventListener("click", async () => {
     clearMsg($("#vault-cats-msg"));
     const name = $("#vcat-name").value.trim();
@@ -5546,38 +5686,23 @@
     const { error } = await sb.from("vault_categories").insert({ name, color: VAULT_NEW_COLOR, sort_order: VAULT_CATS.length + 1 });
     if (error) { showMsg($("#vault-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
     $("#vcat-name").value = "";
-    await loadVault();
+    await loadVaultData();
   });
 
   // ---- η καρτέλα μιας σημείωσης ----
-  async function openVaultNote(noteId){
-    if (!isNoteAdmin()) return;
-    let n = { title:"", category_id: (VAULT_FILTER_CAT && VAULT_FILTER_CAT !== "none") ? VAULT_FILTER_CAT : "",
-              is_locked:false, body:"", pinned:false, created_by: USER.id };
-    let plain = "";
-    if (noteId) {
-      const { data, error } = await sb.from("vault_notes").select("*").eq("id", noteId).single();
-      if (error || !data) { alert("Δεν άνοιξε η σημείωση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
-      n = data;
-      if (n.is_locked) {
-        const key = await getVaultKey("Γράψε τον κωδικό σύνδεσής σου για να ανοίξει η «" + n.title + "».");
-        if (!key) return;
-        plain = await vDecrypt(key, n.cipher, n.iv);
-        if (plain === null) {
-          alert("Αυτή η σημείωση κλειδώθηκε με παλαιότερο κλειδί που δεν υπάρχει πια — δεν μπορεί να ανοίξει.");
-          return;
-        }
-      } else {
-        plain = n.body || "";
-      }
-    }
+  function openVaultNote(noteId){
+    if (!isNoteAdmin() || !VAULT_KEYS) return;
+    const n = noteId ? VAULT_NOTES.find(x => x.id === noteId)
+      : { title:"", body:"", is_locked:false, pinned:false, created_by: USER.id,
+          category_id: (VAULT_FILTER_CAT && VAULT_FILTER_CAT !== "none") ? VAULT_FILTER_CAT : "" };
+    if (!n) return;
     const mine = n.created_by === USER.id;
     const catOptions = `<option value="">— Χωρίς κατηγορία —</option>` +
       VAULT_CATS.map(c => `<option value="${c.id}" ${n.category_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
     const author = STAFF_USERS_CACHE.find(u => u.id === n.created_by);
 
-    openDrawer(noteId ? (n.is_locked ? "🔒 " : "") + "Σημείωση" : "Νέα σημείωση", `
-      ${n.is_locked ? '<span id="vn-locked-open" hidden></span>' : ""}
+    openDrawer(noteId ? "Σημείωση" : "Νέα σημείωση", `
+      <span id="vn-open" hidden></span>
       <div id="vn-msg"></div>
       <div class="field"><label>Τίτλος *</label><input id="vn-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Κωδικοί router πελατών"></div>
       <div class="field"><label>Κατηγορία</label><select id="vn-cat">${catOptions}</select></div>
@@ -5586,15 +5711,15 @@
           <span>Κείμενο</span>
           <button type="button" class="add-link" id="vn-copy" style="font-size:12px;">📋 Αντιγραφή</button>
         </label>
-        <textarea id="vn-body" class="vault-body" spellcheck="false">${escapeHtml(plain)}</textarea>
+        <textarea id="vn-body" class="vault-body" spellcheck="false">${escapeHtml(n.body || "")}</textarea>
       </div>
       <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;margin:4px 0;">
         <input type="checkbox" id="vn-locked" style="width:auto;" ${n.is_locked ? "checked" : ""} ${mine ? "" : "disabled"}>
-        🔒 Κλείδωμα με τον κωδικό σύνδεσής μου
+        🔒 Προσωπική — τη βλέπω μόνο εγώ
       </label>
       <p class="cell-sub" style="margin:0 0 10px;">${mine
-        ? "Κλειδωμένη: κρυπτογραφείται στη συσκευή σου και τη βλέπεις ΜΟΝΟ εσύ. Αν ξεχάσεις τον κωδικό και τον επαναφέρεις, δεν ανοίγει ξανά."
-        : "Αυτή τη σημείωση την έφτιαξε " + escapeHtml(author ? (author.full_name || author.email) : "άλλος διαχειριστής") + " — μόνο εκείνος μπορεί να την κλειδώσει."}</p>
+        ? "Χωρίς το τσεκ, η σημείωση φαίνεται σε όλους τους διαχειριστές (πάντα πίσω από το PIN τους)."
+        : "Κοινή σημείωση — την έφτιαξε " + escapeHtml(author ? (author.full_name || author.email) : "άλλος διαχειριστής") + "."}</p>
       <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;cursor:pointer;margin:0 0 14px;">
         <input type="checkbox" id="vn-pinned" style="width:auto;" ${n.pinned ? "checked" : ""}> 📌 Καρφίτσωμα στην κορυφή
       </label>
@@ -5612,34 +5737,29 @@
     });
 
     $("#vn-save").addEventListener("click", async () => {
+      if (!VAULT_KEYS) { closeDrawer(); return; }
       const title = $("#vn-title").value.trim();
       if (!title) { showMsg($("#vn-msg"), "Γράψε τίτλο.", "error"); return; }
-      const body = $("#vn-body").value;
-      const wantLock = $("#vn-locked").checked;
-      if (n.is_locked && !wantLock &&
-          !confirm("Η σημείωση θα αποθηκευτεί ΧΩΡΙΣ κρυπτογράφηση και θα τη βλέπουν όλοι οι διαχειριστές. Συνέχεια;")) return;
+      const personal = $("#vn-locked").checked;
+      if (n.is_locked && !personal &&
+          !confirm("Η σημείωση θα γίνει ΚΟΙΝΗ και θα τη βλέπουν όλοι οι διαχειριστές. Συνέχεια;")) return;
       const btn = $("#vn-save");
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
+      // τίτλος + κείμενο κρυπτογραφούνται μαζί — στη βάση δεν μένει τίποτα αναγνώσιμο
+      const enc = await vEncrypt(vKeyFor(personal), { t: title, b: $("#vn-body").value });
       const payload = {
-        title,
         category_id: $("#vn-cat").value || null,
         pinned: $("#vn-pinned").checked,
+        is_locked: personal,
+        cipher: enc.cipher, iv: enc.iv, enc_v: 2,
       };
-      if (wantLock) {
-        const key = await getVaultKey("Γράψε τον κωδικό σύνδεσής σου για να κλειδωθεί η σημείωση.");
-        if (!key) { btn.disabled = false; btn.textContent = "Αποθήκευση"; return; }
-        const enc = await vEncrypt(key, body);
-        Object.assign(payload, { is_locked:true, body:null, cipher: enc.cipher, iv: enc.iv });
-      } else {
-        Object.assign(payload, { is_locked:false, body: body || null, cipher:null, iv:null });
-      }
       const { error } = noteId
         ? await sb.from("vault_notes").update(payload).eq("id", noteId)
         : await sb.from("vault_notes").insert(payload);
       btn.disabled = false; btn.textContent = "Αποθήκευση";
       if (error) { showMsg($("#vn-msg"), "Δεν αποθηκεύτηκε: " + error.message, "error"); return; }
       closeDrawer();
-      await loadVault();
+      await loadVaultData();
     });
 
     const del = $("#vn-delete");
@@ -5648,7 +5768,7 @@
       const { error } = await sb.from("vault_notes").delete().eq("id", noteId);
       if (error) { showMsg($("#vn-msg"), "Δεν διαγράφηκε: " + error.message, "error"); return; }
       closeDrawer();
-      await loadVault();
+      await loadVaultData();
     });
   }
 
