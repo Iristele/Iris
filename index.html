@@ -506,6 +506,8 @@
   /* Γραμμή ΑΦΜ μέσα στην καρτέλα βλάβης — το βλέπει και ο τεχνικός· αν λείπει, το
      συμπληρώνει εκεί και αποθηκεύεται μόνο του στην καρτέλα του πελάτη (17/09). */
   .vat-box{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 10px;}
+  /* Ver 3.0: πεδίο πελάτη που λείπει και πρέπει να συμπληρωθεί (email) */
+  .field-missing{border-color:var(--amber) !important;background:var(--amber-bg) !important;}
   /* ---- Σημειώσεις (schema_v36) ---- */
   /* Το χρώμα της κατηγορίας. Αποθηκεύουμε ΚΛΕΙΔΙ, όχι hex, ώστε κάθε θέμα να
      δίνει τη δική του απόχρωση — ίδια tokens με τις καταστάσεις βλάβης. */
@@ -826,7 +828,7 @@
     <div class="nav-item" data-view="tickets" id="nav-tickets"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15l-3.5-2.5L12 19.5 8.5 17 5 19.5z"/><path d="M9 9h6"/><path d="M9 12.5h4"/></svg><span id="nav-tickets-label">Βλάβες</span></div>
     <div class="nav-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.8h17"/><path d="M8 3.5v3M16 3.5v3"/></svg>Πρόγραμμα</div>
     <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><svg viewBox="0 0 24 24"><path d="M14.5 6.2a3.6 3.6 0 1 1-5 5L5 15.7v3.3h3.3l4.5-4.5a3.6 3.6 0 0 0 5-5z"/></svg><span id="nav-technicians-label">Τεχνικοί</span></div>
-    <div class="nav-item hidden" data-view="notes" id="nav-notes"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Σημειώσεις</div>
+    <div class="nav-item hidden" data-view="notes" id="nav-notes"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Ραντεβού</div>
     <div class="nav-item hidden" data-view="users" id="nav-users"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg>Χρήστες</div>
     <div class="nav-item hidden" data-view="company" id="nav-company"><svg viewBox="0 0 24 24"><path d="M4 20.5V6.5l7-3v17"/><path d="M11 10.5h9v10"/><path d="M4 20.5h17"/><path d="M14.5 14h2M14.5 17h2M7 8.5h1M7 12h1M7 15.5h1"/></svg>Εταιρία</div>
   </div>
@@ -926,7 +928,7 @@
         <div class="sched-filters">
           <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
           <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
-          <label><input type="checkbox" id="sched-filter-notes" checked> Σημειώσεις</label>
+          <label><input type="checkbox" id="sched-filter-notes" checked> Ραντεβού</label>
           <select id="sched-filter-office" class="hidden" style="font-size:13px;max-width:200px;width:auto;">
             <option value="">Όλοι οι διαχειριστές</option>
           </select>
@@ -976,7 +978,7 @@
               <div class="chip" data-nmode="week">Εβδομάδα</div>
               <div class="chip" data-nmode="list">Λίστα</div>
             </div>
-            <button type="button" class="btn-primary btn-sm" id="note-new-btn">+ Νέα σημείωση</button>
+            <button type="button" class="btn-primary btn-sm" id="note-new-btn">+ Νέο ραντεβού</button>
           </div>
         </div>
         <div class="sched-filters">
@@ -1003,17 +1005,17 @@
       <div class="hidden" id="notes-list-wrap">
         <div class="notes-split">
           <div class="panel">
-            <div class="panel-head"><h2>Όλες οι σημειώσεις</h2></div>
+            <div class="panel-head"><h2>Όλα τα ραντεβού</h2></div>
             <div class="panel-body"><div id="note-items-list"></div></div>
           </div>
           <div class="panel">
             <div class="panel-head"><h2>Κατηγορίες</h2></div>
             <div class="panel-body" style="padding:14px 20px 18px;">
-              <p class="cell-sub" style="margin:0 0 10px;">Κάθε κατηγορία έχει δικό της χρώμα — έτσι ξεχωρίζουν οι σημειώσεις στο ημερολόγιο.</p>
+              <p class="cell-sub" style="margin:0 0 10px;">Κάθε κατηγορία έχει δικό της χρώμα — έτσι ξεχωρίζουν τα ραντεβού στο ημερολόγιο.</p>
               <div id="note-cats-msg"></div>
               <div id="note-cats-list" style="margin-bottom:14px;"></div>
               <div class="field"><label for="ncat-name">Νέα κατηγορία</label>
-                <input id="ncat-name" placeholder="π.χ. Ραντεβού λογιστή"></div>
+                <input id="ncat-name" placeholder="π.χ. Λογιστής, Προμηθευτής, Πελάτης"></div>
               <div class="field"><label>Χρώμα</label>
                 <div id="ncat-colors" class="color-picker"></div></div>
               <button type="button" class="btn-primary btn-sm" id="ncat-add">Προσθήκη κατηγορίας</button>
@@ -1183,7 +1185,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 2.9";
+  const APP_VERSION = "Ver 3.0";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1192,7 +1194,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260924c";
+  const APP_BUILD = "20260926a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -3452,7 +3454,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number, email), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -3649,6 +3651,14 @@
             : `<input id="tk-vat" class="mono" inputmode="numeric" maxlength="12" placeholder="Συμπλήρωσέ το εδώ"
                  style="width:130px;font-size:13px;padding:4px 8px;">
                <span id="tk-vat-note" class="cell-sub"></span>`}
+        </div>
+        <div class="vat-box">
+          <span class="cell-sub">Email:</span>
+          ${t.clients && t.clients.email
+            ? `<a href="mailto:${escapeHtml(t.clients.email)}" id="tk-email-shown" style="font-size:13px;">${escapeHtml(t.clients.email)}</a>`
+            : `<input id="tk-email" type="email" inputmode="email" autocomplete="off" placeholder="Λείπει — συμπλήρωσέ το"
+                 class="field-missing" style="width:230px;font-size:13px;padding:4px 8px;">
+               <span id="tk-email-note" class="cell-sub"></span>`}
         </div>` : ""}
       <h3 style="margin:0 0 8px;font-size:15px;">${escapeHtml(t.title)}</h3>
       ${canEditDesc ? `
@@ -3779,6 +3789,40 @@
         vatInput.addEventListener("blur", saveVat);
         vatInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") { e.preventDefault(); vatInput.blur(); }
+        });
+      }
+
+      // ---- Email πελάτη: ίδιο μοτίβο με το ΑΦΜ (schema_v42, set_client_email) ----
+      // Αν λείπει, το συμπληρώνει ο τεχνικός ή το γραφείο επί τόπου και
+      // αποθηκεύεται μόνο του στην καρτέλα πελάτη. Ο τεχνικός μόνο ΣΥΜΠΛΗΡΩΝΕΙ —
+      // υπάρχον email το αλλάζει μόνο το γραφείο.
+      const emailInput = $("#tk-email");
+      if (emailInput) {
+        const emailNote = $("#tk-email-note");
+        let lastSavedEmail = "";
+        const saveEmail = async () => {
+          const val = emailInput.value.trim().toLowerCase();
+          if (!val || val === lastSavedEmail) return;
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
+            emailNote.innerHTML = '<span style="color:var(--amber);">Το email δεν φαίνεται σωστό.</span>';
+            return;
+          }
+          emailNote.textContent = "Αποθήκευση…";
+          const { error: emErr } = await sb.rpc("set_client_email", { p_client_id: t.client_id, p_email: val });
+          if (emErr) {
+            emailNote.innerHTML = '<span style="color:var(--red);">Δεν αποθηκεύτηκε: ' + escapeHtml(emErr.message) + '</span>';
+            return;
+          }
+          lastSavedEmail = val;
+          emailInput.value = val;
+          emailInput.classList.remove("field-missing");
+          emailNote.innerHTML = '<span style="color:var(--green);">✓ Αποθηκεύτηκε</span>';
+          const cached = CLIENTS_CACHE.find(c => c.id === t.client_id);
+          if (cached) cached.email = val;
+        };
+        emailInput.addEventListener("blur", saveEmail);
+        emailInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); emailInput.blur(); }
         });
       }
 
@@ -4313,7 +4357,7 @@
       <div class="sched-visit ${r.done ? "nt-done" : ""}">
         <div class="sched-time">${r.note_time ? r.note_time.slice(0,5) : "📝"}</div>
         <div class="sched-info"><strong>${r.done ? "✓ " : ""}${escapeHtml(r.title)}</strong>
-          <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Σημείωση${cat ? " · " + escapeHtml(cat.name) : ""}</span>
+          <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Ραντεβού${cat ? " · " + escapeHtml(cat.name) : ""}</span>
           ${r.clients ? `<div class="cell-sub">${escapeHtml(clientLabel(r.clients))}</div>` : ""}
         </div>
         <div class="sched-tech">—</div>
@@ -4830,18 +4874,18 @@
     const body = $("#notes-day-body");
     body.innerHTML = items.length
       ? `<div style="padding:0 20px;">${items.map(noteRowHtml).join("")}</div>`
-      : '<div class="empty-state">Καμία σημείωση αυτή τη μέρα.</div>';
+      : '<div class="empty-state">Κανένα ραντεβού αυτή τη μέρα.</div>';
     bindNoteRows(body);
   }
 
   async function renderNotesList(){
-    $("#note-title").textContent = "Όλες οι σημειώσεις";
+    $("#note-title").textContent = "Όλα τα ραντεβού";
     const { rows, error } = await fetchNotes(null, null);
     if (error) { showMsg($("#notes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
     const box = $("#note-items-list");
     box.innerHTML = rows.length
       ? rows.map(noteRowHtml).join("")
-      : '<div class="empty-state">Καμία σημείωση ακόμα.</div>';
+      : '<div class="empty-state">Κανένα ραντεβού ακόμα.</div>';
     bindNoteRows(box);
     renderNoteCats();
   }
@@ -4865,7 +4909,7 @@
       : '<div class="cell-sub">Καμία κατηγορία ακόμα.</div>';
     box.querySelectorAll("[data-ncat-del]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Να διαγραφεί η κατηγορία; Οι σημειώσεις της παραμένουν, απλώς μένουν χωρίς κατηγορία.")) return;
+        if (!confirm("Να διαγραφεί η κατηγορία; Τα ραντεβού της παραμένουν, απλώς μένουν χωρίς κατηγορία.")) return;
         const { error } = await sb.from("note_categories").delete().eq("id", btn.dataset.ncatDel);
         if (error) { showMsg($("#note-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
         await loadNoteCategories();
@@ -4892,21 +4936,21 @@
               category_id:"", client_id:"", assigned_to:"", done:false, remind_minutes:null };
     if (noteId) {
       const { data, error } = await sb.from("notes").select("*").eq("id", noteId).single();
-      if (error || !data) { alert("Δεν άνοιξε η σημείωση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
+      if (error || !data) { alert("Δεν άνοιξε το ραντεβού: " + (error ? error.message : "δεν βρέθηκε.")); return; }
       n = data;
     }
 
     const clientOptions = `<option value="">— Χωρίς πελάτη —</option>` +
       CLIENTS_CACHE.map(c => `<option value="${c.id}" ${n.client_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
 
-    openDrawer(noteId ? "Σημείωση" : "Νέα σημείωση", `
+    openDrawer(noteId ? "Ραντεβού" : "Νέο ραντεβού", `
       <div id="note-msg"></div>
       <div class="form-row">
         <div class="field"><label>Ημερομηνία *</label><input type="date" id="nt-date" value="${n.note_date || ""}" required></div>
         <div class="field"><label>Ώρα</label><input type="time" id="nt-time" value="${n.note_time ? n.note_time.slice(0,5) : ""}"></div>
       </div>
-      <div class="field"><label>Τίτλος *</label><input id="nt-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Πέρασε από τον προμηθευτή" required></div>
-      <div class="field"><label>Σημείωση</label><textarea id="nt-body" style="min-height:80px;">${escapeHtml(n.body || "")}</textarea></div>
+      <div class="field"><label>Τίτλος *</label><input id="nt-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Ραντεβού με τον λογιστή" required></div>
+      <div class="field"><label>Σημειώσεις</label><textarea id="nt-body" style="min-height:80px;">${escapeHtml(n.body || "")}</textarea></div>
       <div class="form-row">
         <div class="field"><label>Κατηγορία</label>
           <select id="nt-cat"><option value="">— Χωρίς κατηγορία —</option>
@@ -4961,7 +5005,7 @@
             ${NOTE_REMIND_CHOICES.map(([v,l]) =>
               `<option value="${v}" ${String(n.remind_minutes) === String(v) ? "selected" : ""}>${l}</option>`).join("")}
           </select>
-          <span class="cell-sub">Αν η σημείωση δεν έχει ώρα, μετράει από τις 09:00.</span>
+          <span class="cell-sub">Αν το ραντεβού δεν έχει ώρα, μετράει από τις 09:00.</span>
         </div>
       </div>
       <div class="field">
@@ -5082,7 +5126,7 @@
 
     const delBtn = $("#nt-delete");
     if (delBtn) delBtn.addEventListener("click", async () => {
-      if (!confirm("Να διαγραφεί η σημείωση;")) return;
+      if (!confirm("Να διαγραφεί το ραντεβού;")) return;
       const { error } = await sb.from("notes").delete().eq("id", noteId);
       if (error) { showMsg($("#note-msg"), "Σφάλμα: " + error.message, "error"); return; }
       closeDrawer();
