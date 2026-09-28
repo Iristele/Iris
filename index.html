@@ -1277,7 +1277,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.2";
+  const APP_VERSION = "Ver 3.3";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1286,7 +1286,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260926d";
+  const APP_BUILD = "20260928a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -5404,7 +5404,9 @@
       return;
     }
     if (!data.has_pin) {
-      setVaultLockUi("setup1", "Πρώτη φορά εδώ: όρισε ένα PIN 4 ψηφίων. Θα το ζητάει κάθε φορά που μπαίνεις στις Σημειώσεις.");
+      setVaultLockUi("setup1", data.was_reset
+        ? "Το PIN σου μηδενίστηκε από διαχειριστή. Όρισε νέο PIN 4 ψηφίων — οι σημειώσεις σου είναι όλες εδώ."
+        : "Πρώτη φορά εδώ: όρισε ένα PIN 4 ψηφίων. Θα το ζητάει κάθε φορά που μπαίνεις στις Σημειώσεις.");
       return;
     }
     const lockedMsg = data.locked_until
@@ -5440,21 +5442,16 @@
     if (mode === "reset2") {
       if (pin !== VAULT_FIRST_PIN) { setVaultLockUi("reset1", "Γράψε νέο PIN 4 ψηφίων.", "Δεν ταίριαξαν — ξεκίνα από την αρχή."); return; }
       const newPin = VAULT_FIRST_PIN; VAULT_FIRST_PIN = "";
-      // Τώρα ο κωδικός σύνδεσης — ΑΜΕΣΩΣ πριν από την επαναφορά, γιατί η βάση
-      // δέχεται επαναφορά μόνο με σύνδεση που έγινε τα τελευταία 2 λεπτά.
+      // Ver 3.3 (schema_v45): ο κωδικός σύνδεσης ελέγχεται ΜΕΣΑ στη βάση — όχι πια
+      // με δεύτερη, προσωρινή σύνδεση από τον browser (αυτό ήταν που δεν δούλευε).
       const pw = await vaultAsk("🔑 Κωδικός σύνδεσης", "Για να αλλάξει το PIN χωρίς το παλιό, γράψε τον κωδικό με τον οποίο μπαίνεις στο Iris.", "Αλλαγή PIN");
       if (!pw) { showVaultLock(); return; }
-      try {
-        const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false, storageKey:"iris-vault-reset" }
-        });
-        const { error: sErr } = await tmp.auth.signInWithPassword({ email: USER.email, password: pw });
-        if (sErr) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Λάθος κωδικός σύνδεσης — το PIN δεν άλλαξε."); return; }
-        const { error: rErr } = await tmp.rpc("vault_pin_reset", { p_new: newPin });
-        if (rErr) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Δεν άλλαξε: " + rErr.message); return; }
-      } catch (e) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Δεν άλλαξε: " + e.message); return; }
-      const { data, error } = await sb.rpc("vault_pin_unlock", { p_pin: newPin });
-      if (error || !data || !data.ok) { setVaultLockUi("unlock", "Το PIN άλλαξε — γράψε το νέο σου PIN.", error ? error.message : ""); return; }
+      const { data, error } = await sb.rpc("vault_pin_reset", { p_password: pw, p_new: newPin });
+      if (error) { setVaultLockUi("unlock", "Γράψε το PIN σου.", "Δεν άλλαξε: " + error.message); return; }
+      if (!data.ok) {
+        setVaultLockUi("unlock", "Γράψε το PIN σου.", data.error + (data.tries_left != null ? ` Απομένουν ${data.tries_left} προσπάθειες.` : "") + " Το PIN δεν άλλαξε.");
+        return;
+      }
       await vaultOpenWithKeys(data);
       showMsg($("#vault-msg"), "✓ Νέο PIN ορίστηκε. Οι σημειώσεις σου είναι όλες εδώ.", "ok");
       return;
@@ -6543,6 +6540,11 @@
             ${CLIENTS_CACHE.map(c => `<option value="${c.id}" ${c.id===p.client_id?'selected':''}>${escapeHtml(c.name)}</option>`).join("")}
           </select>
         </div>
+        ${(!isSelf && p.role === "owner" && PROFILE && PROFILE.role === "owner") ? `
+          <div class="section-title">Σημειώσεις — PIN</div>
+          <p class="cell-sub" style="margin:-4px 0 8px;">Αν ξέχασε το PIN των Σημειώσεων: με τον μηδενισμό, την επόμενη φορά που θα τις ανοίξει θα ορίσει νέο PIN. Οι σημειώσεις του — και οι προσωπικές — ΔΕΝ χάνονται και ΔΕΝ τις βλέπεις εσύ.</p>
+          <button type="button" class="btn-sm btn-ghost" id="usr-vault-reset">🔑 Μηδενισμός PIN Σημειώσεων</button>
+          <div id="usr-vault-msg" style="margin-top:6px;"></div>` : ""}
         ${isSelf ? "" : `
           <div class="section-title">Διαγραφή λογαριασμού</div>
           <p class="cell-sub" style="margin:-4px 0 8px;">Φεύγει μόνο η δυνατότητα σύνδεσης — ανακτήσιμο από «Χρήστες → Διεγραμμένοι» όποτε χρειαστεί. Η καρτέλα πελάτη, τα αιτήματα και οι κινήσεις του παραμένουν.</p>
@@ -6554,6 +6556,15 @@
         </div>
       </form>
     `);
+    const vReset = $("#usr-vault-reset");
+    if (vReset) vReset.addEventListener("click", async () => {
+      if (!confirm(`Μηδενισμός του PIN Σημειώσεων για ${p.email || "τον χρήστη"}; Θα ορίσει νέο την επόμενη φορά.`)) return;
+      vReset.disabled = true;
+      const { data, error } = await sb.rpc("vault_pin_admin_reset", { p_user: userId });
+      vReset.disabled = false;
+      if (error) { showMsg($("#usr-vault-msg"), "Σφάλμα: " + error.message, "error"); return; }
+      showMsg($("#usr-vault-msg"), "✓ Έγινε. " + (data && data.note ? data.note : "Θα του ζητηθεί νέο PIN όταν ανοίξει τις Σημειώσεις."), "ok");
+    });
     const delBtn = $("#usr-delete");
     if (delBtn) delBtn.addEventListener("click", () => {
       $("#usr-delete-confirm").innerHTML = `<span style="font-size:13px;">Διαγραφή του λογαριασμού <strong>${escapeHtml(p.email || "")}</strong> — θα μπορείς να τον επαναφέρεις από «Χρήστες → Διεγραμμένοι»· <button type="button" class="btn-sm btn-ghost" id="usr-del-no">Όχι</button> <button type="button" class="btn-sm btn-danger" id="usr-del-yes">Ναι, διαγραφή</button></span>`;
