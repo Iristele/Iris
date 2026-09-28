@@ -451,6 +451,16 @@
   .btn-checkin{width:100%;padding:12px;font-size:14.5px;margin-bottom:6px;}
   .vlog-co-form{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;background:var(--surface);}
   .vlog-dur{font-weight:600;font-variant-numeric:tabular-nums;}
+  /* ---- θέση τεχνικού live (schema_v46) ---- */
+  .live-map{height:220px;border:1px solid var(--line);border-radius:var(--r-md);margin:8px 0 4px;overflow:hidden;z-index:0;}
+  .live-map.live-map-lg{height:320px;margin:10px 16px 6px;}
+  .live-map.hidden{display:none;}
+  .live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+  .live-dot.fresh{background:#16a34a;} .live-dot.stale{background:#d97706;} .live-dot.old{background:#6b7280;}
+  .live-banner{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));
+    z-index:150;background:var(--brand);color:var(--on-brand, #fff);font-size:12.5px;padding:7px 14px;border-radius:999px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 24px);text-align:center;}
+  .live-banner.hidden{display:none;}
   .vlog-total{margin-top:8px;padding:9px 12px;border-radius:var(--r-md);background:var(--surface-2);
     font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums;}
   .geo-link{font-size:11.5px;}
@@ -890,6 +900,7 @@
       </div>
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-head"><h2>Τεχνικοί σε δουλειά τώρα</h2></div>
+        <div id="dashboard-onsite-map" class="live-map live-map-lg hidden"></div>
         <div class="panel-body" id="dashboard-onsite" style="padding:4px 0;"></div>
       </div>
       <div class="panel" style="margin-bottom:16px;">
@@ -1277,7 +1288,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.3";
+  const APP_VERSION = "Ver 3.4";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1286,7 +1297,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260928a";
+  const APP_BUILD = "20260928b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1465,6 +1476,7 @@
 
   $("#signout-btn").addEventListener("click", async () => {
     if (typeof vaultLockNow === "function") vaultLockNow();
+    if (typeof liveStop === "function") liveStop();
     await sb.auth.signOut();
     PROFILE = null; USER = null;
     appView.classList.add("hidden");
@@ -2025,6 +2037,7 @@
           if (!$("#view-dashboard").classList.contains("hidden")) await loadOnsiteNow();
         }, 60000);
       }
+      syncLiveTracking();   // schema_v46: αν ο τεχνικός έχει ήδη ανοιχτή επίσκεψη, ξεκινά η αποστολή θέσης
       const defaultView = isOwnerRole ? "dashboard" : (isReception ? "schedule" : "tickets");
       $$(".nav-item").forEach(i => i.classList.remove("active"));
       $(`.nav-item[data-view="${defaultView}"]`).classList.add("active");
@@ -2150,6 +2163,9 @@
           Διάρκεια μέχρι τώρα: <span class="vlog-dur" id="vlog-open-elapsed" data-since="${open.checkin_at}">${formatDuration(elapsed)}</span> · ${geoLink(open.checkin_lat, open.checkin_lng, "σημείο άφιξης")}
           · <a href="#" class="add-link" data-vlog-edit-open="${open.id}" style="font-size:12px;">✎ διόρθωση ώρας άφιξης</a>
         </div>
+        ${(PROFILE && (PROFILE.role === "owner" || PROFILE.role === "reception")) ? `
+          <div id="vlog-live-meta" class="cell-sub" style="margin:2px 0 0;">Φόρτωση θέσης…</div>
+          <div id="vlog-live-map" class="live-map hidden" data-visit="${open.id}"></div>` : ""}
         <div id="vlog-edit-open-form" class="hidden" style="margin:0 0 10px;">
           <div class="field"><label>Ώρα άφιξης</label><input type="datetime-local" id="vlog-fix-checkin-open" value="${toLocalInputValue(open.checkin_at)}"></div>
           <div style="display:flex;gap:8px;">
@@ -2232,17 +2248,197 @@
     }
   }, 30000);
 
+  // ================= ΘΕΣΗ ΤΕΧΝΙΚΟΥ «LIVE» (schema_v46) =================
+  // Όσο ο τεχνικός έχει ΑΝΟΙΧΤΗ επίσκεψη και το Iris ανοιχτό στο κινητό, στέλνουμε
+  // τη θέση του κάθε ~1 λεπτό. Μόλις κάνει check-out, σταματά — και η βάση ΔΕΝ
+  // δέχεται πια σημεία για εκείνη την επίσκεψη ούτως ή άλλως. Με κλειδωμένο
+  // κινητό ή το Iris στο παρασκήνιο, το κινητό παγώνει την εφαρμογή: τα σημεία
+  // ξαναρχίζουν μόλις την ξανανοίξει. Ο τεχνικός βλέπει πάντα ένδειξη ότι στέλνεται.
+  const LIVE_SEND_EVERY_MS = 60000;
+  const LIVE = { visitId: null, watchId: null, lastSent: 0, sending: false };
+
+  function liveBanner(on){
+    let el = document.getElementById("live-track-banner");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "live-track-banner";
+      el.className = "live-banner hidden";
+      el.innerHTML = '📍 Η θέση σου στέλνεται στο γραφείο όσο είσαι σε επίσκεψη — σταματά με το check-out.';
+      document.body.appendChild(el);
+    }
+    el.classList.toggle("hidden", !on);
+  }
+  function liveStop(){
+    if (LIVE.watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(LIVE.watchId);
+    LIVE.watchId = null; LIVE.visitId = null; LIVE.lastSent = 0;
+    liveBanner(false);
+  }
+  async function liveSend(pos){
+    if (!LIVE.visitId || LIVE.sending) return;
+    if (Date.now() - LIVE.lastSent < LIVE_SEND_EVERY_MS) return;
+    LIVE.sending = true;
+    const { error } = await sb.from("visit_track").insert({
+      visit_id: LIVE.visitId,
+      tech_id: USER.id,
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracy: pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : null
+    });
+    LIVE.sending = false;
+    if (!error) { LIVE.lastSent = Date.now(); return; }
+    // η επίσκεψη έκλεισε (π.χ. την έκλεισε το γραφείο) ⇒ η βάση αρνείται ⇒ σταματάμε
+    if (/row-level security|violates/i.test(error.message || "")) liveStop();
+  }
+  // Κοιτάζει αν ΕΓΩ (τεχνικός) έχω ανοιχτή επίσκεψη και ξεκινά/σταματά ανάλογα.
+  async function syncLiveTracking(){
+    if (!USER || !PROFILE || !FIELD_ROLES.has(PROFILE.role) || !navigator.geolocation) { liveStop(); return; }
+    const { data, error } = await sb.from("visit_logs").select("id")
+      .eq("tech_id", USER.id).is("checkout_at", null).order("checkin_at", { ascending:false }).limit(1);
+    if (error) return;                               // αμφιβολία ⇒ δεν αλλάζουμε τίποτα
+    const open = (data && data[0]) ? data[0].id : null;
+    if (!open) { liveStop(); return; }
+    if (LIVE.visitId === open && LIVE.watchId != null) return;
+    liveStop();
+    LIVE.visitId = open;
+    LIVE.watchId = navigator.geolocation.watchPosition(liveSend, () => {},
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 30000 });
+    liveBanner(true);
+  }
+  // Επιστροφή στο Iris (ξεκλείδωμα κινητού) ⇒ στέλνει ΑΜΕΣΩΣ νέα θέση
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && PROFILE && FIELD_ROLES.has(PROFILE.role)) {
+      LIVE.lastSent = 0;
+      syncLiveTracking();
+    }
+  });
+  setInterval(() => { if (PROFILE && FIELD_ROLES.has(PROFILE.role)) syncLiveTracking(); }, 120000);
+
+  // ---- Χάρτες (Leaflet + OpenStreetMap), φορτώνονται μόνο όταν χρειαστούν ----
+  let LEAFLET_PROMISE = null;
+  function loadLeaflet(){
+    if (window.L) return Promise.resolve(window.L);
+    if (!LEAFLET_PROMISE) LEAFLET_PROMISE = new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(css);
+      const js = document.createElement("script");
+      js.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+      js.onload = () => resolve(window.L);
+      js.onerror = () => { LEAFLET_PROMISE = null; reject(new Error("Δεν φόρτωσε ο χάρτης")); };
+      document.head.appendChild(js);
+    });
+    return LEAFLET_PROMISE;
+  }
+  function liveAgeInfo(iso){
+    if (!iso) return { cls: "old", text: "δεν έχει έρθει ακόμα σήμα" };
+    const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    const text = min < 1 ? "τώρα" : "πριν " + formatDuration(min * 60000);
+    return { cls: min <= 5 ? "fresh" : (min <= 30 ? "stale" : "old"), text };
+  }
+  const LIVE_COLORS = { fresh: "#16a34a", stale: "#d97706", old: "#6b7280" };
+  function newMap(L, el){
+    const map = L.map(el, { zoomControl: true, attributionControl: true });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    return map;
+  }
+
+  // Χάρτης ΜΕΣΑ στη βλάβη: διαδρομή της ανοιχτής επίσκεψης + τελευταία θέση.
+  let VISIT_MAP = null, VISIT_MAP_TIMER = null;
+  async function renderVisitLiveMap(visit){
+    const el = document.getElementById("vlog-live-map");
+    const meta = document.getElementById("vlog-live-meta");
+    if (!el || !visit) return;
+    const { data: pts } = await sb.from("visit_track").select("lat, lng, accuracy, recorded_at")
+      .eq("visit_id", visit.id).order("recorded_at");
+    const points = (pts || []).map(p => [p.lat, p.lng]);
+    const last = (pts && pts.length) ? pts[pts.length - 1] : null;
+    const age = liveAgeInfo(last ? last.recorded_at : null);
+    if (meta) meta.innerHTML = last
+      ? `<span class="live-dot ${age.cls}"></span> Τελευταίο σήμα: <strong>${age.text}</strong>${last.accuracy ? ` · ακρίβεια ±${Math.round(last.accuracy)} μ.` : ""}` +
+        (age.cls !== "fresh" ? ' <span class="cell-sub">— μάλλον κλειδωμένο κινητό ή κλειστό Iris</span>' : "")
+      : '<span class="live-dot old"></span> Δεν έχει έρθει ακόμα σήμα — έρχεται όσο ο τεχνικός έχει το Iris ανοιχτό.';
+    const start = (visit.checkin_lat != null && visit.checkin_lng != null) ? [visit.checkin_lat, visit.checkin_lng] : null;
+    if (!points.length && !start) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    let L;
+    try { L = await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="cell-sub" style="padding:8px;">Δεν φόρτωσε ο χάρτης.</div>'; return; }
+    if (!document.body.contains(el)) return;
+    if (VISIT_MAP && VISIT_MAP._container !== el) { try { VISIT_MAP.remove(); } catch (e) {} VISIT_MAP = null; }
+    if (!VISIT_MAP) VISIT_MAP = newMap(L, el);
+    const map = VISIT_MAP;
+    map.eachLayer(l => { if (!(l instanceof L.TileLayer)) map.removeLayer(l); });
+    if (start) L.circleMarker(start, { radius: 6, color: "#2563eb", fillOpacity: .9 }).addTo(map).bindTooltip("Άφιξη");
+    if (points.length > 1) L.polyline(points, { color: "#2563eb", weight: 3, opacity: .6 }).addTo(map);
+    if (last) L.circleMarker([last.lat, last.lng], { radius: 9, color: LIVE_COLORS[age.cls], fillColor: LIVE_COLORS[age.cls], fillOpacity: .9 })
+      .addTo(map).bindTooltip("Τώρα: " + age.text);
+    const all = points.concat(start ? [start] : []);
+    if (all.length === 1) map.setView(all[0], 16); else map.fitBounds(all, { padding: [24, 24], maxZoom: 17 });
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+  // ανανέωση κάθε λεπτό όσο η βλάβη είναι ανοιχτή στην οθόνη
+  function armVisitMapRefresh(visit){
+    if (VISIT_MAP_TIMER) clearInterval(VISIT_MAP_TIMER);
+    VISIT_MAP_TIMER = setInterval(() => {
+      if (!document.getElementById("vlog-live-map")) { clearInterval(VISIT_MAP_TIMER); VISIT_MAP_TIMER = null;
+        if (VISIT_MAP) { try { VISIT_MAP.remove(); } catch (e) {} VISIT_MAP = null; } return; }
+      renderVisitLiveMap(visit);
+    }, 60000);
+  }
+
+  // Χάρτης στην ΑΡΧΙΚΗ: όλοι οι τεχνικοί που είναι σε επίσκεψη τώρα.
+  let ONSITE_MAP = null, ONSITE_MAP_KEYS = "";
+  async function renderOnsiteMap(rows){
+    const el = document.getElementById("dashboard-onsite-map");
+    if (!el) return;
+    const withPos = rows.map(v => {
+      const lat = v.last_lat != null ? v.last_lat : v.checkin_lat;
+      const lng = v.last_lng != null ? v.last_lng : v.checkin_lng;
+      return (lat != null && lng != null) ? { v, lat, lng } : null;
+    }).filter(Boolean);
+    if (!withPos.length) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    let L;
+    try { L = await loadLeaflet(); } catch (e) { el.classList.add("hidden"); return; }
+    if (ONSITE_MAP && ONSITE_MAP._container !== el) { try { ONSITE_MAP.remove(); } catch (e) {} ONSITE_MAP = null; }
+    if (!ONSITE_MAP) { ONSITE_MAP = newMap(L, el); ONSITE_MAP_KEYS = ""; }
+    const map = ONSITE_MAP;
+    map.eachLayer(l => { if (!(l instanceof L.TileLayer)) map.removeLayer(l); });
+    withPos.forEach(({ v, lat, lng }) => {
+      const age = liveAgeInfo(v.last_seen_at);
+      const who = v.profiles ? (v.profiles.full_name || v.profiles.email) : "Τεχνικός";
+      const tk = v.tickets || {};
+      L.circleMarker([lat, lng], { radius: 9, color: LIVE_COLORS[age.cls], fillColor: LIVE_COLORS[age.cls], fillOpacity: .9 })
+        .addTo(map)
+        .bindTooltip(escapeHtml(who), { permanent: true, direction: "top", offset: [0, -8] })
+        .bindPopup(`<strong>${escapeHtml(who)}</strong><br>${escapeHtml(tk.clients ? clientLabel(tk.clients) : "")} — ${escapeHtml(tk.title || "")}<br>` +
+                   `<span style="color:${LIVE_COLORS[age.cls]}">● ${v.last_seen_at ? "σήμα " + age.text : "θέση άφιξης (δεν ήρθε ακόμα live σήμα)"}</span>`);
+    });
+    // το «ζουμ» ξαναστήνεται μόνο όταν αλλάξει ποιοι είναι στον χάρτη — αλλιώς η
+    // ανανέωση ανά λεπτό θα σου χαλούσε το ζουμ που έκανες
+    const keys = withPos.map(x => x.v.id).sort().join(",");
+    if (keys !== ONSITE_MAP_KEYS) {
+      ONSITE_MAP_KEYS = keys;
+      const pts = withPos.map(x => [x.lat, x.lng]);
+      if (pts.length === 1) map.setView(pts[0], 14); else map.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
+    }
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+
   // Ανοιχτές επισκέψεις (άφιξη χωρίς αναχώρηση) — «ποιος είναι πού τώρα».
   async function loadOnsiteNow(){
     const box = $("#dashboard-onsite");
     if (!box) return 0;
     const { data, error } = await sb.from("visit_logs")
-      .select("id, checkin_at, checkin_lat, checkin_lng, profiles(full_name, email), tickets(id, ticket_no, title, scheduled_date, scheduled_time, clients(name))")
+      .select("id, checkin_at, checkin_lat, checkin_lng, last_lat, last_lng, last_seen_at, profiles(full_name, email), tickets(id, ticket_no, title, scheduled_date, scheduled_time, clients(name, trade_name))")
       .is("checkout_at", null).order("checkin_at");
     if (error) { box.innerHTML = `<div class="empty-state">Σφάλμα φόρτωσης: ${escapeHtml(error.message)}</div>`; return 0; }
     const rows = data || [];
     const numEl = $("#stat-onsite-num");
     if (numEl) numEl.textContent = String(rows.length);
+    renderOnsiteMap(rows);                 // χάρτης (schema_v46) — δεν περιμένουμε
     if (rows.length === 0) {
       box.innerHTML = '<div class="empty-state">Κανένας τεχνικός δεν είναι σε επίσκεψη αυτή τη στιγμή.</div>';
       return 0;
@@ -2256,8 +2452,11 @@
         <div class="sched-visit" ${tk.id ? `data-id="${tk.id}"` : ""}>
           <div class="sched-time">${fmtTime(v.checkin_at)}</div>
           <div class="sched-info">
-            <strong>${escapeHtml(tk.clients ? tk.clients.name : "—")}</strong> — ${escapeHtml(tk.title || "")}
-            <div class="sched-tech">${escapeHtml(who)}${latenessLabel(tk, v.checkin_at)} · ${geoLink(v.checkin_lat, v.checkin_lng, "σημείο άφιξης")}</div>
+            <strong>${escapeHtml(tk.clients ? clientLabel(tk.clients) : "—")}</strong> — ${escapeHtml(tk.title || "")}
+            <div class="sched-tech">${escapeHtml(who)}${latenessLabel(tk, v.checkin_at)} · ${geoLink(v.checkin_lat, v.checkin_lng, "σημείο άφιξης")}${(() => {
+              const a = liveAgeInfo(v.last_seen_at);
+              return ` · <span class="live-dot ${a.cls}"></span>${v.last_seen_at ? "σήμα " + a.text : "χωρίς live σήμα"}`;
+            })()}</div>
           </div>
           <div class="sched-tech" style="${stale ? "color:var(--amber);font-weight:600;" : ""}">${formatDuration(elapsed)}${stale ? " ⚠" : ""}</div>
         </div>`;
@@ -3927,8 +4126,15 @@
 
       async function refreshVlogBox(){
         VLOGS = await fetchVlogs();
+        if (VISIT_MAP) { try { VISIT_MAP.remove(); } catch (e) {} VISIT_MAP = null; }
         $("#vlog-box").innerHTML = vlogBoxHtml(VLOGS, t, VLOG_LOAD_ERROR);
         wireVlogButtons();
+        startVisitMap();
+        syncLiveTracking();           // τεχνικός: check-in ⇒ ξεκινά, check-out ⇒ σταματά
+      }
+      function startVisitMap(){
+        const openV = VLOGS.find(v => !v.checkout_at);
+        if (openV && document.getElementById("vlog-live-map")) { renderVisitLiveMap(openV); armVisitMapRefresh(openV); }
       }
       function wireVlogButtons(){
         const inBtn = $("#vlog-checkin");
@@ -4139,6 +4345,8 @@
         });
       }
       wireVlogButtons();
+      if (VISIT_MAP) { try { VISIT_MAP.remove(); } catch (e) {} VISIT_MAP = null; }
+      startVisitMap();
 
       // ο λόγος αναμονής εμφανίζεται μόλις διαλέξεις «Αναμονή»
       $("#tk-status-sel").addEventListener("change", () => {
