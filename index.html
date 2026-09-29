@@ -536,6 +536,11 @@
   /* ολοκληρωμένη σημείωση: ξεθωριασμένη + τσεκ */
   .cal-ev.nt-done,.note-row.nt-done{opacity:.55;text-decoration:line-through;}
   .notes-split{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;}
+  .note-group{margin-bottom:6px;}
+  .note-group>summary{cursor:pointer;font-weight:600;font-size:13px;padding:8px 2px;list-style:none;}
+  .note-group>summary::-webkit-details-marker{display:none;}
+  .note-group>summary::before{content:"▸";display:inline-block;margin-right:7px;color:var(--ink-soft);}
+  .note-group[open]>summary::before{content:"▾";}
   @media (max-width:980px){ .notes-split{grid-template-columns:1fr;} }
   .note-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-md);
     border:1px solid var(--line);margin-bottom:8px;cursor:pointer;background:var(--surface);}
@@ -611,10 +616,15 @@
   /* Εβδομάδα: ο χρήστης ορίζει το ύψος σέρνοντας την κάτω-δεξιά γωνία (17/09).
      Τα κελιά γεμίζουν αυτό το ύψος και κυλάνε μόνα τους — γι' αυτό η προβολή
      Εβδομάδας δείχνει ΟΛΕΣ τις επισκέψεις, χωρίς «+N ακόμα» όπως ο Μήνας. */
-  #schedule-week{resize:vertical;overflow:hidden;min-height:200px;max-height:85vh;}
-  #schedule-week .cal-grid{height:100%;}
+  #schedule-week,#notes-week{resize:vertical;overflow:hidden;min-height:200px;max-height:90vh;}
+  #schedule-week .cal-grid,#notes-week .cal-grid{height:100%;}
   .cal-cell.week-cell{min-height:190px;overflow-y:auto;}
-  #schedule-week .cal-cell.week-cell{min-height:0;}
+  #schedule-week .cal-cell.week-cell,#notes-week .cal-cell.week-cell{min-height:0;}
+  /* Ver 3.5: μέγεθος ΚΑΘΕ ημερολογίου με τα κουμπιά − / + (και σύρσιμο στην
+     Εβδομάδα). Στον Μήνα ορίζουμε το ύψος των κελιών· αν δεν χωράνε, κυλάνε. */
+  .cal-sized .cal-cell:not(.week-cell){height:var(--cal-cell-h);min-height:0;overflow-y:auto;}
+  .cal-zoom{display:inline-flex;gap:2px;}
+  .cal-zoom button{min-width:30px;font-weight:700;font-size:15px;line-height:1;padding:4px 8px;}
   /* Χωρίς αυτό τα πλακίδια είναι flex items και ΣΥΜΠΙΕΖΟΝΤΑΙ για να χωρέσουν στο ύψος
      του κελιού, αντί να ξεχειλίσουν — οπότε το κελί δεν αποκτά ποτέ μπάρα κύλισης και
      σε πολυάσχολη μέρα τα ραντεβού γίνονται αδιάβαστες λωρίδες. */
@@ -695,9 +705,11 @@
     /* το ημερολόγιο δεν χωράει κείμενο — τελείες, και ανοίγεις τη μέρα από κάτω */
     .cal-cell{min-height:56px;align-items:center;gap:5px;padding:5px 2px;}
     .cal-cell.week-cell{min-height:72px;}
-    #schedule-week{resize:none;height:auto !important;max-height:none;overflow:visible;}
-    #schedule-week .cal-grid{height:auto;}
-    #schedule-week .cal-cell.week-cell{min-height:72px;overflow:visible;}
+    #schedule-week,#notes-week{resize:none;height:auto !important;max-height:none;overflow:visible;}
+    #schedule-week .cal-grid,#notes-week .cal-grid{height:auto;}
+    #schedule-week .cal-cell.week-cell,#notes-week .cal-cell.week-cell{min-height:72px;overflow:visible;}
+    .cal-zoom{display:none;}
+    .cal-sized .cal-cell:not(.week-cell){height:auto;min-height:56px;}
     .cal-ev,.cal-more,.cal-closed{display:none;}
     .cal-dots{display:flex;}
     .cal-title{min-width:118px;font-size:13.5px;}
@@ -871,7 +883,7 @@
     <div class="nav-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.8h17"/><path d="M8 3.5v3M16 3.5v3"/></svg>Πρόγραμμα</div>
     <div class="nav-item hidden" data-view="technicians" id="nav-technicians"><svg viewBox="0 0 24 24"><path d="M14.5 6.2a3.6 3.6 0 1 1-5 5L5 15.7v3.3h3.3l4.5-4.5a3.6 3.6 0 0 0 5-5z"/></svg><span id="nav-technicians-label">Τεχνικοί</span></div>
     <div class="nav-item hidden" data-view="vault" id="nav-vault"><svg viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5"/></svg>Σημειώσεις</div>
-    <div class="nav-item hidden" data-view="notes" id="nav-notes"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Ραντεβού</div>
+    <div class="nav-item hidden" data-view="notes" id="nav-notes"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Υπενθυμίσεις</div>
     <div class="nav-item hidden" data-view="users" id="nav-users"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg>Χρήστες</div>
     <div class="nav-item hidden" data-view="company" id="nav-company"><svg viewBox="0 0 24 24"><path d="M4 20.5V6.5l7-3v17"/><path d="M11 10.5h9v10"/><path d="M4 20.5h17"/><path d="M14.5 14h2M14.5 17h2M7 8.5h1M7 12h1M7 15.5h1"/></svg>Εταιρία</div>
   </div>
@@ -960,6 +972,10 @@
             <button type="button" class="btn-ghost btn-sm" id="cal-next" aria-label="Επόμενος μήνας">›</button>
             <button type="button" class="btn-ghost btn-sm" id="cal-today">Σήμερα</button>
           </div>
+          <div class="cal-zoom" data-cal-zoom="schedule" role="group" aria-label="Μέγεθος ημερολογίου">
+            <button type="button" class="btn-ghost btn-sm" data-zoom="-1" title="Μικρότερο ημερολόγιο" aria-label="Μικρότερο">−</button>
+            <button type="button" class="btn-ghost btn-sm" data-zoom="1" title="Μεγαλύτερο ημερολόγιο" aria-label="Μεγαλύτερο">+</button>
+          </div>
           <button type="button" class="btn-ghost btn-sm hidden" id="week-collapse"
                   title="Κλείσιμο/άνοιγμα του εβδομαδιαίου πλέγματος" aria-expanded="true">▲ Κλείσιμο</button>
           <div class="filterbar" id="schedule-mode" style="padding:0;">
@@ -972,7 +988,7 @@
         <div class="sched-filters">
           <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
           <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
-          <label><input type="checkbox" id="sched-filter-notes" checked> Ραντεβού</label>
+          <label><input type="checkbox" id="sched-filter-notes" checked> Υπενθυμίσεις</label>
           <select id="sched-filter-office" class="hidden" style="font-size:13px;max-width:200px;width:auto;">
             <option value="">Όλοι οι διαχειριστές</option>
           </select>
@@ -1006,8 +1022,41 @@
       </div>
     </div>
 
-    <!-- σημειώσεις / προσωπικό ημερολόγιο διαχειριστή (schema_v36) -->
+    <!-- ΥΠΕΝΘΥΜΙΣΕΙΣ (πρώην «Ραντεβού», schema_v36/v47): πρώτα η λίστα, μετά το ημερολόγιο -->
     <div id="view-notes" class="hidden">
+      <div class="notes-split" style="margin-bottom:16px;">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Υπενθυμίσεις</h2>
+            <button type="button" class="btn-primary btn-sm" id="note-new-btn">+ Νέα υπενθύμιση</button>
+          </div>
+          <div class="sched-filters">
+            <select id="note-filter-cat" style="font-size:13px;max-width:200px;width:auto;">
+              <option value="">Όλες οι κατηγορίες</option>
+            </select>
+            <select id="note-filter-user" style="font-size:13px;max-width:200px;width:auto;">
+              <option value="">Όλες οι αναθέσεις</option>
+            </select>
+            <label><input type="checkbox" id="note-filter-done"> Εμφάνιση ολοκληρωμένων</label>
+          </div>
+          <div id="notes-msg" style="padding:0 20px 10px;"></div>
+          <div class="panel-body" style="padding:0 16px 14px;"><div id="note-items-list"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Κατηγορίες</h2></div>
+          <div class="panel-body" style="padding:14px 20px 18px;">
+            <p class="cell-sub" style="margin:0 0 10px;">Κάθε κατηγορία έχει δικό της χρώμα — έτσι ξεχωρίζουν οι υπενθυμίσεις στο ημερολόγιο.</p>
+            <div id="note-cats-msg"></div>
+            <div id="note-cats-list" style="margin-bottom:14px;"></div>
+            <div class="field"><label for="ncat-name">Νέα κατηγορία</label>
+              <input id="ncat-name" placeholder="π.χ. Λογιστής, Προμηθευτής, Πελάτης"></div>
+            <div class="field"><label>Χρώμα</label>
+              <div id="ncat-colors" class="color-picker"></div></div>
+            <button type="button" class="btn-primary btn-sm" id="ncat-add">Προσθήκη κατηγορίας</button>
+          </div>
+        </div>
+      </div>
+
       <div class="panel" style="margin-bottom:16px;">
         <div class="cal-head">
           <div class="cal-nav">
@@ -1017,26 +1066,18 @@
             <button type="button" class="btn-ghost btn-sm" id="note-today">Σήμερα</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="cal-zoom" data-cal-zoom="notes" role="group" aria-label="Μέγεθος ημερολογίου">
+              <button type="button" class="btn-ghost btn-sm" data-zoom="-1" title="Μικρότερο ημερολόγιο" aria-label="Μικρότερο">−</button>
+              <button type="button" class="btn-ghost btn-sm" data-zoom="1" title="Μεγαλύτερο ημερολόγιο" aria-label="Μεγαλύτερο">+</button>
+            </div>
             <div class="filterbar" id="note-mode" style="padding:0;">
               <div class="chip active" data-nmode="month">Μήνας</div>
               <div class="chip" data-nmode="week">Εβδομάδα</div>
-              <div class="chip" data-nmode="list">Λίστα</div>
             </div>
-            <button type="button" class="btn-primary btn-sm" id="note-new-btn">+ Νέο ραντεβού</button>
           </div>
         </div>
-        <div class="sched-filters">
-          <select id="note-filter-cat" style="font-size:13px;max-width:200px;width:auto;">
-            <option value="">Όλες οι κατηγορίες</option>
-          </select>
-          <select id="note-filter-user" style="font-size:13px;max-width:200px;width:auto;">
-            <option value="">Όλες οι αναθέσεις</option>
-          </select>
-          <label><input type="checkbox" id="note-filter-done"> Εμφάνιση ολοκληρωμένων</label>
-          <div class="sched-legend" id="note-legend"></div>
-        </div>
-        <div id="notes-msg" style="padding:0 20px 10px;"></div>
-        <div id="notes-calendar"></div>
+        <div class="sched-filters"><div class="sched-legend" id="note-legend"></div></div>
+        <div id="notes-calendar" class="cal-month-box"></div>
         <div id="notes-week" class="hidden"></div>
       </div>
 
@@ -1044,29 +1085,7 @@
         <div class="panel-head"><h2 id="notes-day-title">—</h2></div>
         <div class="panel-body" id="notes-day-body" style="padding:6px 0;"></div>
       </div>
-
-      <!-- Λίστα + δίπλα της η διαχείριση κατηγοριών -->
-      <div class="hidden" id="notes-list-wrap">
-        <div class="notes-split">
-          <div class="panel">
-            <div class="panel-head"><h2>Όλα τα ραντεβού</h2></div>
-            <div class="panel-body"><div id="note-items-list"></div></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>Κατηγορίες</h2></div>
-            <div class="panel-body" style="padding:14px 20px 18px;">
-              <p class="cell-sub" style="margin:0 0 10px;">Κάθε κατηγορία έχει δικό της χρώμα — έτσι ξεχωρίζουν τα ραντεβού στο ημερολόγιο.</p>
-              <div id="note-cats-msg"></div>
-              <div id="note-cats-list" style="margin-bottom:14px;"></div>
-              <div class="field"><label for="ncat-name">Νέα κατηγορία</label>
-                <input id="ncat-name" placeholder="π.χ. Λογιστής, Προμηθευτής, Πελάτης"></div>
-              <div class="field"><label>Χρώμα</label>
-                <div id="ncat-colors" class="color-picker"></div></div>
-              <button type="button" class="btn-primary btn-sm" id="ncat-add">Προσθήκη κατηγορίας</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="hidden" id="notes-list-wrap"></div>
     </div>
 
     <!-- ΣΗΜΕΙΩΣΕΙΣ — θησαυροφυλάκιο διαχειριστών (schema_v43) -->
@@ -1288,7 +1307,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.4";
+  const APP_VERSION = "Ver 3.5";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1297,7 +1316,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260928b";
+  const APP_BUILD = "20260929a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1856,6 +1875,69 @@
     }).observe(el);
   }
   initWeekResize();
+
+  // ---- Ver 3.5: μέγεθος ΟΛΩΝ των ημερολογίων (Πρόγραμμα + Υπενθυμίσεις) ----
+  // Μήνας: ύψος κελιού (κοινό και για τα δύο ημερολόγια). Εβδομάδα: ύψος πλέγματος
+  // (χωριστό για το καθένα — ίδιο κλειδί με το σύρσιμο της γωνίας). Θυμάται.
+  const CAL_MONTH_KEY = "iris.cal.monthCellHeight";
+  const CAL_WEEK_KEYS = { "schedule-week": WEEK_H_KEY, "notes-week": "iris.notes.weekHeight" };
+  const isPhoneCal = () => window.matchMedia("(max-width:760px)").matches;
+  function calLsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function calLsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+  function applyCalSizes(){
+    const mh = parseInt(calLsGet(CAL_MONTH_KEY), 10);
+    ["schedule-calendar", "notes-calendar"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (mh >= 50 && mh <= 400) { el.classList.add("cal-sized"); el.style.setProperty("--cal-cell-h", mh + "px"); }
+      else { el.classList.remove("cal-sized"); el.style.removeProperty("--cal-cell-h"); }
+    });
+    if (isPhoneCal()) return;
+    Object.entries(CAL_WEEK_KEYS).forEach(([id, k]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const h = parseInt(calLsGet(k), 10);
+      if (h >= 200 && h <= Math.round(window.innerHeight * 0.9)) el.style.height = h + "px";
+      else if (!el.style.height) el.style.height = (id === "notes-week" ? 320 : 360) + "px";
+    });
+  }
+  function calZoom(which, dir){
+    const mode = which === "schedule" ? SCHEDULE_MODE : NOTE_MODE;
+    if (mode === "month") {
+      let cur = parseInt(calLsGet(CAL_MONTH_KEY), 10);
+      if (!(cur >= 50)) cur = 108;
+      cur = Math.max(56, Math.min(320, cur + dir * 26));
+      calLsSet(CAL_MONTH_KEY, String(cur));
+      applyCalSizes();
+    } else if (mode === "week") {
+      const id = which === "schedule" ? "schedule-week" : "notes-week";
+      const el = document.getElementById(id);
+      if (!el || el.classList.contains("hidden")) return;
+      const cur = Math.round(el.getBoundingClientRect().height) || 320;
+      const h = Math.max(200, Math.min(Math.round(window.innerHeight * 0.9), cur + dir * 90));
+      el.style.height = h + "px";
+      calLsSet(CAL_WEEK_KEYS[id], String(h));
+    }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".cal-zoom [data-zoom]");
+    if (!b) return;
+    calZoom(b.closest(".cal-zoom").dataset.calZoom, parseInt(b.dataset.zoom, 10));
+  });
+  // σύρσιμο γωνίας στην Εβδομάδα των Υπενθυμίσεων — θυμάται όπως του Προγράμματος
+  (function initNotesWeekResize(){
+    const el = document.getElementById("notes-week");
+    if (!el || typeof ResizeObserver !== "function") return;
+    let timer = null;
+    new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (el.classList.contains("hidden") || isPhoneCal()) return;
+        const cur = Math.round(el.getBoundingClientRect().height);
+        if (cur >= 200) calLsSet(CAL_WEEK_KEYS["notes-week"], String(cur));
+      }, 400);
+    }).observe(el);
+  })();
   // πηγαίνει σε κατηγορία ΚΑΙ ενημερώνει το πλαϊνό μενού (το χρησιμοποιούν τα πλακίδια)
   function goToView(view){
     const item = $(`.nav-item[data-view="${view}"]`);
@@ -4664,7 +4746,7 @@
       <div class="sched-visit ${r.done ? "nt-done" : ""}">
         <div class="sched-time">${r.note_time ? r.note_time.slice(0,5) : "📝"}</div>
         <div class="sched-info"><strong>${r.done ? "✓ " : ""}${escapeHtml(r.title)}</strong>
-          <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Ραντεβού${cat ? " · " + escapeHtml(cat.name) : ""}</span>
+          <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Υπενθύμιση${cat ? " · " + escapeHtml(cat.name) : ""}</span>
           ${r.clients ? `<div class="cell-sub">${escapeHtml(clientLabel(r.clients))}</div>` : ""}
         </div>
         <div class="sched-tech">—</div>
@@ -4780,6 +4862,9 @@
     else await renderScheduleList();
     // μετά το render, ώστε το κλειστό πλέγμα να μένει κλειστό και σε αλλαγή εβδομάδας
     applyWeekCollapsed();
+    const zoomBox = document.querySelector('.cal-zoom[data-cal-zoom="schedule"]');
+    if (zoomBox) zoomBox.classList.toggle("hidden", !(mode === "month" || mode === "week"));
+    applyCalSizes();
   }
 
   async function renderScheduleCalendar(){
@@ -5031,7 +5116,7 @@
   async function fetchNotes(fromISO, toISO){
     let q = sb.from("notes")
       .select("id, note_date, note_time, title, body, category_id, client_id, assigned_to, done, remind_minutes, clients(name, trade_name)")
-      .order("note_date").order("note_time", { ascending:true, nullsFirst:true });
+      .order("note_date", { ascending:true, nullsFirst:true }).order("note_time", { ascending:true, nullsFirst:true });
     if (fromISO) q = q.gte("note_date", fromISO);
     if (toISO)   q = q.lte("note_date", toISO);
     if (NOTE_CAT_FILTER)  q = q.eq("category_id", NOTE_CAT_FILTER);
@@ -5070,14 +5155,17 @@
     $("#note-legend").innerHTML = NOTE_CATS
       .map(c => `<span><span class="cal-dot nt-${c.color}"></span>${escapeHtml(c.name)}</span>`).join("");
 
+    // Ver 3.5: ΠΡΩΤΑ η λίστα (πάντα ορατή, με τις υπενθυμίσεις χωρίς ημερομηνία),
+    // ΜΕΤΑ το ημερολόγιο (Μήνας/Εβδομάδα) και η μέρα.
+    if (NOTE_MODE !== "month" && NOTE_MODE !== "week") NOTE_MODE = "month";
+    $$("#note-mode .chip").forEach(c => c.classList.toggle("active", c.dataset.nmode === NOTE_MODE));
     $("#notes-calendar").classList.toggle("hidden", NOTE_MODE !== "month");
     $("#notes-week").classList.toggle("hidden", NOTE_MODE !== "week");
-    $("#notes-day-panel").classList.toggle("hidden", NOTE_MODE === "list");
-    $("#notes-list-wrap").classList.toggle("hidden", NOTE_MODE !== "list");
 
+    await renderNotesList();
     if (NOTE_MODE === "month") await renderNotesMonth();
-    else if (NOTE_MODE === "week") await renderNotesWeek();
-    else await renderNotesList();
+    else await renderNotesWeek();
+    applyCalSizes();
   }
 
   function groupNotesByDay(rows){
@@ -5154,7 +5242,7 @@
         const chip = e.target.closest("[data-note-id]");
         if (chip) { openNoteDrawer(chip.dataset.noteId); return; }
         NOTE_SELECTED = el.dataset.nday;
-        loadNotes();
+        if (NOTE_MODE === "week") renderNotesWeek(); else renderNotesMonth();
       });
     });
   }
@@ -5165,7 +5253,9 @@
     const client = n.clients ? (clientLabel(n.clients)) : "";
     return `
       <div class="note-row ${n.done ? "nt-done" : ""}" data-note-id="${n.id}">
-        <div class="note-date">${new Date(n.note_date + "T00:00:00").toLocaleDateString("el-GR",{day:"2-digit",month:"2-digit",year:"2-digit"})}${n.note_time ? "<br>" + n.note_time.slice(0,5) : ""}</div>
+        <div class="note-date">${n.note_date
+          ? new Date(n.note_date + "T00:00:00").toLocaleDateString("el-GR",{day:"2-digit",month:"2-digit",year:"2-digit"}) + (n.note_time ? "<br>" + n.note_time.slice(0,5) : "")
+          : '<span class="cell-sub">χωρίς<br>ημ/νία</span>'}</div>
         <div class="note-main">
           <strong>${n.done ? "✓ " : ""}${n.remind_minutes != null ? "🔔 " : ""}${escapeHtml(n.title)}</strong>
           ${client ? `<div class="cell-sub">${escapeHtml(client)}</div>` : ""}
@@ -5181,18 +5271,27 @@
     const body = $("#notes-day-body");
     body.innerHTML = items.length
       ? `<div style="padding:0 20px;">${items.map(noteRowHtml).join("")}</div>`
-      : '<div class="empty-state">Κανένα ραντεβού αυτή τη μέρα.</div>';
+      : '<div class="empty-state">Καμία υπενθύμιση αυτή τη μέρα.</div>';
     bindNoteRows(body);
   }
 
+  // Η λίστα: χωρίς ημερομηνία → επόμενες (από σήμερα) → παλαιότερες (κλειστές).
   async function renderNotesList(){
-    $("#note-title").textContent = "Όλα τα ραντεβού";
     const { rows, error } = await fetchNotes(null, null);
     if (error) { showMsg($("#notes-msg"), "Σφάλμα φόρτωσης: " + error.message, "error"); return; }
+    const today = isoDay(new Date());
+    const undated = rows.filter(n => !n.note_date);
+    const upcoming = rows.filter(n => n.note_date && n.note_date >= today);
+    const past = rows.filter(n => n.note_date && n.note_date < today).reverse();
+    const group = (title, list, open) => list.length ? `
+      <details class="note-group" ${open ? "open" : ""}>
+        <summary>${title} <span class="cell-sub">(${list.length})</span></summary>
+        ${list.map(noteRowHtml).join("")}
+      </details>` : "";
     const box = $("#note-items-list");
     box.innerHTML = rows.length
-      ? rows.map(noteRowHtml).join("")
-      : '<div class="empty-state">Κανένα ραντεβού ακόμα.</div>';
+      ? group("Χωρίς ημερομηνία", undated, true) + group("Επόμενες", upcoming, true) + group("Παλαιότερες", past, false)
+      : '<div class="empty-state">Καμία υπενθύμιση ακόμα. Πάτα «+ Νέα υπενθύμιση».</div>';
     bindNoteRows(box);
     renderNoteCats();
   }
@@ -5216,7 +5315,7 @@
       : '<div class="cell-sub">Καμία κατηγορία ακόμα.</div>';
     box.querySelectorAll("[data-ncat-del]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Να διαγραφεί η κατηγορία; Τα ραντεβού της παραμένουν, απλώς μένουν χωρίς κατηγορία.")) return;
+        if (!confirm("Να διαγραφεί η κατηγορία; Οι υπενθυμίσεις της παραμένουν, απλώς μένουν χωρίς κατηγορία.")) return;
         const { error } = await sb.from("note_categories").delete().eq("id", btn.dataset.ncatDel);
         if (error) { showMsg($("#note-cats-msg"), "Σφάλμα: " + error.message, "error"); return; }
         await loadNoteCategories();
@@ -5239,24 +5338,25 @@
     if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
     if (NOTE_CATS.length === 0) await loadNoteCategories();
 
-    let n = { note_date: NOTE_SELECTED, note_time:"", title:"", body:"",
+    // νέα υπενθύμιση: ΧΩΡΙΣ προσυμπληρωμένη ημερομηνία — είναι προαιρετική (schema_v47)
+    let n = { note_date: "", note_time:"", title:"", body:"",
               category_id:"", client_id:"", assigned_to:"", done:false, remind_minutes:null };
     if (noteId) {
       const { data, error } = await sb.from("notes").select("*").eq("id", noteId).single();
-      if (error || !data) { alert("Δεν άνοιξε το ραντεβού: " + (error ? error.message : "δεν βρέθηκε.")); return; }
+      if (error || !data) { alert("Δεν άνοιξε η υπενθύμιση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
       n = data;
     }
 
     const clientOptions = `<option value="">— Χωρίς πελάτη —</option>` +
       CLIENTS_CACHE.map(c => `<option value="${c.id}" ${n.client_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
 
-    openDrawer(noteId ? "Ραντεβού" : "Νέο ραντεβού", `
+    openDrawer(noteId ? "Υπενθύμιση" : "Νέα υπενθύμιση", `
       <div id="note-msg"></div>
       <div class="form-row">
-        <div class="field"><label>Ημερομηνία *</label><input type="date" id="nt-date" value="${n.note_date || ""}" required></div>
+        <div class="field"><label id="nt-date-label">Ημερομηνία${n.remind_minutes != null ? " *" : ""}</label><input type="date" id="nt-date" value="${n.note_date || ""}"></div>
         <div class="field"><label>Ώρα</label><input type="time" id="nt-time" value="${n.note_time ? n.note_time.slice(0,5) : ""}"></div>
       </div>
-      <div class="field"><label>Τίτλος *</label><input id="nt-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Ραντεβού με τον λογιστή" required></div>
+      <div class="field"><label>Τίτλος *</label><input id="nt-title" value="${escapeHtml(n.title || "")}" placeholder="π.χ. Να πάρω τηλέφωνο τον λογιστή" required></div>
       <div class="field"><label>Σημειώσεις</label><textarea id="nt-body" style="min-height:80px;">${escapeHtml(n.body || "")}</textarea></div>
       <div class="form-row">
         <div class="field"><label>Κατηγορία</label>
@@ -5312,7 +5412,7 @@
             ${NOTE_REMIND_CHOICES.map(([v,l]) =>
               `<option value="${v}" ${String(n.remind_minutes) === String(v) ? "selected" : ""}>${l}</option>`).join("")}
           </select>
-          <span class="cell-sub">Αν το ραντεβού δεν έχει ώρα, μετράει από τις 09:00.</span>
+          <span class="cell-sub">Θέλει ημερομηνία. Αν δεν έχει ώρα, μετράει από τις 09:00.</span>
         </div>
       </div>
       <div class="field">
@@ -5400,14 +5500,22 @@
     });
 
     $("#nt-remind").addEventListener("change", () => {
-      $("#nt-remind-when").classList.toggle("hidden", !$("#nt-remind").checked);
+      const on = $("#nt-remind").checked;
+      $("#nt-remind-when").classList.toggle("hidden", !on);
+      // ημερομηνία υποχρεωτική ΜΟΝΟ με push (schema_v47)
+      $("#nt-date-label").textContent = "Ημερομηνία" + (on ? " *" : "");
+      if (on && !$("#nt-date").value) $("#nt-date").focus();
     });
 
     // --- αποθήκευση / διαγραφή ---
     $("#nt-save").addEventListener("click", async () => {
       const title = $("#nt-title").value.trim();
-      const date = $("#nt-date").value;
-      if (!title || !date) { showMsg($("#note-msg"), "Συμπλήρωσε ημερομηνία και τίτλο.", "error"); return; }
+      const date = $("#nt-date").value || null;
+      if (!title) { showMsg($("#note-msg"), "Συμπλήρωσε τίτλο.", "error"); return; }
+      if ($("#nt-remind").checked && !date) {
+        showMsg($("#note-msg"), "Για υπενθύμιση με push χρειάζεται ημερομηνία — αλλιώς δεν ξέρουμε πότε να τη στείλουμε.", "error");
+        $("#nt-date").focus(); return;
+      }
       const btn = $("#nt-save");
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
       const payload = {
@@ -5426,14 +5534,14 @@
         : await sb.from("notes").insert(payload);
       btn.disabled = false; btn.textContent = "Αποθήκευση";
       if (error) { showMsg($("#note-msg"), "Σφάλμα: " + error.message, "error"); return; }
-      NOTE_SELECTED = date;
+      if (date) NOTE_SELECTED = date;
       closeDrawer();
       await loadNotes();
     });
 
     const delBtn = $("#nt-delete");
     if (delBtn) delBtn.addEventListener("click", async () => {
-      if (!confirm("Να διαγραφεί το ραντεβού;")) return;
+      if (!confirm("Να διαγραφεί η υπενθύμιση;")) return;
       const { error } = await sb.from("notes").delete().eq("id", noteId);
       if (error) { showMsg($("#note-msg"), "Σφάλμα: " + error.message, "error"); return; }
       closeDrawer();
