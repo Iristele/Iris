@@ -646,6 +646,11 @@
   .sched-order{display:flex;gap:4px;flex:none;}
   .sched-leave{background:var(--blue-bg);border-color:transparent;}
   .sched-leave .sched-info strong{color:var(--blue);}
+  /* Ver 3.6: λήξη σύμβασης μέσα στο Πρόγραμμα — κόκκινο «danger» */
+  .cal-ev.contract{background:var(--red-bg);color:var(--red);font-weight:600;box-shadow:inset 0 0 0 1px var(--red-dot);}
+  .cal-dot.contract{background:var(--red-dot);}
+  .sched-contract{background:var(--red-bg);border-color:transparent;cursor:pointer;}
+  .sched-contract .sched-info strong{color:var(--red);}
   /* γραμμή φίλτρων: σε κινητό το υπόμνημα πέφτει σε δική του σειρά αντί να κόβεται δεξιά */
   .sched-filters{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:0 18px 12px;}
   .sched-filters label{display:flex;align-items:center;gap:7px;font-size:13px;margin:0;
@@ -989,6 +994,7 @@
           <label><input type="checkbox" id="sched-filter-tickets" checked> Βλάβες</label>
           <label><input type="checkbox" id="sched-filter-leaves" checked> Άδειες</label>
           <label><input type="checkbox" id="sched-filter-notes" checked> Υπενθυμίσεις</label>
+          <label id="sched-filter-contracts-wrap" class="hidden"><input type="checkbox" id="sched-filter-contracts" checked> ⚠ Λήξεις συμβάσεων</label>
           <select id="sched-filter-office" class="hidden" style="font-size:13px;max-width:200px;width:auto;">
             <option value="">Όλοι οι διαχειριστές</option>
           </select>
@@ -1307,7 +1313,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.5";
+  const APP_VERSION = "Ver 3.6";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1316,7 +1322,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260929a";
+  const APP_BUILD = "20260930a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2330,6 +2336,57 @@
     }
   }, 30000);
 
+  // ================= ΣΤΙΓΜΑ ΠΕΛΑΤΗ (schema_v48) =================
+  // Το γραφείο βάζει πινέζα στην καρτέλα πελάτη· ο τεχνικός πατάει «Πλοήγηση» και
+  // ανοίγει ο Google Maps με οδηγίες μέχρι εκεί (στο κινητό, στην εφαρμογή Maps).
+  function navUrl(lat, lng){ return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`; }
+  async function initClientGeoPicker(client){
+    const el = document.getElementById("cl-geo-map");
+    if (!el) return;
+    const latIn = $("#cl-geo-lat"), lngIn = $("#cl-geo-lng"), msg = $("#cl-geo-msg");
+    let L;
+    try { L = await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="cell-sub" style="padding:8px;">Δεν φόρτωσε ο χάρτης.</div>'; return; }
+    if (!document.body.contains(el)) return;
+    const map = newMap(L, el);
+    let marker = null;
+    const setPin = (lat, lng, zoom) => {
+      latIn.value = lat.toFixed(6); lngIn.value = lng.toFixed(6);
+      if (!marker) {
+        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        marker.on("dragend", () => { const p = marker.getLatLng(); setPin(p.lat, p.lng); });
+      } else marker.setLatLng([lat, lng]);
+      if (zoom) map.setView([lat, lng], zoom);
+      msg.innerHTML = `Στίγμα: ${lat.toFixed(5)}, ${lng.toFixed(5)} · <a href="${navUrl(lat, lng)}" target="_blank" rel="noopener">δοκιμή πλοήγησης</a> — θα σωθεί με την «Αποθήκευση».`;
+    };
+    if (client.geo_lat != null && client.geo_lng != null) setPin(client.geo_lat, client.geo_lng, 16);
+    else { map.setView([40.64, 22.94], 11); msg.textContent = "Δεν έχει στίγμα ακόμα."; }
+    setTimeout(() => map.invalidateSize(), 80);
+    map.on("click", (e) => setPin(e.latlng.lat, e.latlng.lng));
+    $("#cl-geo-clear").addEventListener("click", () => {
+      if (marker) { map.removeLayer(marker); marker = null; }
+      latIn.value = ""; lngIn.value = "";
+      msg.textContent = "Το στίγμα θα αφαιρεθεί με την «Αποθήκευση».";
+    });
+    $("#cl-geo-here").addEventListener("click", async () => {
+      msg.textContent = "Εντοπισμός…";
+      const pos = await getGeoPosition();
+      if (!pos) { msg.textContent = "Δεν δόθηκε τοποθεσία από τη συσκευή."; return; }
+      setPin(pos.lat, pos.lng, 17);
+    });
+    $("#cl-geo-address").addEventListener("click", async () => {
+      const q = [$("#cl-address").value.trim(), $("#cl-city").value.trim(), "Ελλάδα"].filter(Boolean).join(", ");
+      if (!$("#cl-address").value.trim()) { msg.textContent = "Γράψε πρώτα διεύθυνση."; return; }
+      msg.textContent = "Αναζήτηση διεύθυνσης…";
+      try {
+        const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=el&q=" + encodeURIComponent(q));
+        const arr = await res.json();
+        if (!arr || !arr.length) { msg.textContent = "Δεν βρέθηκε η διεύθυνση — βάλε την πινέζα με το χέρι πάνω στον χάρτη."; return; }
+        setPin(parseFloat(arr[0].lat), parseFloat(arr[0].lon), 17);
+        msg.innerHTML += " <br>Έλεγξέ τη — αν δεν είναι ακριβώς εκεί, σύρε την πινέζα.";
+      } catch (e) { msg.textContent = "Η αναζήτηση απέτυχε — βάλε την πινέζα με το χέρι."; }
+    });
+  }
+
   // ================= ΘΕΣΗ ΤΕΧΝΙΚΟΥ «LIVE» (schema_v46) =================
   // Όσο ο τεχνικός έχει ΑΝΟΙΧΤΗ επίσκεψη και το Iris ανοιχτό στο κινητό, στέλνουμε
   // τη θέση του κάθε ~1 λεπτό. Μόλις κάνει check-out, σταματά — και η βάση ΔΕΝ
@@ -2769,11 +2826,13 @@
       ["Σημειώσεις", client.notes]
     ].filter(([, v]) => v && String(v).trim());
 
+    const hasPin = client.geo_lat != null && client.geo_lng != null;
     const telHtml = client.phone
       ? `<a class="btn-primary btn-sm" href="tel:${escapeHtml(String(client.phone).replace(/\s+/g, ""))}" style="text-decoration:none;">📞 Κλήση</a>` : "";
     const mapQuery = [client.address, client.city].filter(Boolean).join(" ");
-    const mapHtml = mapQuery
-      ? `<a class="btn-sm btn-ghost" href="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}" target="_blank" rel="noopener" style="text-decoration:none;">🗺 Χάρτης</a>` : "";
+    const mapHtml = hasPin
+      ? `<a class="btn-primary btn-sm" href="${navUrl(client.geo_lat, client.geo_lng)}" target="_blank" rel="noopener" style="text-decoration:none;">🧭 Πλοήγηση</a>`
+      : (mapQuery ? `<a class="btn-sm btn-ghost" href="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}" target="_blank" rel="noopener" style="text-decoration:none;">🗺 Χάρτης</a>` : "");
 
     const raHtml = (ra || []).length
       ? (ra || []).map(r => `<div class="vlog-row"><strong>${escapeHtml(r.label || "—")}</strong>
@@ -2800,6 +2859,8 @@
       ${client.trade_name && client.name && client.trade_name !== client.name
         ? `<p class="cell-sub" style="margin:0 0 10px;">${escapeHtml(client.name)}</p>` : '<div style="height:8px;"></div>'}
       ${(telHtml || mapHtml) ? `<div style="display:flex;gap:8px;margin-bottom:12px;">${telHtml}${mapHtml}</div>` : ""}
+      ${hasPin ? `<div id="ci-geo-map" class="live-map" style="height:200px;cursor:pointer;" title="Πάτα για πλοήγηση"></div>
+        <p class="cell-sub" style="margin:2px 0 10px;">Πάτα τον χάρτη για πλοήγηση μέχρι τον πελάτη.</p>` : ""}
       <div class="section-title">Στοιχεία</div>
       ${rows.map(([k, v]) => `<div class="note-item"><div class="note-meta">${escapeHtml(k)}</div>
         <div style="font-size:13.5px;">${escapeHtml(String(v))}</div></div>`).join("")}
@@ -2813,6 +2874,18 @@
     $$("[data-ci-ticket]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.ciTicket, false));
     });
+    if (hasPin) {
+      const mEl = document.getElementById("ci-geo-map");
+      loadLeaflet().then(L => {
+        if (!document.body.contains(mEl)) return;
+        const m = newMap(L, mEl);
+        m.setView([client.geo_lat, client.geo_lng], 16);
+        L.marker([client.geo_lat, client.geo_lng]).addTo(m);
+        const go = () => window.open(navUrl(client.geo_lat, client.geo_lng), "_blank", "noopener");
+        m.on("click", go);
+        setTimeout(() => m.invalidateSize(), 80);
+      }).catch(() => { mEl.classList.add("hidden"); });
+    }
   }
 
   async function openClientDrawer(clientId){
@@ -2978,6 +3051,18 @@
           <div class="field"><label>Διεύθυνση</label><input id="cl-address" value="${escapeHtml(client.address || "")}"></div>
           <div class="field"><label>Πόλη</label><select id="cl-city">${cityOptionsHtml(client.city)}</select></div>
         </div>
+        <div class="field">
+          <label>Στίγμα στον χάρτη <span class="cell-sub" style="font-weight:400;">— πάτα πάνω στον χάρτη ή σύρε την πινέζα</span></label>
+          <input type="hidden" id="cl-geo-lat" value="${client.geo_lat != null ? client.geo_lat : ""}">
+          <input type="hidden" id="cl-geo-lng" value="${client.geo_lng != null ? client.geo_lng : ""}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <button type="button" class="btn-sm btn-ghost" id="cl-geo-address">🔎 Από τη διεύθυνση</button>
+            <button type="button" class="btn-sm btn-ghost" id="cl-geo-here">📍 Η θέση μου τώρα</button>
+            <button type="button" class="btn-sm btn-ghost" id="cl-geo-clear" style="color:var(--red);">✕ Αφαίρεση</button>
+          </div>
+          <div id="cl-geo-map" class="live-map" style="height:240px;"></div>
+          <div id="cl-geo-msg" class="cell-sub" style="margin-top:4px;"></div>
+        </div>
         <div class="form-row">
           <div class="field"><label>Υπεύθυνος επικοινωνίας</label><input id="cl-contact" value="${escapeHtml(client.contact || "")}"></div>
           <div class="field"><label>Τηλέφωνο</label><input id="cl-phone" value="${escapeHtml(client.phone || "")}"></div>
@@ -3013,6 +3098,7 @@
         </div>
       </form>
     `);
+    initClientGeoPicker(client);
 
 
     async function setClientStatus(newStatus){
@@ -3203,7 +3289,9 @@
         contact: $("#cl-contact").value.trim() || null,
         phone: $("#cl-phone").value.trim() || null,
         email: $("#cl-email").value.trim() || null,
-        notes: $("#cl-notes").value.trim() || null
+        notes: $("#cl-notes").value.trim() || null,
+        geo_lat: $("#cl-geo-lat").value !== "" ? parseFloat($("#cl-geo-lat").value) : null,
+        geo_lng: $("#cl-geo-lng").value !== "" ? parseFloat($("#cl-geo-lng").value) : null
       };
       let savedId = clientId;
       let err;
@@ -3506,8 +3594,7 @@
     const assigneeSelect = $("#tkf-assignee");
     assigneeSelect.classList.toggle("hidden", isFieldRole);
     if (!isFieldRole && assigneeSelect.dataset.populated !== "1") {
-      assigneeSelect.innerHTML = '<option value="">Ανάθεση σε — Όλοι</option>' +
-        STAFF_USERS_CACHE.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)} (${ROLE_LABEL[u.role] || u.role})</option>`).join("");
+      assigneeSelect.innerHTML = '<option value="">Ανάθεση σε — Όλοι</option>' + assigneeOptionsHtml();
       assigneeSelect.dataset.populated = "1";
       assigneeSelect.value = TICKET_ASSIGNEE_FILTER || "";
     }
@@ -3834,7 +3921,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number, email), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number, email, geo_lat, geo_lng), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -4023,6 +4110,7 @@
           : `<strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>`
         }${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
       ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
+      ${(!portalMode && t.clients && t.clients.geo_lat != null) ? `<p style="margin:-2px 0 8px;"><a class="btn-sm btn-ghost" href="${navUrl(t.clients.geo_lat, t.clients.geo_lng)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">🧭 Πλοήγηση στον πελάτη</a></p>` : ""}
       ${(!portalMode && t.client_id) ? `
         <div class="vat-box">
           <span class="cell-sub">ΑΦΜ:</span>
@@ -4562,6 +4650,7 @@
   let SCHEDULE_TECH_FILTER = "";
   let SCHEDULE_OFFICE_FILTER = "";   // υπεύθυνος γραφείου (schema_v35)
   let SCHEDULE_SHOW_NOTES = true;    // σημειώσεις μέσα στο πρόγραμμα (schema_v36)
+  let SCHEDULE_SHOW_CONTRACTS = true; // λήξεις συμβάσεων, μόνο γραφείο (Ver 3.6)
   // Άδειο σύνολο = καμία επιλογή = δείξε τα πάντα (πιο απλό από το να τα τσεκάρεις όλα)
   let SCHEDULE_STATUS_FILTER = new Set();
 
@@ -4613,7 +4702,11 @@
         const extraIds = await myExtraTicketIds();
         q = extraIds.length ? q.or(`assigned_to.eq.${USER.id},id.in.(${extraIds.join(",")})`) : q.eq("assigned_to", USER.id);
       }
-      else if (SCHEDULE_TECH_FILTER) q = q.eq("assigned_to", SCHEDULE_TECH_FILTER);
+      else if (SCHEDULE_TECH_FILTER) {
+        // κύριος ΚΑΙ επιπλέον τεχνικός — ίδια λογική με τις Βλάβες
+        const extraIds2 = await extraTicketIdsFor(SCHEDULE_TECH_FILTER);
+        q = extraIds2.length ? q.or(`assigned_to.eq.${SCHEDULE_TECH_FILTER},id.in.(${extraIds2.join(",")})`) : q.eq("assigned_to", SCHEDULE_TECH_FILTER);
+      }
       q = applyOfficeFilter(q, SCHEDULE_OFFICE_FILTER);
       if (SCHEDULE_STATUS_FILTER.size) q = q.in("status", [...SCHEDULE_STATUS_FILTER]);
       const { data, error } = await q;
@@ -4637,6 +4730,22 @@
       if (NOTE_CATS.length === 0) await loadNoteCategories();
       (noteRows || []).forEach(n => {
         (byDay[n.note_date] = byDay[n.note_date] || []).push({ __note:true, ...n });
+      });
+    }
+
+    // Λήξεις συμβάσεων (Ver 3.6 / schema_v48) — ΜΟΝΟ στο γραφείο (owner/reception).
+    // Μπαίνουν ΠΡΩΤΕΣ στη μέρα, με το κόκκινο τρίγωνο ⚠, και ανοίγουν την καρτέλα πελάτη.
+    if (SCHEDULE_SHOW_CONTRACTS && PROFILE && !isFieldRole) {
+      let cq = sb.from("client_contracts")
+        .select("id, client_id, name, until_date, clients(name, trade_name)")
+        .not("until_date", "is", null)
+        .order("until_date");
+      if (fromISO) cq = cq.gte("until_date", fromISO);
+      if (toISO)   cq = cq.lte("until_date", toISO);
+      const { data: ctRows, error: ctErr } = await cq;
+      if (ctErr) return { error: ctErr };
+      (ctRows || []).slice().reverse().forEach(c => {
+        (byDay[c.until_date] = byDay[c.until_date] || []).unshift({ __contract:true, ...c });
       });
     }
 
@@ -4736,8 +4845,21 @@
     return (c.trade_name && c.trade_name.trim()) || c.name || "";
   }
 
+  // Chip για τα πλέγματα Μήνα/Εβδομάδας: λήξη σύμβασης (Ver 3.6)
+  function contractChipHtml(c){
+    return `<div class="cal-ev contract" title="Λήξη σύμβασης">${APPT_ICON_SVG}Λήξη: ${escapeHtml(clientLabel(c.clients) || "—")} — ${escapeHtml(c.name || "")}</div>`;
+  }
+
   function scheduleEntryHtml(r, opts){
     opts = opts || {};
+    if (r.__contract) return `
+      <div class="sched-visit sched-contract" data-contract-client="${r.client_id}" title="Άνοιγμα καρτέλας πελάτη">
+        <div class="sched-time">${APPT_ICON_SVG}</div>
+        <div class="sched-info"><strong>Λήξη σύμβασης: ${escapeHtml(r.name || "")}</strong>
+          <div class="cell-sub">${escapeHtml(clientLabel(r.clients) || "—")}</div>
+        </div>
+        <div class="sched-tech">λήγει</div>
+      </div>`;
     // Σημείωση μέσα στο Πρόγραμμα (schema_v36) — γράφει ρητά «Σημείωση», ώστε ο
     // τεχνικός να ξεχωρίζει ότι δεν είναι βλάβη.
     if (r.__note) {
@@ -4781,12 +4903,22 @@
   // κοινή λογική για την ημερήσια προβολή ΚΑΙ τη λίστα (schema_v31).
   function dayEntriesHtml(items){
     const canReorder = canReorderSchedule();
-    const visitIds = items.filter(i => !i.__leave).map(i => i.id);
+    // μόνο οι ΒΛΑΒΕΣ μετράνε για τα ▲▼ (όχι άδειες/υπενθυμίσεις/συμβάσεις)
+    const visitIds = items.filter(i => !i.__leave && !i.__note && !i.__contract).map(i => i.id);
     return items.map(r => {
-      if (r.__leave) return scheduleEntryHtml(r);
+      if (r.__leave || r.__contract) return scheduleEntryHtml(r);
       const idx = visitIds.indexOf(r.id);
       return scheduleEntryHtml(r, { canReorder, isFirst: idx === 0, isLast: idx === visitIds.length - 1 });
     }).join("");
+  }
+
+  function bindScheduleContractClicks(container){
+    container.querySelectorAll(".sched-visit[data-contract-client]").forEach(el => {
+      el.addEventListener("click", async () => {
+        if (CLIENTS_CACHE.length === 0) await loadClients();
+        openClientDrawer(el.dataset.contractClient);
+      });
+    });
   }
 
   function bindScheduleOrderButtons(container){
@@ -4815,14 +4947,15 @@
     const techSelect = $("#sched-filter-tech");
     techSelect.classList.toggle("hidden", isFieldRole);
     if (!isFieldRole && techSelect.dataset.populated !== "1") {
-      const techs = STAFF_USERS_CACHE.filter(u => FIELD_ROLES.has(u.role));
-      techSelect.innerHTML = '<option value="">Όλοι οι τεχνικοί</option>' +
-        techs.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)}</option>`).join("");
+      // Ver 3.6: ΟΛΟΙ όσοι παίρνουν ανάθεση — ΚΑΙ οι διαχειριστές (πριν έβγαιναν
+      // μόνο τεχνικοί/συνεργάτες, οπότε δεν έβλεπες τις δικές σου). Εσύ πρώτος.
+      techSelect.innerHTML = '<option value="">Ανάθεση σε — Όλοι</option>' + assigneeOptionsHtml();
       techSelect.dataset.populated = "1";
     }
     // Υπεύθυνος γραφείου — ίδιο μοτίβο, ορατό μόνο στο γραφείο
     const officeSelect = $("#sched-filter-office");
     officeSelect.classList.toggle("hidden", isFieldRole);
+    $("#sched-filter-contracts-wrap").classList.toggle("hidden", isFieldRole);
     if (!isFieldRole && officeSelect.dataset.populated !== "1") {
       officeSelect.innerHTML = officeOwnerOptions("", "Όλοι οι διαχειριστές");
       officeSelect.dataset.populated = "1";
@@ -4888,13 +5021,17 @@
     for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
       const key = isoDay(d);
       const items = byDay[key] || [];
-      const visits = items.filter(i => !i.__leave), leaves = items.filter(i => i.__leave);
-      const shown = items.slice(0, 3).map(i => i.__leave
+      const visits = items.filter(i => !i.__leave && !i.__contract), leaves = items.filter(i => i.__leave);
+      const contracts = items.filter(i => i.__contract);
+      const shown = items.slice(0, 3).map(i => i.__contract
+        ? contractChipHtml(i)
+        : i.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(i.who)}</div>`
         : i.__note
         ? `<div class="cal-ev ${noteColorClass(i)}">📝 ${i.note_time ? i.note_time.slice(0,5) + " " : ""}${escapeHtml(i.title)}</div>`
         : `<div class="cal-ev ${calStatusClass(i)}">${apptMarkHtml(i)}${STATUS_ICON[i.status] || ""}${i.scheduled_time ? i.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(i.clients) || i.title)}</div>`).join("");
-      const dots = [...visits.slice(0,4).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
+      const dots = [...contracts.slice(0,2).map(() => '<span class="cal-dot contract"></span>'),
+                    ...visits.slice(0,4).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const isSunday = d.getDay() === 0;
       const closed = closedDayName(key);
@@ -4933,6 +5070,7 @@
     body.querySelectorAll(".sched-visit[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
+    bindScheduleContractClicks(body);
     bindScheduleOrderButtons(body);
   }
 
@@ -4950,13 +5088,17 @@
     for (let d = new Date(weekStart), i=0; i<7; d.setDate(d.getDate()+1), i++) {
       const key = isoDay(d);
       const items = byDay[key] || [];
-      const visits = items.filter(x => !x.__leave), leaves = items.filter(x => x.__leave);
-      const shown = items.map(x => x.__leave
+      const visits = items.filter(x => !x.__leave && !x.__contract), leaves = items.filter(x => x.__leave);
+      const contracts = items.filter(x => x.__contract);
+      const shown = items.map(x => x.__contract
+        ? contractChipHtml(x)
+        : x.__leave
         ? `<div class="cal-ev leave">🌴 ${escapeHtml(x.who)}</div>`
         : x.__note
         ? `<div class="cal-ev ${noteColorClass(x)}">📝 ${x.note_time ? x.note_time.slice(0,5) + " " : ""}${escapeHtml(x.title)}</div>`
         : `<div class="cal-ev ${calStatusClass(x)}">${apptMarkHtml(x)}${STATUS_ICON[x.status] || ""}${x.scheduled_time ? x.scheduled_time.slice(0,5) + " " : ""}${escapeHtml(clientLabel(x.clients) || x.title)}</div>`).join("");
-      const dots = [...visits.slice(0,6).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
+      const dots = [...contracts.slice(0,2).map(() => '<span class="cal-dot contract"></span>'),
+                    ...visits.slice(0,6).map(v => `<span class="cal-dot ${v.__note ? noteColorClass(v) : calStatusClass(v)}"></span>`),
                     ...leaves.slice(0,2).map(() => '<span class="cal-dot leave"></span>')].join("");
       const closed = closedDayName(key);
       cells += `
@@ -5001,6 +5143,7 @@
     list.querySelectorAll(".sched-visit[data-id]").forEach(el => {
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
+    bindScheduleContractClicks(list);
     bindScheduleOrderButtons(list);
   }
 
@@ -5063,12 +5206,26 @@
     SCHEDULE_SHOW_NOTES = $("#sched-filter-notes").checked;
     loadSchedule();
   });
+  $("#sched-filter-contracts").addEventListener("change", () => {
+    SCHEDULE_SHOW_CONTRACTS = $("#sched-filter-contracts").checked;
+    loadSchedule();
+  });
   $("#sched-filter-office").addEventListener("change", () => {
     SCHEDULE_OFFICE_FILTER = $("#sched-filter-office").value;
     loadSchedule();
   });
 
   // ================= STAFF USERS (for the ticket "Ανάθεση σε" picker — everyone) =================
+  // Επιλογές για τα φίλτρα «Ανάθεση σε» (Βλάβες + Πρόγραμμα): όλοι οι αναθέσιμοι
+  // (διαχειριστές, τεχνικοί, συνεργάτες), ο τρέχων χρήστης πρώτος ως «(εγώ)».
+  function assigneeOptionsHtml(){
+    const me = USER ? USER.id : null;
+    const list = STAFF_USERS_CACHE.slice().sort((a, b) =>
+      (a.id === me ? -1 : b.id === me ? 1 : 0) ||
+      String(a.full_name || a.email).localeCompare(String(b.full_name || b.email), "el"));
+    return list.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.email)} — ${u.id === me ? "εγώ" : (ROLE_LABEL[u.role] || u.role)}</option>`).join("");
+  }
+
   async function loadStaffUsers(){
     // deleted_at is null -> ένας διαγραμμένος (schema_v29) λογαριασμός δεν πρέπει να
     // εμφανίζεται πουθενά ως επιλογή για ανάθεση (ούτε κύρια ούτε επιπλέον τεχνικός).
