@@ -1313,7 +1313,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.6";
+  const APP_VERSION = "Ver 3.7";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1322,7 +1322,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20260930a";
+  const APP_BUILD = "20261022a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -1341,6 +1341,9 @@
   let CLIENTS_CACHE = [];        // for the ticket-creation client picker
   let TICKET_STATUS_FILTER = "all";
   let STAFF_USERS_CACHE = [];    // owner/staff/external profiles, for the ticket "Ανάθεση σε" picker
+  // Ver 3.7: ΟΛΟ το προσωπικό ΜΑΖΙ με τη reception — για τις άδειες (οθόνη «Τεχνικοί»,
+  // ονόματα αδειών στο Πρόγραμμα). Η reception ΔΕΝ μπαίνει στις λίστες ανάθεσης.
+  let TEAM_USERS_CACHE = [];
   let NOTIF_POLL_STARTED = false;
   // roles that do field visits and therefore get a "only my own" filtered view
   // of Αιτήματα/Πρόγραμμα, plus auto-assignment of tickets they create.
@@ -2111,8 +2114,9 @@
       $("#nav-dashboard").classList.toggle("hidden", !isOwnerRole);
       $("#nav-clients").classList.toggle("hidden", !isOwnerRole);
       $("#nav-tickets-label").textContent = isBackOffice ? "Βλάβες" : "Οι εργασίες μου";
-      // reception doesn't do field visits, so it has no place in the technicians/leave screen
-      $("#nav-technicians").classList.toggle("hidden", isReception);
+      // Ver 3.7: και η reception είναι υπάλληλος — βλέπει «Οι άδειές μου» (αίτημα/υπόλοιπο),
+      // όπως ο τεχνικός. Στις λίστες ανάθεσης βλάβης εξακολουθεί να ΜΗΝ εμφανίζεται.
+      $("#nav-technicians").classList.remove("hidden");
       $("#nav-technicians-label").textContent = isOwnerRole ? "Τεχνικοί" : "Οι άδειές μου";
       $("#notif-wrap").classList.remove("hidden");
       await refreshPushButton();
@@ -4758,7 +4762,7 @@
       const { data, error } = await lq;
       if (error) return { error };
       if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
-      const nameOf = (id) => { const u = STAFF_USERS_CACHE.find(x => x.id === id); return u ? (u.full_name || u.email) : "Τεχνικός"; };
+      const nameOf = (id) => { const u = TEAM_USERS_CACHE.find(x => x.id === id); return u ? (u.full_name || u.email) : "Υπάλληλος"; };
       (data || []).forEach(l => {
         let d = new Date(l.start_date + "T00:00:00");
         const last = new Date(l.end_date + "T00:00:00");
@@ -4865,7 +4869,7 @@
     if (r.__note) {
       const cat = noteCat(r.category_id);
       return `
-      <div class="sched-visit ${r.done ? "nt-done" : ""}">
+      <div class="sched-visit ${r.done ? "nt-done" : ""}" data-note-open="${r.id}" style="cursor:pointer;" title="Άνοιγμα υπενθύμισης">
         <div class="sched-time">${r.note_time ? r.note_time.slice(0,5) : "📝"}</div>
         <div class="sched-info"><strong>${r.done ? "✓ " : ""}${escapeHtml(r.title)}</strong>
           <span class="note-cat nt-${cat ? cat.color : "blue"}" style="margin-left:6px;">Υπενθύμιση${cat ? " · " + escapeHtml(cat.name) : ""}</span>
@@ -4910,6 +4914,17 @@
       const idx = visitIds.indexOf(r.id);
       return scheduleEntryHtml(r, { canReorder, isFirst: idx === 0, isLast: idx === visitIds.length - 1 });
     }).join("");
+  }
+
+  // Ver 3.7: κλικ σε υπενθύμιση μέσα στο Πρόγραμμα — ο διαχειριστής την επεξεργάζεται,
+  // ο ανατεθειμένος (τεχνικός/συνεργάτης) τη βλέπει ΜΟΝΟ για ανάγνωση.
+  function bindScheduleNoteClicks(container){
+    container.querySelectorAll(".sched-visit[data-note-open]").forEach(el => {
+      el.addEventListener("click", () => {
+        if (isNoteAdmin()) openNoteDrawer(el.dataset.noteOpen);
+        else openNoteViewDrawer(el.dataset.noteOpen);
+      });
+    });
   }
 
   function bindScheduleContractClicks(container){
@@ -5071,6 +5086,7 @@
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
     bindScheduleContractClicks(body);
+    bindScheduleNoteClicks(body);
     bindScheduleOrderButtons(body);
   }
 
@@ -5144,6 +5160,7 @@
       el.addEventListener("click", () => openTicketDrawer(el.dataset.id, false));
     });
     bindScheduleContractClicks(list);
+    bindScheduleNoteClicks(list);
     bindScheduleOrderButtons(list);
   }
 
@@ -5230,8 +5247,12 @@
     // deleted_at is null -> ένας διαγραμμένος (schema_v29) λογαριασμός δεν πρέπει να
     // εμφανίζεται πουθενά ως επιλογή για ανάθεση (ούτε κύρια ούτε επιπλέον τεχνικός).
     const { data, error } = await sb.from("profiles").select("id, full_name, email, role, leave_days_per_year")
-      .in("role", ["owner","staff","external"]).is("deleted_at", null).order("full_name");
-    if (!error) STAFF_USERS_CACHE = data || [];
+      .in("role", ["owner","staff","external","reception"]).is("deleted_at", null).order("full_name");
+    if (!error) {
+      TEAM_USERS_CACHE = data || [];
+      // η reception δεν κάνει επισκέψεις — μένει εκτός ανάθεσης (όπως πριν)
+      STAFF_USERS_CACHE = TEAM_USERS_CACHE.filter(u => u.role !== "reception");
+    }
   }
 
   // ================= ΣΗΜΕΙΩΣΕΙΣ / ΠΡΟΣΩΠΙΚΟ ΗΜΕΡΟΛΟΓΙΟ (schema_v36) =================
@@ -5486,6 +5507,50 @@
     picker.querySelectorAll("[data-ncolor]").forEach(b => {
       b.addEventListener("click", () => { NOTE_NEW_COLOR = b.dataset.ncolor; renderNoteCats(); });
     });
+  }
+
+  // ---- Υπενθύμιση ΜΟΝΟ για ανάγνωση (Ver 3.7) ----
+  // Για όποιον του έχει ανατεθεί (τεχνικός/συνεργάτης). Η βάση του δίνει ήδη ΜΟΝΟ
+  // ανάγνωση και ΜΟΝΟ των δικών του (RLS «assignee reads own notes», schema_v36).
+  async function openNoteViewDrawer(noteId){
+    const { data: n, error } = await sb.from("notes")
+      .select("*, clients(name, trade_name, phone, address, city, geo_lat, geo_lng)")
+      .eq("id", noteId).single();
+    if (error || !n) { alert("Δεν άνοιξε η υπενθύμιση: " + (error ? error.message : "δεν βρέθηκε.")); return; }
+    if (NOTE_CATS.length === 0) await loadNoteCategories();
+    if (TEAM_USERS_CACHE.length === 0) await loadStaffUsers();
+    const cat = noteCat(n.category_id);
+    const by = TEAM_USERS_CACHE.find(u => u.id === n.created_by);
+    const when = n.note_date
+      ? new Date(n.note_date + "T00:00:00").toLocaleDateString("el-GR", { weekday:"long", day:"numeric", month:"long" }) +
+        (n.note_time ? " · " + n.note_time.slice(0,5) : "")
+      : "Χωρίς ημερομηνία";
+    const c = n.clients;
+    const cAddr = c ? [c.address, c.city].filter(Boolean).join(", ") : "";
+    openDrawer("Υπενθύμιση", `
+      <div class="ntv">
+        <h3 style="margin:0 0 6px;font-size:17px;">${n.done ? "✓ " : ""}${escapeHtml(n.title || "")}</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <span class="cell-sub">📅 ${escapeHtml(when)}</span>
+          ${cat ? `<span class="note-cat nt-${cat.color}">${escapeHtml(cat.name)}</span>` : ""}
+          ${n.done ? '<span class="status-pill st-done">Έγινε</span>' : ""}
+        </div>
+        <div class="section-title">Σημειώσεις</div>
+        ${n.body && n.body.trim()
+          ? `<div class="note-body" id="ntv-body" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2, transparent);">${escapeHtml(n.body)}</div>`
+          : '<div class="cell-sub" id="ntv-body">Δεν υπάρχουν σημειώσεις.</div>'}
+        ${c ? `
+        <div class="section-title">Πελάτης</div>
+        <div class="vlog-row">
+          <strong>${escapeHtml(clientLabel(c))}</strong>
+          ${cAddr ? `<div class="vlog-who">${escapeHtml(cAddr)}</div>` : ""}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            ${c.phone ? `<a class="btn-ghost btn-sm" href="tel:${escapeHtml(String(c.phone).replace(/\s+/g, ""))}" style="text-decoration:none;">📞 ${escapeHtml(c.phone)}</a>` : ""}
+            ${c.geo_lat != null && c.geo_lng != null ? `<a class="btn-ghost btn-sm" href="${navUrl(c.geo_lat, c.geo_lng)}" target="_blank" rel="noopener" style="text-decoration:none;">🧭 Πλοήγηση</a>` : ""}
+          </div>
+        </div>` : ""}
+        <p class="cell-sub" style="margin-top:14px;">Σου την ανέθεσε ${escapeHtml(by ? (by.full_name || by.email) : "το γραφείο")}. Για αλλαγές, μίλα με το γραφείο.</p>
+      </div>`);
   }
 
   // ---- Η καρτέλα της σημείωσης ----
@@ -6639,7 +6704,7 @@
 
   // ---- όψη διαχειριστή: λίστα τεχνικών ----
   async function renderTechniciansList(){
-    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
+    if (TEAM_USERS_CACHE.length === 0) await loadStaffUsers();
     const year = new Date().getFullYear();
     const [leaveRes, ticketsRes] = await Promise.all([
       sb.from("leave_requests").select("*"),
@@ -6651,7 +6716,7 @@
     (ticketsRes.data || []).forEach(t => { if (t.assigned_to) openByTech[t.assigned_to] = (openByTech[t.assigned_to] || 0) + 1; });
     const pendingCount = leaves.filter(l => l.status === "pending").length;
 
-    const rows = STAFF_USERS_CACHE.map(u => {
+    const rows = TEAM_USERS_CACHE.map(u => {
       const mine = leaves.filter(l => l.tech_id === u.id);
       const used = leaveUsedDays(mine, year);
       const total = Number(u.leave_days_per_year || 0);
@@ -6660,8 +6725,8 @@
       return `
         <tr data-id="${u.id}">
           <td><strong>${escapeHtml(u.full_name || u.email)}</strong><div class="cell-sub">${escapeHtml(u.email || "")}</div></td>
-          <td><span class="pill ${({owner:"pill-owner",staff:"pill-staff",external:"pill-external"})[u.role] || ""}">${ROLE_LABEL[u.role] || u.role}</span></td>
-          <td>${openByTech[u.id] || 0}</td>
+          <td><span class="pill ${({owner:"pill-owner",staff:"pill-staff",external:"pill-external",reception:"pill-reception"})[u.role] || ""}">${ROLE_LABEL[u.role] || u.role}</span></td>
+          <td>${u.role === "reception" ? '<span class="cell-sub">—</span>' : (openByTech[u.id] || 0)}</td>
           <td>${total > 0 ? `<strong>${left}</strong> από ${total}` : '<span class="cell-sub">δεν έχει οριστεί</span>'}
               ${pend ? ` <span class="pill" style="background:var(--amber-bg);color:var(--amber);">${pend} σε αναμονή</span>` : ""}</td>
         </tr>`;
@@ -6669,14 +6734,14 @@
 
     $("#technicians-body").innerHTML = `
       <div class="panel">
-        <div class="panel-head"><h2>Τεχνικοί &amp; συνεργάτες</h2>
+        <div class="panel-head"><h2>Προσωπικό &amp; άδειες</h2>
           ${pendingCount ? `<span class="pill" style="background:var(--amber-bg);color:var(--amber);">${pendingCount} αιτήματα άδειας</span>` : ""}
         </div>
         <div class="panel-body">
           <p class="sub" style="padding:0 20px;margin-top:-4px;">Πάτα σε κάποιον για να δεις τι του έχεις αναθέσει, να ορίσεις τις μέρες άδειας που δικαιούται και να εγκρίνεις αιτήματα.</p>
           <table>
             <thead><tr><th>Όνομα</th><th>Ρόλος</th><th>Ανοιχτές εργασίες</th><th>Υπόλοιπο άδειας ${year}</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="4"><div class="empty-state">Δεν υπάρχουν τεχνικοί.</div></td></tr>'}</tbody>
+            <tbody>${rows || '<tr><td colspan="4"><div class="empty-state">Δεν υπάρχει προσωπικό.</div></td></tr>'}</tbody>
           </table>
         </div>
       </div>`;
@@ -6687,8 +6752,8 @@
 
   // ---- καρτέλα τεχνικού (διαχειριστής) ----
   async function openTechnicianDrawer(techId){
-    if (STAFF_USERS_CACHE.length === 0) await loadStaffUsers();
-    const u = STAFF_USERS_CACHE.find(x => x.id === techId);
+    if (TEAM_USERS_CACHE.length === 0) await loadStaffUsers();
+    const u = TEAM_USERS_CACHE.find(x => x.id === techId);
     if (!u) return;
     const year = new Date().getFullYear();
     const [leaveRes, ticketsRes] = await Promise.all([
@@ -7067,6 +7132,7 @@
       // ο ρόλος άλλαξε -> οι λίστες τεχνικών (ανάθεση βλάβης, φίλτρο Προγράμματος)
       // πρέπει να ξαναχτιστούν, αλλιώς ο νέος τεχνικός δεν εμφανίζεται πουθενά
       STAFF_USERS_CACHE = [];
+      TEAM_USERS_CACHE = [];
       const techSel = $("#sched-filter-tech");
       if (techSel) delete techSel.dataset.populated;
       const assigneeSel = $("#tkf-assignee");
