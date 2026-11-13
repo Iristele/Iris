@@ -461,6 +461,8 @@
     z-index:150;background:var(--brand);color:var(--on-brand, #fff);font-size:12.5px;padding:7px 14px;border-radius:999px;
     box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 24px);text-align:center;}
   .live-banner.hidden{display:none;}
+  .ot-tag{display:inline-block;background:var(--purple-bg);color:var(--purple);border-radius:999px;
+    padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap;}
   .vlog-total{margin-top:8px;padding:9px 12px;border-radius:var(--r-md);background:var(--surface-2);
     font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums;}
   .geo-link{font-size:11.5px;}
@@ -1212,6 +1214,27 @@
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h2>Ωράριο εργασίας &amp; υπερωρίες</h2></div>
+        <div class="panel-body" style="padding:0 20px 20px;">
+          <p class="sub" style="margin-top:-4px;">Το κανονικό ωράριο του καταστήματος — ίδιο για κάθε εργάσιμη μέρα. Ό,τι δουλειά γίνει <strong>έξω από αυτό</strong> μετριέται αυτόματα ως υπερωρία, από τη στιγμή του check-in ως το check-out του τεχνικού.</p>
+          <div class="form-row">
+            <div><label for="co-work-start">Από</label><input type="time" id="co-work-start"></div>
+            <div><label for="co-work-end">Έως</label><input type="time" id="co-work-end"></div>
+          </div>
+          <div class="hint" style="font-size:12.5px;color:var(--ink-faint);margin-top:10px;line-height:1.6;">
+            • Μετράει <strong>μόνο το κομμάτι εκτός ωραρίου</strong>: με ωράριο ως 17:00, επίσκεψη 16:30–17:50 δίνει 50 λεπτά.<br>
+            • <strong>Κυριακές και κλειστές μέρες</strong> (αργίες, παρακάτω): μετράει ΟΛΗ η επίσκεψη.<br>
+            • Οι ώρες πληρωμής στρογγυλοποιούνται <strong>προς τα πάνω ανά επίσκεψη</strong>: 1–60 λεπτά = 1 ώρα, 61–120 = 2 ώρες, κ.ο.κ.<br>
+            • Τις βλέπεις ανά τεχνικό και ανά μήνα στην καρτέλα του, στους «Τεχνικοί».<br>
+            • Κάθε αλλαγή ωραρίου ή αργίας ξαναϋπολογίζει <strong>αναδρομικά</strong> όλες τις περασμένες επισκέψεις.
+          </div>
+          <div id="co-hours-msg"></div>
+          <div style="margin-top:14px;"><button class="btn-primary" id="co-hours-save">Αποθήκευση ωραρίου</button>
+            <button type="button" class="btn-sm btn-ghost" id="co-hours-clear" style="margin-left:8px;">Καθαρισμός</button></div>
+        </div>
+      </div>
+
       <div class="panel" id="license-panel" style="margin-bottom:16px;">
         <div class="panel-head"><h2>Άδεια χρήσης</h2><span id="lic-badge"></span></div>
         <div class="panel-body" style="padding:0 20px 20px;">
@@ -1313,7 +1336,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.7";
+  const APP_VERSION = "Ver 3.8";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1322,7 +1345,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20261022a";
+  const APP_BUILD = "20261113a";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -2286,7 +2309,7 @@
         const who = v.profiles ? (v.profiles.full_name || v.profiles.email) : "—";
         return `
           <div class="vlog-row">
-            ${visitTag(v.visit_no)} <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · <span class="vlog-dur">⏱ ${formatDuration(dur)}</span>${latenessLabel(ticket, v.checkin_at)}
+            ${visitTag(v.visit_no)} <strong>${fmtDateTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong> · <span class="vlog-dur">⏱ ${formatDuration(dur)}</span>${overtimeTag(v)}${latenessLabel(ticket, v.checkin_at)}
             · <a href="#" class="add-link" data-vlog-edit-done="${v.id}" style="font-size:12px;">✎ διόρθωση</a>
             <div class="vlog-who">${escapeHtml(who)} · ${geoLink(v.checkin_lat, v.checkin_lng, "άφιξη")} · ${geoLink(v.checkout_lat, v.checkout_lng, "αναχώρηση")}</div>
             <div id="vlog-edit-done-form-${v.id}" class="hidden" style="margin-top:8px;">
@@ -2315,6 +2338,14 @@
 
   // Το υποσέλιδο «Σύνολο» — ξεχωριστή συνάρτηση γιατί το ξαναγράφει και το ρολόι
   // κάθε 30 δευτερόλεπτα, χωρίς να ξαναχτυπήσει τη βάση.
+  // Ver 3.8: υπερωρία μιας κλεισμένης επίσκεψης (schema_v49). Τη γεμίζει η ΒΑΣΗ —
+  // ώρες πληρωμής στρογγυλεμένες προς τα πάνω ανά επίσκεψη (1–60 λεπτά = 1 ώρα).
+  function overtimeTag(v){
+    if (!v || !v.overtime_hours) return "";
+    const h = v.overtime_hours;
+    return ` <span class="ot-tag" title="Εκτός ωραρίου: ${v.overtime_minutes}′ πραγματικά — πληρώνονται ${h} ${h === 1 ? "ώρα" : "ώρες"}">🌙 υπερωρία ${h}ώ</span>`;
+  }
+
   function vlogTotalHtml(baseMs, doneCount, openSince){
     const running = openSince ? (Date.now() - new Date(openSince).getTime()) : 0;
     const visits = doneCount + (openSince ? 1 : 0);
@@ -3925,7 +3956,7 @@
   }
 
   async function openTicketDrawer(ticketId, portalMode){
-    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number, email, geo_lat, geo_lng), profiles!created_by(full_name, email)").eq("id", ticketId).single();
+    const { data: t, error } = await sb.from("tickets_view").select("*, clients(name, contact, phone, trade_name, vat_number, email, city, address, geo_lat, geo_lng), profiles!created_by(full_name, email)").eq("id", ticketId).single();
     if (error || !t) {
       // πριν, το κλικ πάνω στη βλάβη απλώς «δεν έκανε τίποτα» — τώρα λέει τι έφταιξε
       alert("Δεν άνοιξε η βλάβη: " + (error ? error.message : "δεν βρέθηκε."));
@@ -4113,7 +4144,9 @@
           ? `<a href="#" id="tk-client-link" class="add-link" title="Άνοιγμα καρτέλας πελάτη"><strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong></a>`
           : `<strong>${escapeHtml(t.clients && t.clients.trade_name ? t.clients.trade_name : (t.clients ? t.clients.name : ""))}</strong>`
         }${t.clients && t.clients.trade_name && t.clients.name ? ` <span style="font-weight:400;color:var(--ink-soft);">(${escapeHtml(t.clients.name)})</span>` : ""} ${t.category ? "· " + escapeHtml(t.category) : ""}</p>
-      ${(t.clients && (t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${[t.clients.contact, t.clients.phone].filter(Boolean).map(escapeHtml).join(" · ")}</p>` : ""}
+      ${(t.clients && (t.clients.city || t.clients.contact || t.clients.phone)) ? `<p class="cell-sub" style="margin:-2px 0 8px;">${
+        [t.clients.city ? "📍 " + escapeHtml(t.clients.city) : "", escapeHtml(t.clients.contact || ""), escapeHtml(t.clients.phone || "")]
+          .filter(Boolean).join(" · ")}</p>` : ""}
       ${(!portalMode && t.clients && t.clients.geo_lat != null) ? `<p style="margin:-2px 0 8px;"><a class="btn-sm btn-ghost" href="${navUrl(t.clients.geo_lat, t.clients.geo_lng)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">🧭 Πλοήγηση στον πελάτη</a></p>` : ""}
       ${(!portalMode && t.client_id) ? `
         <div class="vat-box">
@@ -6579,11 +6612,22 @@
     "#co-email":"email", "#co-notes":"notes"
   };
 
+  // Ver 3.8: ωράριο εργασίας — ξεχωριστή αποθήκευση από τα υπόλοιπα στοιχεία, γιατί
+  // αλλάζει και τους υπολογισμούς υπερωριών (αναδρομικά, από trigger στη βάση).
+  function workHoursLabel(){
+    const c = COMPANY_INFO || {};
+    if (!c.work_start || !c.work_end) return "";
+    return c.work_start.slice(0,5) + "–" + c.work_end.slice(0,5);
+  }
+
   async function loadCompany(){
     clearMsg($("#company-msg"));
     await loadCompanyContext();
     const c = COMPANY_INFO || {};
     Object.entries(COMPANY_FIELDS).forEach(([sel, key]) => { $(sel).value = c[key] || ""; });
+    // τα time inputs θέλουν HH:MM — η βάση επιστρέφει HH:MM:SS
+    $("#co-work-start").value = (c.work_start || "").slice(0,5);
+    $("#co-work-end").value   = (c.work_end   || "").slice(0,5);
     $("#license-panel").classList.toggle("hidden", !LICENSE_ENFORCEMENT_ENABLED);
     if (LICENSE_ENFORCEMENT_ENABLED) {
       await loadLicense();
@@ -6670,6 +6714,28 @@
     COMPANY_INFO = Object.assign({}, COMPANY_INFO || {}, payload);
     showMsg($("#company-msg"), "Αποθηκεύτηκε.", "ok");
   });
+
+  $("#co-hours-save").addEventListener("click", async () => {
+    clearMsg($("#co-hours-msg"));
+    const from = $("#co-work-start").value, to = $("#co-work-end").value;
+    if (!from || !to) { showMsg($("#co-hours-msg"), "Συμπλήρωσε και τις δύο ώρες (ή πάτα «Καθαρισμός»).", "error"); return; }
+    if (to <= from) { showMsg($("#co-hours-msg"), "Η ώρα λήξης πρέπει να είναι μετά την ώρα έναρξης.", "error"); return; }
+    await saveWorkHours(from, to, `Αποθηκεύτηκε ωράριο ${from}–${to}. Οι υπερωρίες ξαναϋπολογίστηκαν αυτόματα.`);
+  });
+  $("#co-hours-clear").addEventListener("click", async () => {
+    clearMsg($("#co-hours-msg"));
+    if (!confirm("Να αφαιρεθεί το ωράριο; Χωρίς ωράριο, καμία επίσκεψη δεν μετράει υπερωρία.")) return;
+    $("#co-work-start").value = ""; $("#co-work-end").value = "";
+    await saveWorkHours(null, null, "Το ωράριο αφαιρέθηκε — οι υπερωρίες μηδενίστηκαν.");
+  });
+  async function saveWorkHours(from, to, okMsg){
+    const btn = $("#co-hours-save"); btn.disabled = true;
+    const { error } = await sb.from("company_settings").update({ work_start: from, work_end: to, updated_at: new Date().toISOString() }).eq("id", 1);
+    btn.disabled = false;
+    if (error) { showMsg($("#co-hours-msg"), "Δεν αποθηκεύτηκε: " + error.message, "error"); return; }
+    COMPANY_INFO = Object.assign({}, COMPANY_INFO || {}, { work_start: from, work_end: to });
+    showMsg($("#co-hours-msg"), okMsg, "ok");
+  }
 
   function leaveStatusPill(status){
     const cls = status === "approved" ? "st-done" : status === "rejected" ? "st-cancelled" : "st-progress";
@@ -6765,6 +6831,8 @@
     const jobs = ticketsRes.data || [];
     const total = Number(u.leave_days_per_year || 0);
     const used = leaveUsedDays(leaves, year);
+    const otNow = new Date();
+    const otMonthNow = otNow.getFullYear() + "-" + String(otNow.getMonth() + 1).padStart(2, "0");
 
     openDrawer(u.full_name || u.email, `
       <div id="tech-msg"></div>
@@ -6813,6 +6881,16 @@
             </div>
           </div>`).join("")}</div>
 
+      <div class="section-title">Υπερωρίες</div>
+      ${workHoursLabel()
+        ? `<p class="cell-sub" style="margin:-4px 0 10px;">Ωράριο καταστήματος: <strong>${workHoursLabel()}</strong>. Μετράει ό,τι γίνεται εκτός αυτού, καθώς και ΟΛΗ η δουλειά Κυριακές και αργίες. Οι ώρες πληρωμής στρογγυλοποιούνται προς τα πάνω ανά επίσκεψη.</p>`
+        : `<p class="cell-sub" style="margin:-4px 0 10px;color:var(--red);">Δεν έχεις ορίσει ωράριο εργασίας. Πήγαινε «Εταιρία» → «Ωράριο εργασίας &amp; υπερωρίες» — χωρίς αυτό δεν μετριέται καμία υπερωρία.</p>`}
+      <div class="form-row">
+        <div class="field"><label>Μήνας</label><input type="month" id="ot-month" value="${otMonthNow}"></div>
+        <div class="field" style="display:flex;align-items:flex-end;"><div id="ot-total" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;">—</div></div>
+      </div>
+      <div id="ot-list" style="margin-bottom:4px;"></div>
+
       <div class="section-title">Ανοιχτές εργασίες (${jobs.length})</div>
       <div>${jobs.length === 0
         ? '<div class="cell-sub" style="padding:8px 2px;">Δεν του έχει ανατεθεί τίποτα ανοιχτό.</div>'
@@ -6822,6 +6900,45 @@
             <div class="vlog-who">${escapeHtml(t.code)} · ${statusLabel(t.status)}${t.scheduled_date ? " · επίσκεψη " + t.scheduled_date.split("-").reverse().slice(0,2).join("/") : ""}</div>
           </div>`).join("")}</div>
     `);
+
+    // ---- Υπερωρίες του μήνα (schema_v49) ----
+    async function renderTechOvertime(){
+      const box = $("#ot-list"), tot = $("#ot-total");
+      if (!box) return;
+      const ym = $("#ot-month").value || otMonthNow;
+      const [yy, mm] = ym.split("-").map(Number);
+      if (!yy || !mm) return;
+      const from = new Date(yy, mm - 1, 1), to = new Date(yy, mm, 1);
+      box.innerHTML = '<div class="cell-sub" style="padding:8px 2px;">Φόρτωση…</div>';
+      const { data, error } = await sb.from("visit_logs")
+        .select("id, ticket_id, checkin_at, checkout_at, overtime_minutes, overtime_hours, tickets(ticket_no, title, clients(name, trade_name, city))")
+        .eq("tech_id", techId)
+        .gte("checkin_at", from.toISOString()).lt("checkin_at", to.toISOString())
+        .order("checkin_at", { ascending:false });
+      if (error) { box.innerHTML = ""; tot.textContent = "Σφάλμα: " + error.message; return; }
+      const rows = (data || []).filter(v => v.overtime_hours > 0);
+      const hours = rows.reduce((s, v) => s + Number(v.overtime_hours || 0), 0);
+      const mins  = rows.reduce((s, v) => s + Number(v.overtime_minutes || 0), 0);
+      tot.innerHTML = hours === 0
+        ? '<span class="cell-sub">Καμία υπερωρία αυτόν τον μήνα.</span>'
+        : `Προς πληρωμή: <strong>${hours} ${hours === 1 ? "ώρα" : "ώρες"}</strong> <span class="cell-sub">(${formatDuration(mins * 60000)} πραγματικά, σε ${rows.length} ${rows.length === 1 ? "επίσκεψη" : "επισκέψεις"})</span>`;
+      box.innerHTML = rows.length === 0 ? "" : rows.map(v => {
+        const t = v.tickets || {};
+        const cl = t.clients ? clientLabel(t.clients) : "—";
+        const day = new Date(v.checkin_at).toLocaleDateString("el-GR", { weekday:"short", day:"2-digit", month:"2-digit" });
+        return `
+          <div class="vlog-row" data-ot-ticket="${v.ticket_id}" style="cursor:pointer;">
+            <strong>${escapeHtml(day)} · ${fmtTime(v.checkin_at)} → ${fmtTime(v.checkout_at)}</strong>
+            <span class="ot-tag" style="margin-left:6px;">🌙 ${v.overtime_hours}ώ</span>
+            <div class="vlog-who">${escapeHtml(cl)}${t.clients && t.clients.city ? " · " + escapeHtml(t.clients.city) : ""} · ΤΚ-${t.ticket_no || "—"} · ${escapeHtml(t.title || "")} · ${v.overtime_minutes}′ εκτός ωραρίου</div>
+          </div>`;
+      }).join("");
+      box.querySelectorAll("[data-ot-ticket]").forEach(el => {
+        el.addEventListener("click", () => openTicketDrawer(el.dataset.otTicket, false));
+      });
+    }
+    $("#ot-month").addEventListener("change", renderTechOvertime);
+    renderTechOvertime();
 
     const refreshCalc = () => {
       const n = leaveDaysCount($("#tech-leave-from").value, $("#tech-leave-to").value);
