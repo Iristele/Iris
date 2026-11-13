@@ -1235,6 +1235,34 @@
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h2>Αντίγραφο ασφαλείας</h2></div>
+        <div class="panel-body" style="padding:0 20px 20px;">
+          <p class="sub" style="margin-top:-4px;">Κατεβάζει ΟΛΑ τα δεδομένα της εφαρμογής σε ένα αρχείο στον υπολογιστή σου. Κράτα το σε ασφαλές μέρος — αν κάποτε χαθεί ή χαλάσει κάτι, το ανεβάζεις εδώ και όλα επανέρχονται.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+            <button type="button" class="btn-primary" id="bk-download">⬇ Κατέβασμα αντιγράφου</button>
+            <button type="button" class="btn-sm btn-ghost" id="bk-restore-btn">↺ Επαναφορά από αρχείο…</button>
+            <input type="file" id="bk-restore-file" accept=".json,application/json" class="hidden">
+          </div>
+          <div id="bk-msg"></div>
+          <div id="bk-progress" class="cell-sub" style="margin-top:8px;"></div>
+          <div id="bk-restore-box" class="hidden" style="margin-top:14px;border:1px solid var(--red-dot);border-radius:10px;padding:14px;background:var(--red-bg);">
+            <div id="bk-restore-info" style="font-size:13.5px;margin-bottom:10px;"></div>
+            <p style="font-size:13px;margin:0 0 8px;"><strong>Προσοχή:</strong> η επαναφορά <strong>σβήνει</strong> ό,τι υπάρχει τώρα και βάζει στη θέση του τα δεδομένα του αρχείου. Πριν σβήσει οτιδήποτε, κατεβαίνει αυτόματα ένα αντίγραφο της τωρινής κατάστασης.</p>
+            <div class="field" style="max-width:280px;"><label for="bk-confirm">Γράψε <strong>ΕΠΑΝΑΦΟΡΑ</strong> για να συνεχίσεις</label>
+              <input id="bk-confirm" autocomplete="off" placeholder="ΕΠΑΝΑΦΟΡΑ"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button type="button" class="btn-sm" id="bk-restore-go" style="background:var(--red-dot);color:#fff;border-color:transparent;font-weight:600;">Επαναφορά τώρα</button>
+              <button type="button" class="btn-sm btn-ghost" id="bk-restore-cancel">Άκυρο</button>
+            </div>
+          </div>
+          <div class="hint" style="font-size:12.5px;color:var(--ink-faint);margin-top:12px;line-height:1.6;">
+            Το αντίγραφο περιέχει: πελάτες, συμβάσεις, απομακρυσμένες προσβάσεις, βλάβες με το ιστορικό, τις επισκέψεις και τις υπερωρίες τους, υπενθυμίσεις, σημειώσεις, άδειες, ρόλους χρηστών και τις ρυθμίσεις της εταιρίας.<br>
+            Δεν περιέχει (και δεν μπορεί να περιέχει): <strong>κωδικούς σύνδεσης</strong> — ζουν στο Supabase, όχι στην εφαρμογή· τα παλιά σημεία GPS και τις παλιές ειδοποιήσεις. Οι κλειδωμένες «Σημειώσεις» επανέρχονται κρυπτογραφημένες: ανοίγουν κανονικά στην ίδια βάση, αλλά σε ολοκαίνουργιο Supabase project το κείμενό τους χάνεται μαζί με τα κλειδιά.
+          </div>
+        </div>
+      </div>
+
       <div class="panel" id="license-panel" style="margin-bottom:16px;">
         <div class="panel-head"><h2>Άδεια χρήσης</h2><span id="lic-badge"></span></div>
         <div class="panel-body" style="padding:0 20px 20px;">
@@ -1336,7 +1364,7 @@
   // για συνηθισμένες προσθήκες/διορθώσεις, ΜΕΓΑΛΗ (π.χ. Ver 2.0) μόνο αν το πει ρητά ο
   // χρήστης. Καθαρά εσωτερικές/τεχνικές αλλαγές (π.χ. μόνο σχόλιο κώδικα, καμία ορατή
   // αλλαγή) δεν χρειάζεται να ανεβάζουν το Ver — αλλά ΠΑΝΤΑ ανεβάζουν το APP_BUILD.
-  const APP_VERSION = "Ver 3.8";
+  const APP_VERSION = "Ver 3.9";
   document.querySelectorAll(".version-badge").forEach(el => el.textContent = APP_VERSION);
   // Το APP_VERSION ΔΕΝ είναι αυτό που ελέγχει αν υπάρχει νεότερη έκδοση διαθέσιμη προς
   // λήψη — αυτό θα συνέκρινε δύο αριθμούς που ο χρήστης αλλάζει με το χέρι και είναι
@@ -1345,7 +1373,7 @@
   // γράμμα), αόρατο στον χρήστη, που ΠΑΝΤΑ αλλάζει σε κάθε deploy χωρίς εξαίρεση. Άλλαξε
   // ΚΑΙ τα δύο (εδώ ΚΑΙ στο version.json) σε κάθε νέο deploy — το APP_VERSION μόνο όταν
   // αξίζει να το δει ο πελάτης, το APP_BUILD πάντα.
-  const APP_BUILD = "20261113a";
+  const APP_BUILD = "20261113b";
 
   // ==== Supabase connection (public values — safe to expose in the browser) ====
   const SUPABASE_URL = "https://rsmclylqtxckwoplnkdh.supabase.co";
@@ -6736,6 +6764,132 @@
     COMPANY_INFO = Object.assign({}, COMPANY_INFO || {}, { work_start: from, work_end: to });
     showMsg($("#co-hours-msg"), okMsg, "ok");
   }
+
+  // ================= ΑΝΤΙΓΡΑΦΟ ΑΣΦΑΛΕΙΑΣ (schema_v50) =================
+  // Κατεβάζει ΟΛΑ τα δεδομένα σε ένα αρχείο .json. Η επαναφορά γίνεται με μία
+  // κλήση στη βάση (restore_backup) — όλα σε μία συναλλαγή, ή όλα ή τίποτα.
+  const BACKUP_TABLES = [
+    ["company_settings","Στοιχεία εταιρίας"], ["company_closures","Κλειστές μέρες"],
+    ["contract_types","Τύποι σύμβασης"], ["cities","Πόλεις"],
+    ["note_categories","Κατηγορίες υπενθυμίσεων"], ["vault_categories","Κατηγορίες σημειώσεων"],
+    ["clients","Πελάτες"], ["profiles","Χρήστες"],
+    ["remote_access","Απομακρυσμένες προσβάσεις"], ["client_contracts","Συμβάσεις"],
+    ["tickets","Βλάβες"], ["ticket_technicians","Επιπλέον τεχνικοί"],
+    ["ticket_notes","Συνομιλίες βλαβών"], ["ticket_admin_notes","Σημειωματάριο διαχειριστή"],
+    ["ticket_status_history","Ιστορικό καταστάσεων"], ["visit_logs","Επισκέψεις"],
+    ["notes","Υπενθυμίσεις"], ["vault_notes","Σημειώσεις"], ["leave_requests","Άδειες"]
+  ];
+  const BACKUP_LABEL = Object.fromEntries(BACKUP_TABLES);
+
+  // Η Supabase επιστρέφει το πολύ 1000 γραμμές ανά κλήση — χωρίς σελιδοποίηση το
+  // αντίγραφο θα ήταν σιωπηλά κομμένο.
+  async function fetchAllRows(table){
+    const step = 1000, out = [];
+    for (let from = 0; ; from += step) {
+      const { data, error } = await sb.from(table).select("*").range(from, from + step - 1);
+      if (error) throw new Error(BACKUP_LABEL[table] + " (" + table + "): " + error.message);
+      out.push(...(data || []));
+      if (!data || data.length < step) break;
+    }
+    return out;
+  }
+
+  function downloadTextFile(name, text){
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type:"application/json" }));
+    a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+
+  function backupFileName(){
+    const d = new Date(), p = (n) => String(n).padStart(2, "0");
+    return `iris-backup-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+  }
+
+  async function buildBackup(onStep){
+    const out = { iris_backup:"1", app_version:APP_VERSION, app_build:APP_BUILD,
+                  created_at:new Date().toISOString(), created_by:(PROFILE && PROFILE.email) || "" };
+    for (const [table, label] of BACKUP_TABLES) {
+      if (onStep) onStep(label);
+      out[table] = await fetchAllRows(table);
+    }
+    return out;
+  }
+
+  async function runBackup(silent){
+    const prog = $("#bk-progress");
+    const data = await buildBackup(label => { if (prog && !silent) prog.textContent = "Διαβάζω: " + label + "…"; });
+    const name = backupFileName();
+    downloadTextFile(name, JSON.stringify(data));
+    const rows = BACKUP_TABLES.reduce((s, [t]) => s + (data[t] ? data[t].length : 0), 0);
+    return { name, rows, data };
+  }
+
+  $("#bk-download").addEventListener("click", async () => {
+    clearMsg($("#bk-msg"));
+    const btn = $("#bk-download");
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Ετοιμάζω…';
+    try {
+      const r = await runBackup(false);
+      $("#bk-progress").textContent = "";
+      showMsg($("#bk-msg"), `Κατέβηκε το «${r.name}» — ${r.rows} εγγραφές. Φύλαξέ το σε ασφαλές μέρος (π.χ. εξωτερικό δίσκο ή cloud).`, "ok");
+    } catch (e) {
+      $("#bk-progress").textContent = "";
+      showMsg($("#bk-msg"), "Δεν ολοκληρώθηκε: " + e.message, "error");
+    }
+    btn.disabled = false; btn.textContent = "⬇ Κατέβασμα αντιγράφου";
+  });
+
+  let RESTORE_DATA = null;
+  $("#bk-restore-btn").addEventListener("click", () => { $("#bk-restore-file").value = ""; $("#bk-restore-file").click(); });
+  $("#bk-restore-file").addEventListener("change", async (e) => {
+    clearMsg($("#bk-msg"));
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    let obj;
+    try { obj = JSON.parse(await f.text()); }
+    catch (err) { showMsg($("#bk-msg"), "Το αρχείο δεν διαβάζεται — διάλεξε το .json που κατέβασες από εδώ.", "error"); return; }
+    if (!obj || obj.iris_backup !== "1") { showMsg($("#bk-msg"), "Αυτό δεν είναι αντίγραφο ασφαλείας του Iris.", "error"); return; }
+    RESTORE_DATA = obj;
+    const when = obj.created_at ? new Date(obj.created_at).toLocaleString("el-GR") : "άγνωστη ημερομηνία";
+    const parts = BACKUP_TABLES.filter(([t]) => Array.isArray(obj[t]) && obj[t].length)
+      .map(([t, label]) => `${label}: <strong>${obj[t].length}</strong>`);
+    $("#bk-restore-info").innerHTML =
+      `Αντίγραφο της <strong>${escapeHtml(when)}</strong>${obj.app_version ? " · " + escapeHtml(obj.app_version) : ""}<br>` +
+      (parts.length ? parts.join(" · ") : "<em>κενό</em>");
+    $("#bk-confirm").value = "";
+    $("#bk-restore-box").classList.remove("hidden");
+  });
+  $("#bk-restore-cancel").addEventListener("click", () => {
+    RESTORE_DATA = null; $("#bk-restore-box").classList.add("hidden"); clearMsg($("#bk-msg"));
+  });
+  $("#bk-restore-go").addEventListener("click", async () => {
+    if (!RESTORE_DATA) return;
+    if ($("#bk-confirm").value.trim().toUpperCase() !== "ΕΠΑΝΑΦΟΡΑ") {
+      showMsg($("#bk-msg"), "Γράψε ΕΠΑΝΑΦΟΡΑ στο πλαίσιο για να συνεχίσεις.", "error"); return;
+    }
+    const btn = $("#bk-restore-go");
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Επαναφορά…';
+    try {
+      // δίχτυ ασφαλείας: κατεβάζουμε ΠΡΩΤΑ τα τωρινά δεδομένα
+      $("#bk-progress").textContent = "Κρατάω αντίγραφο της τωρινής κατάστασης…";
+      await runBackup(true);
+      $("#bk-progress").textContent = "Γράφω τα δεδομένα στη βάση…";
+      const { data, error } = await sb.rpc("restore_backup", { p_data: RESTORE_DATA });
+      if (error) throw new Error(error.message);
+      const counts = (data && data.restored) || {};
+      const total = Object.values(counts).reduce((s, n) => s + Number(n || 0), 0);
+      $("#bk-progress").textContent = "";
+      $("#bk-restore-box").classList.add("hidden");
+      showMsg($("#bk-msg"), `Η επαναφορά ολοκληρώθηκε — ${total} εγγραφές. Η εφαρμογή θα ξαναφορτώσει…`, "ok");
+      setTimeout(() => location.reload(), 2500);
+    } catch (e) {
+      $("#bk-progress").textContent = "";
+      showMsg($("#bk-msg"), "Η επαναφορά ΔΕΝ έγινε — δεν άλλαξε τίποτα στη βάση. " + e.message, "error");
+    }
+    btn.disabled = false; btn.textContent = "Επαναφορά τώρα";
+  });
 
   function leaveStatusPill(status){
     const cls = status === "approved" ? "st-done" : status === "rejected" ? "st-cancelled" : "st-progress";
